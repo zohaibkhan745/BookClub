@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface Book {
   id: number;
@@ -14,6 +15,7 @@ interface BookRowProps {
 }
 
 export function BookRow({ title, books }: BookRowProps) {
+  const navigate = useNavigate();
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -33,6 +35,10 @@ export function BookRow({ title, books }: BookRowProps) {
         }
       }, 300);
     }
+  };
+
+  const handleBookClick = (bookId: number) => {
+    navigate(`/book/${bookId}`);
   };
 
   return (
@@ -60,6 +66,7 @@ export function BookRow({ title, books }: BookRowProps) {
           {books.map((book) => (
             <div
               key={book.id}
+              onClick={() => handleBookClick(book.id)}
               className="flex-none w-36 md:w-48 cursor-pointer transition-transform duration-300 hover:scale-110 hover:z-10"
             >
               <div className="relative group/card">
