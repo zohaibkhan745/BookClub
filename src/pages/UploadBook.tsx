@@ -3,6 +3,7 @@ import { Upload, X, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { createBook } from "../services";
 import type { ListingType, BookCategory } from "../types";
 import { BOOK_CATEGORIES } from "../types";
 
@@ -17,6 +18,7 @@ export function UploadBook() {
   const [description, setDescription] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -74,7 +76,7 @@ export function UploadBook() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation
@@ -95,20 +97,25 @@ export function UploadBook() {
       return;
     }
 
-    // Here you would normally send the data to your backend
-    console.log({
-      images,
-      title,
-      author,
-      category,
-      listingType,
-      price,
-      description,
-      whatsappNumber,
-    });
-
-    alert("Book uploaded successfully!");
-    navigate("/");
+    setIsSubmitting(true);
+    try {
+      await createBook({
+        images,
+        title,
+        author,
+        category,
+        listingType,
+        price,
+        description,
+        whatsappNumber,
+      });
+      alert("Book uploaded successfully!");
+      navigate("/");
+    } catch (error) {
+      alert("Failed to upload book. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -395,9 +402,10 @@ export function UploadBook() {
             <div className="pt-4">
               <button
                 type="submit"
-                className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl"
+                disabled={isSubmitting}
+                className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Upload Book
+                {isSubmitting ? "Uploading..." : "Upload Book"}
               </button>
             </div>
           </form>
