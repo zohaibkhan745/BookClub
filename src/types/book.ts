@@ -1,4 +1,45 @@
 /**
+ * Listing type for book uploads
+ */
+export type ListingType = 'lend' | 'borrow' | 'sell';
+
+/**
+ * Book condition for uploads
+ */
+export type BookCondition = 'new' | 'like-new' | 'good' | 'fair' | 'poor';
+
+/**
+ * Book category names
+ */
+export type BookCategory =
+  | 'Self-Help'
+  | 'Fiction'
+  | 'Non-Fiction'
+  | 'Technology'
+  | 'Philosophy'
+  | 'Romance'
+  | 'Mystery'
+  | 'Biography'
+  | 'Science'
+  | 'History';
+
+/**
+ * All available book categories
+ */
+export const BOOK_CATEGORIES: BookCategory[] = [
+  'Self-Help',
+  'Fiction',
+  'Non-Fiction',
+  'Technology',
+  'Philosophy',
+  'Romance',
+  'Mystery',
+  'Biography',
+  'Science',
+  'History',
+];
+
+/**
  * Core book type used for list views (Home page, carousels)
  */
 export interface BookPreview {
@@ -21,7 +62,21 @@ export interface Book extends BookPreview {
 }
 
 /**
- * Category for browsing
+ * Form data for uploading a new book
+ */
+export interface BookUploadFormData {
+  images: string[];
+  title: string;
+  author: string;
+  category: BookCategory | '';
+  listingType: ListingType | '';
+  price: string;
+  description: string;
+  whatsappNumber: string;
+}
+
+/**
+ * Category for browsing (with icon)
  */
 export interface Category {
   id: number;

@@ -1,40 +1,29 @@
-import { useState } from 'react';
-import { Upload, X, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import { useState } from "react";
+import { Upload, X, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
+import type { ListingType, BookCategory } from "../types";
+import { BOOK_CATEGORIES } from "../types";
 
 export function UploadBook() {
   const navigate = useNavigate();
   const [images, setImages] = useState<string[]>([]);
-  const [title, setTitle] = useState('');
-  const [author, setAuthor] = useState('');
-  const [category, setCategory] = useState('');
-  const [listingType, setListingType] = useState<'lend' | 'borrow' | 'sell' | ''>('');
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
-  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const [category, setCategory] = useState<BookCategory | "">("");
+  const [listingType, setListingType] = useState<ListingType | "">("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [dragActive, setDragActive] = useState(false);
-
-  const categories = [
-    'Self-Help',
-    'Fiction',
-    'Non-Fiction',
-    'Technology',
-    'Philosophy',
-    'Romance',
-    'Mystery',
-    'Biography',
-    'Science',
-    'History'
-  ];
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -78,31 +67,31 @@ export function UploadBook() {
     if (value.length <= 100) {
       // Auto-capitalize words
       const capitalized = value
-        .split(' ')
+        .split(" ")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
+        .join(" ");
       setTitle(capitalized);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (images.length === 0) {
-      alert('Please upload at least one book image');
+      alert("Please upload at least one book image");
       return;
     }
     if (!title || !author || !category || !listingType) {
-      alert('Please fill in all required fields');
+      alert("Please fill in all required fields");
       return;
     }
-    if (listingType === 'sell' && !price) {
-      alert('Please enter a price for selling');
+    if (listingType === "sell" && !price) {
+      alert("Please enter a price for selling");
       return;
     }
     if (!whatsappNumber) {
-      alert('Please enter your WhatsApp number');
+      alert("Please enter your WhatsApp number");
       return;
     }
 
@@ -115,11 +104,11 @@ export function UploadBook() {
       listingType,
       price,
       description,
-      whatsappNumber
+      whatsappNumber,
     });
 
-    alert('Book uploaded successfully!');
-    navigate('/');
+    alert("Book uploaded successfully!");
+    navigate("/");
   };
 
   return (
@@ -129,7 +118,7 @@ export function UploadBook() {
         <div className="px-4 md:px-12 max-w-4xl mx-auto">
           {/* Back Button */}
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="flex items-center space-x-2 text-gray-700 hover:text-black mb-6 transition group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -138,7 +127,9 @@ export function UploadBook() {
 
           {/* Page Header */}
           <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-black mb-2">Upload Your Book</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-black mb-2">
+              Upload Your Book
+            </h1>
             <p className="text-gray-700">Share your books with the community</p>
           </div>
 
@@ -149,8 +140,10 @@ export function UploadBook() {
               <label className="block text-black font-semibold">
                 Book Images <span className="text-red-600">*</span>
               </label>
-              <p className="text-sm text-gray-600">Upload 1-3 images. Front cover required.</p>
-              
+              <p className="text-sm text-gray-600">
+                Upload 1-3 images. Front cover required.
+              </p>
+
               {/* Image Previews */}
               {images.length > 0 && (
                 <div className="grid grid-cols-3 gap-3 mb-3">
@@ -187,8 +180,8 @@ export function UploadBook() {
                   onDrop={handleDrop}
                   className={`relative border-2 border-dashed rounded-xl p-8 text-center transition ${
                     dragActive
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-amber-300 bg-white/50 backdrop-blur-sm'
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-amber-300 bg-white/50 backdrop-blur-sm"
                   }`}
                 >
                   <input
@@ -201,8 +194,11 @@ export function UploadBook() {
                   />
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-700 mb-2">
-                    Drag and drop your images here, or{' '}
-                    <label htmlFor="file-upload" className="text-blue-600 cursor-pointer hover:underline">
+                    Drag and drop your images here, or{" "}
+                    <label
+                      htmlFor="file-upload"
+                      className="text-blue-600 cursor-pointer hover:underline"
+                    >
                       browse
                     </label>
                   </p>
@@ -226,7 +222,9 @@ export function UploadBook() {
                 className="w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-blue-500 text-gray-800"
                 required
               />
-              <p className="text-xs text-gray-600">{title.length}/100 characters</p>
+              <p className="text-xs text-gray-600">
+                {title.length}/100 characters
+              </p>
             </div>
 
             {/* Author */}
@@ -258,7 +256,7 @@ export function UploadBook() {
                   value={whatsappNumber}
                   onChange={(e) => {
                     // Only allow numbers
-                    const value = e.target.value.replace(/\D/g, '');
+                    const value = e.target.value.replace(/\D/g, "");
                     setWhatsappNumber(value);
                   }}
                   placeholder="3001234567"
@@ -267,7 +265,9 @@ export function UploadBook() {
                   maxLength={10}
                 />
               </div>
-              <p className="text-xs text-gray-600">Enter your 10-digit mobile number (without +92)</p>
+              <p className="text-xs text-gray-600">
+                Enter your 10-digit mobile number (without +92)
+              </p>
             </div>
 
             {/* Category */}
@@ -276,15 +276,15 @@ export function UploadBook() {
                 Category / Genre <span className="text-red-600">*</span>
               </label>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                {categories.map((cat) => (
+                {BOOK_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
                     type="button"
                     onClick={() => setCategory(cat)}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
                       category === cat
-                        ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white'
-                        : 'bg-white/50 backdrop-blur-sm border border-amber-300 text-gray-700 hover:border-purple-500'
+                        ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white"
+                        : "bg-white/50 backdrop-blur-sm border border-amber-300 text-gray-700 hover:border-purple-500"
                     }`}
                   >
                     {cat}
@@ -302,11 +302,11 @@ export function UploadBook() {
               <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
-                  onClick={() => setListingType('lend')}
+                  onClick={() => setListingType("lend")}
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
-                    listingType === 'lend'
-                      ? 'bg-gradient-to-r from-green-500 to-green-600 text-white scale-105 shadow-lg'
-                      : 'bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-green-500'
+                    listingType === "lend"
+                      ? "bg-gradient-to-r from-green-500 to-green-600 text-white scale-105 shadow-lg"
+                      : "bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-green-500"
                   }`}
                 >
                   <div className="text-center">
@@ -316,11 +316,11 @@ export function UploadBook() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setListingType('borrow')}
+                  onClick={() => setListingType("borrow")}
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
-                    listingType === 'borrow'
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white scale-105 shadow-lg'
-                      : 'bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-blue-500'
+                    listingType === "borrow"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white scale-105 shadow-lg"
+                      : "bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-blue-500"
                   }`}
                 >
                   <div className="text-center">
@@ -330,11 +330,11 @@ export function UploadBook() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setListingType('sell')}
+                  onClick={() => setListingType("sell")}
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
-                    listingType === 'sell'
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white scale-105 shadow-lg'
-                      : 'bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-orange-500'
+                    listingType === "sell"
+                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white scale-105 shadow-lg"
+                      : "bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-orange-500"
                   }`}
                 >
                   <div className="text-center">
@@ -346,7 +346,7 @@ export function UploadBook() {
             </div>
 
             {/* Price (Conditional) */}
-            {listingType === 'sell' && (
+            {listingType === "sell" && (
               <div className="space-y-3">
                 <label className="block text-black font-semibold">
                   Price <span className="text-red-600">*</span>
@@ -361,7 +361,7 @@ export function UploadBook() {
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="0"
                     className="w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-orange-500 text-gray-800"
-                    required={listingType === 'sell'}
+                    required={listingType === "sell"}
                   />
                 </div>
               </div>
@@ -370,7 +370,10 @@ export function UploadBook() {
             {/* Description */}
             <div className="space-y-3">
               <label className="block text-black font-semibold">
-                Short Description <span className="text-gray-500 text-sm font-normal">(Optional but recommended)</span>
+                Short Description{" "}
+                <span className="text-gray-500 text-sm font-normal">
+                  (Optional but recommended)
+                </span>
               </label>
               <textarea
                 value={description}
@@ -383,7 +386,9 @@ export function UploadBook() {
                 rows={4}
                 className="w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-blue-500 text-gray-800 resize-none"
               />
-              <p className="text-xs text-gray-600">{description.length}/300 characters</p>
+              <p className="text-xs text-gray-600">
+                {description.length}/300 characters
+              </p>
             </div>
 
             {/* Submit Button */}
