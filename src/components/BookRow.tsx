@@ -1,17 +1,11 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
-interface Book {
-  id: number;
-  title: string;
-  author: string;
-  image: string;
-}
+import type { BookPreview } from "../types";
 
 interface BookRowProps {
   title: string;
-  books: Book[];
+  books: BookPreview[];
 }
 
 export function BookRow({ title, books }: BookRowProps) {

@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Home } from "./pages/Home";
-import { BookDetailPage } from './pages/BookDetailPage';
-import { UploadBook } from './pages/UploadBook';
+import { BookDetailPage } from "./pages/BookDetailPage";
+import { UploadBook } from "./pages/UploadBook";
 
 export default function App() {
   return (

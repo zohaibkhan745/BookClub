@@ -1,19 +1,9 @@
-import { ArrowLeft, Heart, Share2, BookmarkPlus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Heart, Share2, BookmarkPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import type { Book } from "../types";
 
 interface BookDetailProps {
-  book: {
-    id: number;
-    title: string;
-    author: string;
-    genre: string;
-    image: string;
-    description: string;
-    year: string;
-    pages: number;
-    language: string;
-    rating: number;
-  };
+  book: Book;
 }
 
 export function BookDetail({ book }: BookDetailProps) {
@@ -24,7 +14,7 @@ export function BookDetail({ book }: BookDetailProps) {
       <div className="px-4 md:px-12 max-w-7xl mx-auto">
         {/* Back Button */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="flex items-center space-x-2 text-gray-700 hover:text-black mb-8 transition group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -75,7 +65,9 @@ export function BookDetail({ book }: BookDetailProps) {
                 {[...Array(5)].map((_, i) => (
                   <svg
                     key={i}
-                    className={`w-5 h-5 ${i < book.rating ? 'text-yellow-500' : 'text-gray-300'}`}
+                    className={`w-5 h-5 ${
+                      i < book.rating ? "text-yellow-500" : "text-gray-300"
+                    }`}
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -83,7 +75,9 @@ export function BookDetail({ book }: BookDetailProps) {
                   </svg>
                 ))}
               </div>
-              <span className="text-gray-600 text-sm">({book.rating}.0/5.0)</span>
+              <span className="text-gray-600 text-sm">
+                ({book.rating}.0/5.0)
+              </span>
             </div>
 
             {/* Book Details */}
@@ -108,7 +102,9 @@ export function BookDetail({ book }: BookDetailProps) {
 
             {/* Description */}
             <div className="space-y-2">
-              <h3 className="font-semibold text-black text-lg">About this book</h3>
+              <h3 className="font-semibold text-black text-lg">
+                About this book
+              </h3>
               <p className="text-gray-700 leading-relaxed">
                 {book.description}
               </p>

@@ -1,5 +1,4 @@
 import { User, Menu, X, BookOpen } from "lucide-react";
-import { useNavigate } from 'react-router-dom';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -34,7 +33,7 @@ export function Navbar() {
         {/* Right Side */}
         <div className="hidden md:flex items-center space-x-4">
           <button
-            onClick={() => navigate('/upload')}
+            onClick={() => navigate("/upload")}
             className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:from-red-600 hover:to-red-700 transition"
           >
             Upload Book
