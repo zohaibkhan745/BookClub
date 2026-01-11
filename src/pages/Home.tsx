@@ -3,6 +3,7 @@ import { Navbar } from "../components/Navbar";
 import { BookRow } from "../components/BookRow";
 import { CategorySection } from "../components/CategorySection";
 import { Footer } from "../components/Footer";
+import { ErrorState } from "../components/ui/ErrorState";
 import { getAllBookSections } from "../services";
 import type { BookPreview } from "../types";
 
@@ -11,16 +12,24 @@ export function Home() {
   const [newArrivals, setNewArrivals] = useState<BookPreview[]>([]);
   const [popular, setPopular] = useState<BookPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadBooks() {
-      setIsLoading(true);
+  const loadBooks = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
       const sections = await getAllBookSections();
       setTrending(sections.trending);
       setNewArrivals(sections.newArrivals);
       setPopular(sections.popular);
+    } catch (err) {
+      setError("Failed to load books. Please try again.");
+    } finally {
       setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadBooks();
   }, []);
 
@@ -33,17 +42,31 @@ export function Home() {
       </div>
 
       <div className="px-4 md:px-12 pb-12 space-y-12">
-        <BookRow title="Trending Now" books={trending} isLoading={isLoading} />
-        <BookRow
-          title="New Arrivals"
-          books={newArrivals}
-          isLoading={isLoading}
-        />
-        <BookRow
-          title="Popular This Week"
-          books={popular}
-          isLoading={isLoading}
-        />
+        {error ? (
+          <ErrorState
+            message={error}
+            onRetry={loadBooks}
+            showHomeLink={false}
+          />
+        ) : (
+          <>
+            <BookRow
+              title="Trending Now"
+              books={trending}
+              isLoading={isLoading}
+            />
+            <BookRow
+              title="New Arrivals"
+              books={newArrivals}
+              isLoading={isLoading}
+            />
+            <BookRow
+              title="Popular This Week"
+              books={popular}
+              isLoading={isLoading}
+            />
+          </>
+        )}
       </div>
 
       <Footer />
