@@ -4,7 +4,6 @@ export type {
   BookCategory,
   BookCondition,
   BookUploadFormData,
-  Category,
   ListingType,
 } from './book';
 

@@ -1,16 +1,10 @@
-/**
- * Listing type for book uploads
- */
+/** Listing type for book uploads */
 export type ListingType = 'lend' | 'borrow' | 'sell';
 
-/**
- * Book condition for uploads
- */
+/** Book condition for uploads */
 export type BookCondition = 'new' | 'like-new' | 'good' | 'fair' | 'poor';
 
-/**
- * Book category names
- */
+/** Book category names */
 export type BookCategory =
   | 'Self-Help'
   | 'Fiction'
@@ -23,9 +17,7 @@ export type BookCategory =
   | 'Science'
   | 'History';
 
-/**
- * All available book categories
- */
+/** All available book categories (used in dropdowns) */
 export const BOOK_CATEGORIES: BookCategory[] = [
   'Self-Help',
   'Fiction',
@@ -39,9 +31,7 @@ export const BOOK_CATEGORIES: BookCategory[] = [
   'History',
 ];
 
-/**
- * Core book type used for list views (Home page, carousels)
- */
+/** Minimal book data for list views and carousels */
 export interface BookPreview {
   id: number;
   title: string;
@@ -49,9 +39,7 @@ export interface BookPreview {
   image: string;
 }
 
-/**
- * Full book details including metadata
- */
+/** Full book details including metadata */
 export interface Book extends BookPreview {
   genre: string;
   description: string;
@@ -61,9 +49,7 @@ export interface Book extends BookPreview {
   rating: number;
 }
 
-/**
- * Form data for uploading a new book
- */
+/** Form data for uploading a new book */
 export interface BookUploadFormData {
   images: string[];
   title: string;
@@ -73,14 +59,4 @@ export interface BookUploadFormData {
   price: string;
   description: string;
   whatsappNumber: string;
-}
-
-/**
- * Category for browsing (with icon)
- */
-export interface Category {
-  id: number;
-  name: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
 }
