@@ -56,6 +56,7 @@ export interface BookUploadFormData {
   author: string;
   category: BookCategory | '';
   listingType: ListingType | '';
+  condition: BookCondition | '';  // Book condition (new, like-new, good, fair, poor)
   price: string;
   description: string;
   whatsappNumber: string;

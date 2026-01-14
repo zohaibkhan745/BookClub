@@ -4,8 +4,26 @@ import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { createBook } from "../services";
-import type { ListingType, BookCategory, ApiError } from "../types";
+import type {
+  ListingType,
+  BookCategory,
+  BookCondition,
+  ApiError,
+} from "../types";
 import { BOOK_CATEGORIES } from "../types";
+
+/** Available book conditions */
+const BOOK_CONDITIONS: {
+  value: BookCondition;
+  label: string;
+  emoji: string;
+}[] = [
+  { value: "new", label: "New", emoji: "✨" },
+  { value: "like-new", label: "Like New", emoji: "🌟" },
+  { value: "good", label: "Good", emoji: "👍" },
+  { value: "fair", label: "Fair", emoji: "📖" },
+  { value: "poor", label: "Poor", emoji: "📚" },
+];
 
 /** Field-level error state */
 type FieldErrors = Record<string, string>;
@@ -17,6 +35,7 @@ export function UploadBook() {
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState<BookCategory | "">("");
   const [listingType, setListingType] = useState<ListingType | "">("");
+  const [condition, setCondition] = useState<BookCondition | "">("good");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -109,6 +128,7 @@ export function UploadBook() {
         author,
         category,
         listingType,
+        condition,
         price,
         description,
         whatsappNumber: whatsappNumber ? `+92${whatsappNumber}` : "",
@@ -451,6 +471,42 @@ export function UploadBook() {
                     <div>Sell</div>
                   </div>
                 </button>
+              </div>
+            </div>
+
+            {/* Book Condition */}
+            <div className="space-y-3">
+              <label className="block text-black font-semibold">
+                Book Condition <span className="text-red-600">*</span>
+              </label>
+              <p className="text-sm text-gray-600">
+                What's the physical condition of the book?
+              </p>
+              {fieldErrors.condition && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.condition}
+                </p>
+              )}
+              <div className="grid grid-cols-5 gap-2">
+                {BOOK_CONDITIONS.map((cond) => (
+                  <button
+                    key={cond.value}
+                    type="button"
+                    onClick={() => {
+                      setCondition(cond.value);
+                      clearFieldError("condition");
+                    }}
+                    className={`px-3 py-3 rounded-lg font-medium transition text-center ${
+                      condition === cond.value
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white scale-105 shadow-md"
+                        : "bg-white/50 backdrop-blur-sm border border-amber-300 text-gray-700 hover:border-amber-500"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">{cond.emoji}</div>
+                    <div className="text-xs">{cond.label}</div>
+                  </button>
+                ))}
               </div>
             </div>
 

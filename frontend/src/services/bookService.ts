@@ -8,66 +8,63 @@ import type {
   JoinClubData,
   JoinClubResponse,
 } from '../types';
-import { booksData, trendingBooks, newArrivals, popularThisWeek } from '../data';
+import { apiGet, apiPost, createApiError } from './api';
 
 // ============================================
-// Fake API Configuration
+// Types for API Responses
 // ============================================
 
-/** Simulated network delay range (ms) */
-const MIN_DELAY_MS = 200;
-const MAX_DELAY_MS = 800;
-
-/** Simulated error rate (0 to 1). Set to 0 in production. */
-const ERROR_RATE = 0.05;
-
-/** In-memory store for borrow requests (simulates database) */
-const borrowRequests: Map<string, BorrowRequestResponse> = new Map();
-
-/** In-memory store for club members (simulates database) */
-const clubMembers: Map<string, JoinClubResponse> = new Map();
-
-// ============================================
-// API Simulation Helpers
-// ============================================
-
-/** Returns random delay between MIN and MAX */
-function getRandomDelay(): number {
-  return Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS;
+interface BookSectionsApiResponse {
+  success: boolean;
+  data: {
+    trending: BookPreview[];
+    newArrivals: BookPreview[];
+    popular: BookPreview[];
+  };
 }
+
+interface BookApiResponse {
+  success: boolean;
+  data: {
+    id: number;
+    title: string;
+    author: string;
+    genre: string;
+    image: string;
+    description: string;
+    year: string;
+    pages: number;
+    language: string;
+    rating: number;
+  };
+}
+
+interface CreateBookApiResponse {
+  success: boolean;
+  data: {
+    id: number;
+    title: string;
+    author: string;
+    genre: string;
+    image: string;
+    description: string;
+    year: string;
+    pages: number;
+    language: string;
+    rating: number;
+  };
+}
+
+// ============================================
+// Helper Functions
+// ============================================
+
+/** In-memory store for club members (not implemented in backend yet) */
+const clubMembers: Map<string, JoinClubResponse> = new Map();
 
 /** Generates a random ID string */
 function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-}
-
-/** Creates a standardized API error */
-function createApiError(code: string, message: string, details?: ApiError['details']): ApiError {
-  return { code, message, details };
-}
-
-/** Simulates an async API call with realistic delay and random errors */
-async function simulateApiCall<T>(
-  operation: () => T,
-  errorOverride?: ApiError
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      // Simulate random network errors (unless error rate is 0)
-      if (ERROR_RATE > 0 && Math.random() < ERROR_RATE) {
-        reject(createApiError('NETWORK_ERROR', 'Network request failed. Please try again.'));
-        return;
-      }
-
-      // Simulate specific error if provided
-      if (errorOverride) {
-        reject(errorOverride);
-        return;
-      }
-
-      resolve(operation());
-    }, getRandomDelay());
-  });
 }
 
 // ============================================
@@ -80,27 +77,26 @@ export async function getAllBookSections(): Promise<{
   newArrivals: BookPreview[];
   popular: BookPreview[];
 }> {
-  return simulateApiCall(() => ({
-    trending: trendingBooks,
-    newArrivals: newArrivals,
-    popular: popularThisWeek,
-  }));
+  const response = await apiGet<BookSectionsApiResponse>('/books');
+  
+  // Extract data from { success: true, data: {...} } wrapper
+  return {
+    trending: response.data.trending,
+    newArrivals: response.data.newArrivals,
+    popular: response.data.popular,
+  };
 }
 
 /** GET /books/:id - Fetches a book by ID */
 export async function getBookById(id: number): Promise<Book> {
-  const book = booksData[id];
-
-  if (!book) {
-    throw createApiError('BOOK_NOT_FOUND', `Book with ID ${id} not found.`);
-  }
-
-  return simulateApiCall(() => book);
+  const response = await apiGet<BookApiResponse>(`/books/${id}`);
+  // Backend already returns correct Book format in response.data
+  return response.data as Book;
 }
 
 /** POST /books - Creates a new book listing */
 export async function createBook(formData: BookUploadFormData): Promise<Book> {
-  // Validate required fields
+  // Client-side validation
   const errors: ApiError['details'] = [];
 
   if (!formData.title?.trim()) {
@@ -118,9 +114,6 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
   if (formData.listingType === 'sell' && !formData.price?.trim()) {
     errors.push({ field: 'price', message: 'Price is required for selling' });
   }
-  if (!formData.images || formData.images.length === 0) {
-    errors.push({ field: 'images', message: 'At least one image is required' });
-  }
   if (!formData.whatsappNumber?.trim()) {
     errors.push({ field: 'whatsappNumber', message: 'WhatsApp number is required' });
   }
@@ -129,37 +122,32 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
     throw createApiError('VALIDATION_ERROR', 'Validation failed', errors);
   }
 
-  return simulateApiCall(() => {
-    const newId = Math.max(...Object.keys(booksData).map(Number)) + 1;
+  // Transform to backend format
+  const payload = {
+    title: formData.title.trim(),
+    author: formData.author.trim(),
+    category: formData.category,
+    listing_type: formData.listingType,
+    condition: formData.condition || null,
+    description: formData.description?.trim() || null,
+    cover_image: formData.images?.[0] || null,
+    price: formData.price ? parseFloat(formData.price) : null,
+    whatsapp_number: formData.whatsappNumber?.trim() || null,
+  };
 
-    const newBook: Book = {
-      id: newId,
-      title: formData.title.trim(),
-      author: formData.author.trim(),
-      genre: formData.category || 'Uncategorized',
-      image: formData.images[0] || '',
-      description: formData.description?.trim() || '',
-      year: new Date().getFullYear().toString(),
-      pages: 0,
-      language: 'English',
-      rating: 0,
-    };
-
-    return newBook;
-  });
+  const response = await apiPost<CreateBookApiResponse>('/books', payload);
+  // Backend already returns correct Book format in response.data
+  return response.data as Book;
 }
 
 /** POST /borrow - Submits a request to borrow a book */
 export async function borrowBook(data: BorrowRequestData): Promise<BorrowRequestResponse> {
-  // Validate required fields
+  // Client-side validation
   const errors: ApiError['details'] = [];
 
   if (!data.bookId) {
     errors.push({ field: 'bookId', message: 'Book ID is required' });
-  } else if (!booksData[data.bookId]) {
-    throw createApiError('BOOK_NOT_FOUND', `Book with ID ${data.bookId} not found.`);
   }
-
   if (!data.borrowerName?.trim()) {
     errors.push({ field: 'borrowerName', message: 'Name is required' });
   }
@@ -176,22 +164,33 @@ export async function borrowBook(data: BorrowRequestData): Promise<BorrowRequest
     throw createApiError('VALIDATION_ERROR', 'Validation failed', errors);
   }
 
-  return simulateApiCall(() => {
-    const response: BorrowRequestResponse = {
-      requestId: generateId('br'),
-      bookId: data.bookId,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+  // Transform to backend format
+  const payload = {
+    book_id: data.bookId,
+    borrower_name: data.borrowerName.trim(),
+    borrower_email: data.borrowerEmail.trim(),
+    borrower_phone: data.borrowerPhone.trim(),
+    message: data.message?.trim() || null,
+  };
 
-    // Store in fake database
-    borrowRequests.set(response.requestId, response);
+  interface BorrowResponse {
+    request_id: string;
+    book_id: number;
+    status: string;
+    created_at: string;
+  }
 
-    return response;
-  });
+  const response = await apiPost<BorrowResponse>('/borrow', payload);
+  
+  return {
+    requestId: response.request_id,
+    bookId: response.book_id,
+    status: response.status as 'pending' | 'approved' | 'rejected',
+    createdAt: response.created_at,
+  };
 }
 
-/** POST /join - Registers a user to join the book club */
+/** POST /join - Registers a user to join the book club (client-side only for now) */
 export async function joinClub(data: JoinClubData): Promise<JoinClubResponse> {
   // Validate required fields
   const errors: ApiError['details'] = [];
@@ -209,24 +208,21 @@ export async function joinClub(data: JoinClubData): Promise<JoinClubResponse> {
     throw createApiError('VALIDATION_ERROR', 'Validation failed', errors);
   }
 
-  // Check for duplicate email
+  // Check for duplicate email (client-side only)
   for (const member of clubMembers.values()) {
     if (member.email.toLowerCase() === data.email.toLowerCase()) {
       throw createApiError('EMAIL_EXISTS', 'A member with this email already exists.');
     }
   }
 
-  return simulateApiCall(() => {
-    const response: JoinClubResponse = {
-      memberId: generateId('mem'),
-      name: data.name.trim(),
-      email: data.email.trim().toLowerCase(),
-      joinedAt: new Date().toISOString(),
-    };
+  // Note: This is still client-side only until we add a /join endpoint to backend
+  const response: JoinClubResponse = {
+    memberId: generateId('mem'),
+    name: data.name.trim(),
+    email: data.email.trim().toLowerCase(),
+    joinedAt: new Date().toISOString(),
+  };
 
-    // Store in fake database
-    clubMembers.set(response.memberId, response);
-
-    return response;
-  });
+  clubMembers.set(response.memberId, response);
+  return response;
 }
