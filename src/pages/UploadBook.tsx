@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Upload, X, ArrowLeft } from "lucide-react";
+import { Upload, X, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { createBook } from "../services";
-import type { ListingType, BookCategory } from "../types";
+import type { ListingType, BookCategory, ApiError } from "../types";
 import { BOOK_CATEGORIES } from "../types";
+
+/** Field-level error state */
+type FieldErrors = Record<string, string>;
 
 export function UploadBook() {
   const navigate = useNavigate();
@@ -19,6 +22,22 @@ export function UploadBook() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Error and success states
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  /** Clears error for a specific field when user starts typing */
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -78,26 +97,11 @@ export function UploadBook() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validation
-    if (images.length === 0) {
-      alert("Please upload at least one book image");
-      return;
-    }
-    if (!title || !author || !category || !listingType) {
-      alert("Please fill in all required fields");
-      return;
-    }
-    if (listingType === "sell" && !price) {
-      alert("Please enter a price for selling");
-      return;
-    }
-    if (!whatsappNumber) {
-      alert("Please enter your WhatsApp number");
-      return;
-    }
-
+    setFieldErrors({});
+    setSubmitError(null);
+    setSubmitSuccess(false);
     setIsSubmitting(true);
+
     try {
       await createBook({
         images,
@@ -107,12 +111,27 @@ export function UploadBook() {
         listingType,
         price,
         description,
-        whatsappNumber,
+        whatsappNumber: whatsappNumber ? `+92${whatsappNumber}` : "",
       });
-      alert("Book uploaded successfully!");
-      navigate("/");
-    } catch (error) {
-      alert("Failed to upload book. Please try again.");
+      setSubmitSuccess(true);
+      // Navigate to home after brief success message
+      setTimeout(() => navigate("/"), 1500);
+    } catch (err) {
+      const apiError = err as ApiError;
+
+      if (apiError.code === "VALIDATION_ERROR" && apiError.details) {
+        // Map field-level errors
+        const errors: FieldErrors = {};
+        apiError.details.forEach((detail) => {
+          errors[detail.field] = detail.message;
+        });
+        setFieldErrors(errors);
+      } else {
+        // General error
+        setSubmitError(
+          apiError.message || "Failed to upload book. Please try again."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -140,6 +159,24 @@ export function UploadBook() {
             <p className="text-gray-700">Share your books with the community</p>
           </div>
 
+          {/* Success Message */}
+          {submitSuccess && (
+            <div className="mb-6 p-4 bg-green-100 border border-green-400 rounded-lg flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <p className="text-green-800 font-medium">
+                Book uploaded successfully! Redirecting...
+              </p>
+            </div>
+          )}
+
+          {/* General Error Message */}
+          {submitError && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 rounded-lg flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-red-800">{submitError}</p>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6 pb-8">
             {/* Book Images */}
@@ -150,6 +187,12 @@ export function UploadBook() {
               <p className="text-sm text-gray-600">
                 Upload 1-3 images. Front cover required.
               </p>
+              {fieldErrors.images && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.images}
+                </p>
+              )}
 
               {/* Image Previews */}
               {images.length > 0 && (
@@ -224,14 +267,27 @@ export function UploadBook() {
               <input
                 type="text"
                 value={title}
-                onChange={handleTitleChange}
+                onChange={(e) => {
+                  handleTitleChange(e);
+                  clearFieldError("title");
+                }}
                 placeholder="Enter book title"
-                className="w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-blue-500 text-gray-800"
-                required
+                className={`w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                  fieldErrors.title
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-amber-300 focus:border-blue-500"
+                }`}
               />
-              <p className="text-xs text-gray-600">
-                {title.length}/100 characters
-              </p>
+              {fieldErrors.title ? (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.title}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-600">
+                  {title.length}/100 characters
+                </p>
+              )}
             </div>
 
             {/* Author */}
@@ -242,11 +298,23 @@ export function UploadBook() {
               <input
                 type="text"
                 value={author}
-                onChange={(e) => setAuthor(e.target.value)}
+                onChange={(e) => {
+                  setAuthor(e.target.value);
+                  clearFieldError("author");
+                }}
                 placeholder="Enter author name"
-                className="w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-blue-500 text-gray-800"
-                required
+                className={`w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                  fieldErrors.author
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-amber-300 focus:border-blue-500"
+                }`}
               />
+              {fieldErrors.author && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.author}
+                </p>
+              )}
             </div>
 
             {/* WhatsApp Number */}
@@ -262,19 +330,29 @@ export function UploadBook() {
                   type="tel"
                   value={whatsappNumber}
                   onChange={(e) => {
-                    // Only allow numbers
                     const value = e.target.value.replace(/\D/g, "");
                     setWhatsappNumber(value);
+                    clearFieldError("whatsappNumber");
                   }}
                   placeholder="3001234567"
-                  className="w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-green-500 text-gray-800"
-                  required
+                  className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                    fieldErrors.whatsappNumber
+                      ? "border-red-400 focus:border-red-500"
+                      : "border-amber-300 focus:border-green-500"
+                  }`}
                   maxLength={10}
                 />
               </div>
-              <p className="text-xs text-gray-600">
-                Enter your 10-digit mobile number (without +92)
-              </p>
+              {fieldErrors.whatsappNumber ? (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.whatsappNumber}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-600">
+                  Enter your 10-digit mobile number (without +92)
+                </p>
+              )}
             </div>
 
             {/* Category */}
@@ -282,12 +360,21 @@ export function UploadBook() {
               <label className="block text-black font-semibold">
                 Category / Genre <span className="text-red-600">*</span>
               </label>
+              {fieldErrors.category && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.category}
+                </p>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 {BOOK_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => setCategory(cat)}
+                    onClick={() => {
+                      setCategory(cat);
+                      clearFieldError("category");
+                    }}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
                       category === cat
                         ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white"
@@ -306,10 +393,19 @@ export function UploadBook() {
                 Type of Listing <span className="text-red-600">*</span>
               </label>
               <p className="text-sm text-gray-600">Select exactly one option</p>
+              {fieldErrors.listingType && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {fieldErrors.listingType}
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
-                  onClick={() => setListingType("lend")}
+                  onClick={() => {
+                    setListingType("lend");
+                    clearFieldError("listingType");
+                  }}
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
                     listingType === "lend"
                       ? "bg-gradient-to-r from-green-500 to-green-600 text-white scale-105 shadow-lg"
@@ -323,7 +419,10 @@ export function UploadBook() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setListingType("borrow")}
+                  onClick={() => {
+                    setListingType("borrow");
+                    clearFieldError("listingType");
+                  }}
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
                     listingType === "borrow"
                       ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white scale-105 shadow-lg"
@@ -337,7 +436,10 @@ export function UploadBook() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setListingType("sell")}
+                  onClick={() => {
+                    setListingType("sell");
+                    clearFieldError("listingType");
+                  }}
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
                     listingType === "sell"
                       ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white scale-105 shadow-lg"
@@ -365,12 +467,24 @@ export function UploadBook() {
                   <input
                     type="number"
                     value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    onChange={(e) => {
+                      setPrice(e.target.value);
+                      clearFieldError("price");
+                    }}
                     placeholder="0"
-                    className="w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-orange-500 text-gray-800"
-                    required={listingType === "sell"}
+                    className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                      fieldErrors.price
+                        ? "border-red-400 focus:border-red-500"
+                        : "border-amber-300 focus:border-orange-500"
+                    }`}
                   />
                 </div>
+                {fieldErrors.price && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {fieldErrors.price}
+                  </p>
+                )}
               </div>
             )}
 

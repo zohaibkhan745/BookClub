@@ -5,7 +5,7 @@ import { CategorySection } from "../components/CategorySection";
 import { Footer } from "../components/Footer";
 import { ErrorState } from "../components/ui/ErrorState";
 import { getAllBookSections } from "../services";
-import type { BookPreview } from "../types";
+import type { BookPreview, ApiError } from "../types";
 
 export function Home() {
   const [trending, setTrending] = useState<BookPreview[]>([]);
@@ -23,7 +23,8 @@ export function Home() {
       setNewArrivals(sections.newArrivals);
       setPopular(sections.popular);
     } catch (err) {
-      setError("Failed to load books. Please try again.");
+      const apiError = err as ApiError;
+      setError(apiError.message || "Failed to load books. Please try again.");
     } finally {
       setIsLoading(false);
     }

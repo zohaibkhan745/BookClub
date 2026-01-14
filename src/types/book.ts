@@ -60,3 +60,47 @@ export interface BookUploadFormData {
   description: string;
   whatsappNumber: string;
 }
+
+// ============================================
+// API Response Types (matches docs/api.md)
+// ============================================
+
+/** Standard API error structure */
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: Array<{ field: string; message: string }>;
+}
+
+/** Borrow request form data */
+export interface BorrowRequestData {
+  bookId: number;
+  borrowerName: string;
+  borrowerEmail: string;
+  borrowerPhone: string;
+  message?: string;
+}
+
+/** Borrow request response */
+export interface BorrowRequestResponse {
+  requestId: string;
+  bookId: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+/** Join club form data */
+export interface JoinClubData {
+  name: string;
+  email: string;
+  phone?: string;
+  interests?: BookCategory[];
+}
+
+/** Join club response */
+export interface JoinClubResponse {
+  memberId: string;
+  name: string;
+  email: string;
+  joinedAt: string;
+}
