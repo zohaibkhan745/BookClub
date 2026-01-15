@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { BookDetail } from "../components/BookDetail";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { MobileBottomNav } from "../components/MobileBottomNav";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorState } from "../components/ui/ErrorState";
 import { getBookById } from "../services";
@@ -73,7 +74,12 @@ export function BookDetailPage() {
     <>
       <Navbar />
       <BookDetail book={book} />
-      <Footer />
+      <div className="hidden md:block">
+        <Footer />
+      </div>
+      <div className="md:hidden">
+        <MobileBottomNav />
+      </div>
     </>
   );
 }

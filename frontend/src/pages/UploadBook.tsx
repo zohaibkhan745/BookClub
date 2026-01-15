@@ -3,6 +3,7 @@ import { Upload, X, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { MobileBottomNav } from "../components/MobileBottomNav";
 import { createBook } from "../services";
 import type {
   ListingType,
@@ -147,10 +148,14 @@ export function UploadBook() {
         });
         setFieldErrors(errors);
       } else {
-        // General error
-        setSubmitError(
-          apiError.message || "Failed to upload book. Please try again."
-        );
+        // General error - ensure message is a string
+        const errorMessage =
+          typeof apiError.message === "string"
+            ? apiError.message
+            : typeof apiError.message === "object" && apiError.message !== null
+            ? JSON.stringify(apiError.message)
+            : "Failed to upload book. Please try again.";
+        setSubmitError(errorMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -581,7 +586,12 @@ export function UploadBook() {
           </form>
         </div>
       </div>
-      <Footer />
+      <div className="hidden md:block">
+        <Footer />
+      </div>
+      <div className="md:hidden">
+        <MobileBottomNav />
+      </div>
     </>
   );
 }

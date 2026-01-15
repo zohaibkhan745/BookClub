@@ -36,6 +36,9 @@ def book_to_response(book) -> dict:
         "pages": 0,
         "language": "English",
         "rating": 5,
+        "whatsappNumber": book.whatsapp_number or "",
+        "listingType": book.listing_type or "lend",
+        "price": book.price or "",
     }
 
 
@@ -53,6 +56,24 @@ async def get_books(db: Session = Depends(get_db)):
                 "newArrivals": [book_to_preview(b) for b in sections["newArrivals"]],
                 "popular": [book_to_preview(b) for b in sections["popular"]],
             }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "FETCH_FAILED", "message": str(e)}
+        )
+
+
+@router.get("/books/genre/{genre}")
+async def get_books_by_genre(genre: str, db: Session = Depends(get_db)):
+    """
+    GET /books/genre/{genre} - Fetch all books by genre/category.
+    """
+    try:
+        books = book_service.get_books_by_genre(db, genre)
+        return {
+            "success": True,
+            "data": [book_to_preview(b) for b in books]
         }
     except Exception as e:
         raise HTTPException(

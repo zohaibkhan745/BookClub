@@ -41,7 +41,7 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
 
   return (
     <div className="space-y-2 group">
-      <h3 className="text-black text-xl md:text-2xl font-semibold px-0 md:px-0">
+      <h3 className="text-black dark:text-white text-xl md:text-2xl font-semibold px-0 md:px-0">
         {title}
       </h3>
       <div className="relative">
@@ -51,7 +51,7 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
             onClick={() => scroll("left")}
             className="absolute left-0 top-0 bottom-0 z-20 w-12 bg-black/30 backdrop-blur-md hover:bg-black/50 border-r border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <ChevronLeft className="w-8 h-8 text-black" />
+            <ChevronLeft className="w-8 h-8 text-white" />
           </button>
         )}
 
@@ -64,11 +64,11 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
           {isLoading ? (
             skeletonItems.map((i) => (
               <div key={i} className="flex-none w-36 md:w-48">
-                <div className="w-full h-52 md:h-72 bg-amber-200/50 rounded-xl animate-pulse" />
+                <div className="w-full h-52 md:h-72 bg-amber-200/50 dark:bg-gray-700 rounded-xl animate-pulse" />
               </div>
             ))
           ) : books.length === 0 ? (
-            <div className="flex-1 py-8 text-center text-gray-500">
+            <div className="flex-1 py-8 text-center text-gray-500 dark:text-gray-400">
               No books available in this section.
             </div>
           ) : (
@@ -106,7 +106,7 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
             onClick={() => scroll("right")}
             className="absolute right-0 top-0 bottom-0 z-20 w-12 bg-black/30 backdrop-blur-md hover:bg-black/50 border-l border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <ChevronRight className="w-8 h-8 text-black" />
+            <ChevronRight className="w-8 h-8 text-white" />
           </button>
         )}
       </div>

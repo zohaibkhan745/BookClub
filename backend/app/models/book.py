@@ -32,7 +32,7 @@ class Book(Base):
     listing_type = Column(String(20), nullable=False, default=ListingType.lend.value)
     condition = Column(String(20), nullable=True, default=BookCondition.good.value)
     description = Column(Text, nullable=True)
-    cover_image = Column(String(500), nullable=True)
+    cover_image = Column(Text, nullable=True)  # Changed to Text for base64 images
     price = Column(String(50), nullable=True)  # Only for sell listings
     whatsapp_number = Column(String(20), nullable=True)
     is_available = Column(Boolean, default=True)

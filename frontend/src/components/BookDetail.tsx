@@ -1,4 +1,10 @@
-import { ArrowLeft, Heart, Share2, BookmarkPlus } from "lucide-react";
+import {
+  ArrowLeft,
+  Heart,
+  Share2,
+  BookmarkPlus,
+  MessageCircle,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Book } from "../types";
 
@@ -6,8 +12,31 @@ interface BookDetailProps {
   book: Book;
 }
 
+/** Opens WhatsApp chat with pre-filled message */
+function openWhatsApp(phoneNumber: string, bookTitle: string) {
+  // Remove any non-digit characters from phone number
+  const cleanNumber = phoneNumber.replace(/\D/g, "");
+
+  // Create message
+  const message = encodeURIComponent(
+    `Hi! I'm interested in borrowing "${bookTitle}" from the Book Club app. Is it still available?`
+  );
+
+  // Open WhatsApp (works on both mobile and desktop)
+  const whatsappUrl = `https://wa.me/${cleanNumber}?text=${message}`;
+  window.open(whatsappUrl, "_blank");
+}
+
 export function BookDetail({ book }: BookDetailProps) {
   const navigate = useNavigate();
+
+  const handleBorrowClick = () => {
+    if (book.whatsappNumber) {
+      openWhatsApp(book.whatsappNumber, book.title);
+    } else {
+      alert("Contact information not available for this book.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F6F0D7] pt-24 pb-0">
@@ -110,10 +139,24 @@ export function BookDetail({ book }: BookDetailProps) {
               </p>
             </div>
 
+            {/* Price (if selling) */}
+            {book.listingType === "sell" && book.price && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+                <p className="text-sm text-green-700">Price</p>
+                <p className="text-2xl font-bold text-green-800">
+                  PKR {book.price}
+                </p>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <button className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-blue-700 transition shadow-lg hover:shadow-xl">
-                Borrow Book
+              <button
+                onClick={handleBorrowClick}
+                className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-5 h-5" />
+                {book.listingType === "sell" ? "Buy" : "Borrow"}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { BookRow } from "../components/BookRow";
 import { CategorySection } from "../components/CategorySection";
 import { Footer } from "../components/Footer";
 import { ErrorState } from "../components/ui/ErrorState";
+import { MobileBottomNav } from "../components/MobileBottomNav";
 import { getAllBookSections } from "../services";
 import type { BookPreview, ApiError } from "../types";
 
@@ -35,14 +36,14 @@ export function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7]">
+    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
       <Navbar />
 
       <div className="pt-20 px-4 md:px-12 pb-8 bg-[rgba(240,255,223,0)]">
         <CategorySection />
       </div>
 
-      <div className="px-4 md:px-12 pb-12 space-y-12">
+      <div className="px-4 md:px-12 pb-12 md:pb-12 pb-24 space-y-12">
         {error ? (
           <ErrorState
             message={error}
@@ -71,6 +72,9 @@ export function Home() {
       </div>
 
       <Footer />
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

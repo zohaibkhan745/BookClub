@@ -15,6 +15,14 @@ def get_book_by_id(db: Session, book_id: int) -> Optional[Book]:
     return db.query(Book).filter(Book.id == book_id).first()
 
 
+def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
+    """Fetch all available books by genre/category."""
+    return db.query(Book).filter(
+        Book.is_available == True,
+        Book.category.ilike(f"%{genre}%")
+    ).order_by(desc(Book.created_at)).limit(limit).all()
+
+
 def get_books_by_section(db: Session, limit: int = 10) -> dict:
     """
     Get books organized by homepage sections.

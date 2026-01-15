@@ -47,6 +47,9 @@ export interface Book extends BookPreview {
   pages: number;
   language: string;
   rating: number;
+  whatsappNumber?: string;
+  listingType?: string;
+  price?: string;
 }
 
 /** Form data for uploading a new book */

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable dark mode with class-based selector */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Custom scrollbar hiding */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
@@ -7,6 +10,15 @@
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Safe area for mobile devices (notch, home indicator) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* Custom CSS Variables for the design system */

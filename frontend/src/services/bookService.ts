@@ -36,6 +36,9 @@ interface BookApiResponse {
     pages: number;
     language: string;
     rating: number;
+    whatsappNumber: string;
+    listingType: string;
+    price: string;
   };
 }
 
@@ -87,6 +90,16 @@ export async function getAllBookSections(): Promise<{
   };
 }
 
+/** GET /books/genre/:genre - Fetches books by genre */
+export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
+  interface GenreBooksResponse {
+    success: boolean;
+    data: BookPreview[];
+  }
+  const response = await apiGet<GenreBooksResponse>(`/books/genre/${encodeURIComponent(genre)}`);
+  return response.data;
+}
+
 /** GET /books/:id - Fetches a book by ID */
 export async function getBookById(id: number): Promise<Book> {
   const response = await apiGet<BookApiResponse>(`/books/${id}`);
@@ -128,16 +141,20 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
     author: formData.author.trim(),
     category: formData.category,
     listing_type: formData.listingType,
-    condition: formData.condition || null,
+    condition: formData.condition || 'good',  // Changed from null to 'good'
     description: formData.description?.trim() || null,
     cover_image: formData.images?.[0] || null,
-    price: formData.price ? parseFloat(formData.price) : null,
+    price: formData.price?.trim() || null,  // Keep as string, not parseFloat!
     whatsapp_number: formData.whatsappNumber?.trim() || null,
   };
 
-  const response = await apiPost<CreateBookApiResponse>('/books', payload);
-  // Backend already returns correct Book format in response.data
-  return response.data as Book;
+  try {
+    const response = await apiPost<CreateBookApiResponse>('/books', payload);
+    return response.data as Book;
+  } catch (error) {
+    console.error('Create book error:', error);
+    throw error;
+  }
 }
 
 /** POST /borrow - Submits a request to borrow a book */
