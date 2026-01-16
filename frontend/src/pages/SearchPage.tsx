@@ -179,10 +179,10 @@ export function SearchPage() {
               </div>
             </section>
 
-            {/* Trending */}
+            {/* Featured */}
             <section>
               <h2 className="text-lg font-semibold text-black dark:text-white mb-3">
-                Trending Now
+                Featured
               </h2>
               {isLoading ? (
                 <div className="flex space-x-3 overflow-x-auto">

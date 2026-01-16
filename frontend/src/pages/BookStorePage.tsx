@@ -171,9 +171,9 @@ export function BookStorePage() {
             </section>
 
             {/* Book Sections */}
-            <BookRow title="Trending Now" books={trending} />
+            <BookRow title="Featured" books={trending} />
             <BookRow title="New Arrivals" books={newArrivals} />
-            <BookRow title="Popular This Week" books={popular} />
+            <BookRow title="Top Read" books={popular} />
 
             {/* All Books Grid */}
             <section className="mt-12">

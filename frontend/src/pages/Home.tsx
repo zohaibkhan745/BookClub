@@ -52,21 +52,13 @@ export function Home() {
           />
         ) : (
           <>
-            <BookRow
-              title="Trending Now"
-              books={trending}
-              isLoading={isLoading}
-            />
+            <BookRow title="Featured" books={trending} isLoading={isLoading} />
             <BookRow
               title="New Arrivals"
               books={newArrivals}
               isLoading={isLoading}
             />
-            <BookRow
-              title="Popular This Week"
-              books={popular}
-              isLoading={isLoading}
-            />
+            <BookRow title="Top Read" books={popular} isLoading={isLoading} />
           </>
         )}
       </div>

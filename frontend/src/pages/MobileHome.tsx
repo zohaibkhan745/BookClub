@@ -106,10 +106,10 @@ export function MobileHome() {
           <MobileBookRow books={newArrivals} isLoading={isLoading} />
         </section>
 
-        {/* Popular This Week */}
+        {/* Top Read */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Popular This Week</h2>
+            <h2 className="text-xl font-bold">Top Read</h2>
             <ChevronRight className="w-5 h-5 text-gray-500" />
           </div>
           <MobileBookRow books={popular} isLoading={isLoading} />

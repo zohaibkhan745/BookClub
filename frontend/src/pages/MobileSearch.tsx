@@ -173,9 +173,9 @@ export function MobileSearch() {
               </div>
             </section>
 
-            {/* Trending */}
+            {/* Featured */}
             <section>
-              <h2 className="text-lg font-semibold mb-3">Trending Now</h2>
+              <h2 className="text-lg font-semibold mb-3">Featured</h2>
               <MobileBookRow books={trending} isLoading={isLoading} />
             </section>
           </>
