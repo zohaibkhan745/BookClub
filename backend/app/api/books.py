@@ -8,6 +8,7 @@ from app.schemas.book import (
     BookResponse,
     BookSectionsResponse,
 )
+from app.auth import get_current_user, AuthUser
 from datetime import datetime
 
 router = APIRouter(prefix="/api/v1", tags=["books"])
@@ -102,9 +103,14 @@ async def get_book(book_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/books", status_code=status.HTTP_201_CREATED)
-async def create_book(book_data: BookCreate, db: Session = Depends(get_db)):
+async def create_book(
+    book_data: BookCreate,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
     """
     POST /books - Create a new book listing.
+    Requires authentication.
     """
     # Validation
     errors = []

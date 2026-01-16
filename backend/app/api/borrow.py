@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from app.db.database import get_db
 from app.services import borrow_service, book_service
+from app.auth import get_current_user, AuthUser
 
 router = APIRouter(prefix="/api/v1", tags=["borrow"])
 
@@ -18,9 +19,14 @@ class BorrowRequest(BaseModel):
 
 
 @router.post("/borrow", status_code=status.HTTP_201_CREATED)
-async def create_borrow_request(request: BorrowRequest, db: Session = Depends(get_db)):
+async def create_borrow_request(
+    request: BorrowRequest,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
     """
     POST /borrow - Submit a request to borrow a book.
+    Requires authentication.
     """
     # Validate email format
     import re

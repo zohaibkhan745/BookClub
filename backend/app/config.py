@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     database_url: str
     env: str = "development"
     
+    # Supabase Auth settings
+    supabase_url: str
+    supabase_jwt_secret: str
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

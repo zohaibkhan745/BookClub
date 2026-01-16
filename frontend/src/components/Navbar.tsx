@@ -7,18 +7,28 @@ import {
   Home,
   Library,
   ShoppingBag,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user, isAuthenticated, signOut } = useAuth();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const mobileProfileRef = useRef<HTMLDivElement>(null);
+
+  const handleSignOut = async () => {
+    await signOut();
+    setProfileMenuOpen(false);
+    navigate("/");
+  };
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -97,10 +107,10 @@ export function Navbar() {
             <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#2c2c2e] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
               <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
                 <p className="font-semibold text-gray-800 dark:text-white">
-                  Guest User
+                  {isAuthenticated ? user?.email?.split("@")[0] : "Guest User"}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Sign in for more features
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                  {isAuthenticated ? user?.email : "Sign in for more features"}
                 </p>
               </div>
 
@@ -152,6 +162,30 @@ export function Navbar() {
                   Settings
                 </button>
               </div>
+
+              {/* Auth Actions */}
+              <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                {isAuthenticated ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      navigate("/login");
+                      setProfileMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Sign In</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -179,10 +213,14 @@ export function Navbar() {
               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#2c2c2e] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
                 <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
                   <p className="font-semibold text-gray-800 dark:text-white">
-                    Guest User
+                    {isAuthenticated
+                      ? user?.email?.split("@")[0]
+                      : "Guest User"}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Sign in for more features
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                    {isAuthenticated
+                      ? user?.email
+                      : "Sign in for more features"}
                   </p>
                 </div>
 
@@ -224,6 +262,30 @@ export function Navbar() {
                   <button className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                     Settings
                   </button>
+                </div>
+
+                {/* Auth Actions */}
+                <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                  {isAuthenticated ? (
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        navigate("/login");
+                        setProfileMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span>Sign In</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

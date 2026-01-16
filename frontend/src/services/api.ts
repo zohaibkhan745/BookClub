@@ -58,12 +58,25 @@ export async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+import { getAccessToken } from './authService';
+
+/** Gets authorization headers if user is authenticated */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
+}
+
 /** Makes a GET request to the API */
 export async function apiGet<T>(endpoint: string): Promise<T> {
+  const authHeaders = await getAuthHeaders();
   const response = await fetch(`${API_URL}${endpoint}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
     },
   });
   return handleResponse<T>(response);
@@ -71,12 +84,15 @@ export async function apiGet<T>(endpoint: string): Promise<T> {
 
 /** Makes a POST request to the API */
 export async function apiPost<T>(endpoint: string, data: unknown): Promise<T> {
+  const authHeaders = await getAuthHeaders();
   const response = await fetch(`${API_URL}${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
     },
     body: JSON.stringify(data),
   });
   return handleResponse<T>(response);
 }
+

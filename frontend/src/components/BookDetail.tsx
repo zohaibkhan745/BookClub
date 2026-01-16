@@ -5,7 +5,8 @@ import {
   BookmarkPlus,
   MessageCircle,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import type { Book } from "../types";
 
 interface BookDetailProps {
@@ -29,8 +30,16 @@ function openWhatsApp(phoneNumber: string, bookTitle: string) {
 
 export function BookDetail({ book }: BookDetailProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const handleBorrowClick = () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: location.pathname } });
+      return;
+    }
+
     if (book.whatsappNumber) {
       openWhatsApp(book.whatsappNumber, book.title);
     } else {
