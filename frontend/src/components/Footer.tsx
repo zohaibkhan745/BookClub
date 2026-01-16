@@ -1,13 +1,5 @@
-import {
-  BookOpen,
-  Heart,
-  Users,
-  Mail,
-  Facebook,
-  Twitter,
-  Instagram,
-  Linkedin,
-} from "lucide-react";
+import { BookOpen, Heart, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function Footer() {
   return (
@@ -29,14 +21,14 @@ export function Footer() {
 
       {/* Main Footer Content */}
       <div className="px-4 md:px-12 py-12 border-t border-amber-200/50 dark:border-white/10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {/* About Section */}
           <div className="space-y-4">
             <h4 className="text-red-600 dark:text-red-500 font-bold text-xl">
               BookClub
             </h4>
             <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-              Connecting book lovers worldwide. Borrow, lend, and discover
+              Connecting book lovers across GIKI. Borrow, lend, and discover
               stories that inspire, educate, and transform lives.
             </p>
             <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-400">
@@ -52,94 +44,44 @@ export function Footer() {
             </h5>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/about"
                   className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
                 >
-                  Browse Books
-                </a>
+                  About
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/how-it-works"
                   className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
                 >
                   How It Works
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/community-guidelines"
                   className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
                 >
                   Community Guidelines
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
-                >
-                  Success Stories
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
+                <Link
+                  to="/faq"
                   className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
                 >
                   FAQ
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Community */}
-          <div className="space-y-4">
-            <h5 className="font-semibold text-gray-900 dark:text-white text-lg">
-              Community
-            </h5>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition flex items-center space-x-2"
-                >
-                  <Users className="w-4 h-4" />
-                  <span>Join Book Clubs</span>
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/contact"
                   className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
                 >
-                  Discussion Forums
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
-                >
-                  Reading Challenges
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
-                >
-                  Author Events
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
-                >
-                  Volunteer
-                </a>
+                  Contact
+                </Link>
               </li>
             </ul>
           </div>
@@ -150,7 +92,7 @@ export function Footer() {
               Stay Connected
             </h5>
             <p className="text-sm text-gray-700 dark:text-gray-300">
-              Get weekly book recommendations and community updates.
+              Get notified when new books are uploaded and features go live.
             </p>
             <div className="flex space-x-2">
               <input
@@ -161,39 +103,6 @@ export function Footer() {
               <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
                 <Mail className="w-4 h-4" />
               </button>
-            </div>
-
-            {/* Social Media */}
-            <div className="pt-4">
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                Follow us
-              </p>
-              <div className="flex space-x-3">
-                <a
-                  href="#"
-                  className="p-2 bg-white/50 dark:bg-white/10 backdrop-blur-sm rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 transition"
-                >
-                  <Facebook className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                </a>
-                <a
-                  href="#"
-                  className="p-2 bg-white/50 dark:bg-white/10 backdrop-blur-sm rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 transition"
-                >
-                  <Twitter className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                </a>
-                <a
-                  href="#"
-                  className="p-2 bg-white/50 dark:bg-white/10 backdrop-blur-sm rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 transition"
-                >
-                  <Instagram className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                </a>
-                <a
-                  href="#"
-                  className="p-2 bg-white/50 dark:bg-white/10 backdrop-blur-sm rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 transition"
-                >
-                  <Linkedin className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                </a>
-              </div>
             </div>
           </div>
         </div>
@@ -218,12 +127,6 @@ export function Footer() {
               className="hover:text-red-600 dark:hover:text-red-400 transition"
             >
               Terms of Service
-            </a>
-            <a
-              href="#"
-              className="hover:text-red-600 dark:hover:text-red-400 transition"
-            >
-              Cookie Policy
             </a>
           </div>
         </div>
