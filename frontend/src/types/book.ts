@@ -50,7 +50,7 @@ export interface Book extends BookPreview {
   whatsappNumber?: string;
   listingType?: string;
   price?: string;
-  listedBy?: string;
+  listedBy?: string;  // Name of user who uploaded the book
 }
 
 /** Form data for uploading a new book */

@@ -61,6 +61,7 @@ async def create_borrow_request(
     result = borrow_service.create_borrow_request(
         db=db,
         book_id=request.bookId,
+        user_id=user.id,
         borrower_name=request.borrowerName,
         borrower_email=request.borrowerEmail,
         borrower_phone=request.borrowerPhone,

@@ -100,14 +100,23 @@ export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
   return response.data;
 }
 
-/** GET /user/books - Fetches books uploaded by the current user (requires auth) */
-export async function getUserBooks(): Promise<BookPreview[]> {
-  interface UserBooksResponse {
+/** GET /user/library - Fetches the current user's library (uploaded + borrowed books) */
+export async function getUserLibrary(): Promise<{
+  uploaded: BookPreview[];
+  borrowed: BookPreview[];
+}> {
+  interface UserLibraryResponse {
     success: boolean;
-    data: BookPreview[];
+    data: {
+      uploaded: BookPreview[];
+      borrowed: BookPreview[];
+    };
   }
-  const response = await apiGet<UserBooksResponse>('/user/books');
-  return response.data;
+  const response = await apiGet<UserLibraryResponse>('/user/library');
+  return {
+    uploaded: response.data?.uploaded || [],
+    borrowed: response.data?.borrowed || [],
+  };
 }
 
 /** GET /books/:id - Fetches a book by ID */

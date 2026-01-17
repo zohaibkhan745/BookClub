@@ -35,8 +35,11 @@ class Book(Base):
     cover_image = Column(Text, nullable=True)  # Changed to Text for base64 images
     price = Column(String(50), nullable=True)  # Only for sell listings
     whatsapp_number = Column(String(20), nullable=True)
-    listed_by = Column(String(255), nullable=True)  # Name of user who uploaded the book
-    user_id = Column(String(255), nullable=True, index=True)  # Supabase user ID who uploaded
     is_available = Column(Boolean, default=True)
+    
+    # Book ownership fields
+    user_id = Column(String(36), nullable=True, index=True)  # Supabase user UUID
+    listed_by = Column(String(255), nullable=True)  # User's full name for display
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

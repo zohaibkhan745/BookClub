@@ -18,8 +18,8 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const { signUp, isLoading: authLoading } = useAuth();
 
-  const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -62,7 +62,7 @@ export function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await signUp(email, password, fullName.trim());
+      const result = await signUp(email, password, fullName);
       if (result.error) {
         setError(result.error);
       } else {
@@ -143,7 +143,7 @@ export function RegisterPage() {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
+                    placeholder="Enter your full name"
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition"
                     disabled={isSubmitting || success}
                   />

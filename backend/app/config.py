@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # Supabase Auth settings
     supabase_url: str
     supabase_jwt_secret: str
+    supabase_anon_key: str = ""  # For JWKS endpoint access
     
     class Config:
         env_file = ".env"

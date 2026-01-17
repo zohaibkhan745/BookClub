@@ -41,10 +41,17 @@ export async function handleResponse<T>(response: Response): Promise<T> {
         }));
         throw createApiError('VALIDATION_ERROR', 'Validation failed', details);
       }
-      // Single error message
+      // Backend error with code and message in detail object
+      if (typeof errorData.detail === 'object' && errorData.detail.code) {
+        throw createApiError(
+          errorData.detail.code,
+          errorData.detail.message || 'An error occurred'
+        );
+      }
+      // Single error message string
       throw createApiError(
         errorData.code || 'API_ERROR',
-        errorData.detail || 'An error occurred'
+        typeof errorData.detail === 'string' ? errorData.detail : 'An error occurred'
       );
     }
     

@@ -14,7 +14,7 @@ function openWhatsApp(phoneNumber: string, bookTitle: string) {
 
   // Create message
   const message = encodeURIComponent(
-    `Hi! I'm interested in borrowing "${bookTitle}" from the Book Club app. Is it still available?`
+    `Hi! I'm interested in borrowing "${bookTitle}" from the Book Club app. Is it still available?`,
   );
 
   // Open WhatsApp (works on both mobile and desktop)
@@ -126,19 +126,13 @@ export function BookDetail({ book }: BookDetailProps) {
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 {book.description}
               </p>
+              {/* Listed By Attribution */}
+              {book.listedBy && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 italic">
+                  Book listed by {book.listedBy}
+                </p>
+              )}
             </div>
-
-            {/* Listed By */}
-            {book.listedBy && (
-              <div className="flex items-center gap-2 py-2">
-                <span className="text-gray-600 dark:text-gray-400">
-                  Listed by:
-                </span>
-                <span className="font-semibold text-black dark:text-white">
-                  {book.listedBy}
-                </span>
-              </div>
-            )}
 
             {/* Price (if selling) */}
             {book.listingType === "sell" && book.price && (

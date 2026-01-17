@@ -33,8 +33,9 @@ class BookCreate(BaseModel):
     cover_image: Optional[str] = None
     price: Optional[str] = None
     whatsapp_number: Optional[str] = None
-    listed_by: Optional[str] = None
+    # Ownership fields (set by backend from authenticated user)
     user_id: Optional[str] = None
+    listed_by: Optional[str] = None
 
 
 # ============================================
@@ -64,6 +65,7 @@ class BookResponse(BaseModel):
     pages: int = 0
     language: str = "English"
     rating: int = 0
+    listedBy: Optional[str] = None  # User who uploaded the book
     
     class Config:
         from_attributes = True
