@@ -24,7 +24,8 @@ interface AuthContextType {
   ) => Promise<{ error: string | null }>;
   signUp: (
     email: string,
-    password: string
+    password: string,
+    fullName?: string
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
@@ -66,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-  const signUp = async (email: string, password: string) => {
-    const result = await authService.signUp({ email, password });
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    const result = await authService.signUp({ email, password, fullName });
     if (result.error) {
       return { error: result.error.message };
     }

@@ -18,6 +18,7 @@ class AuthUser(BaseModel):
     """Authenticated user information extracted from JWT."""
     id: str  # Supabase user ID (UUID)
     email: Optional[str] = None
+    full_name: Optional[str] = None
 
 
 def verify_token(token: str) -> dict:
@@ -77,6 +78,10 @@ async def get_current_user(
     user_id = payload.get("sub")  # Supabase stores user ID in 'sub' claim
     email = payload.get("email")
     
+    # Get full_name from user_metadata (set during signup)
+    user_metadata = payload.get("user_metadata", {})
+    full_name = user_metadata.get("full_name")
+    
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,7 +89,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    return AuthUser(id=user_id, email=email)
+    return AuthUser(id=user_id, email=email, full_name=full_name)
 
 
 async def get_optional_user(
@@ -111,9 +116,13 @@ async def get_optional_user(
         user_id = payload.get("sub")
         email = payload.get("email")
         
+        # Get full_name from user_metadata
+        user_metadata = payload.get("user_metadata", {})
+        full_name = user_metadata.get("full_name")
+        
         if not user_id:
             return None
             
-        return AuthUser(id=user_id, email=email)
+        return AuthUser(id=user_id, email=email, full_name=full_name)
     except HTTPException:
         return None

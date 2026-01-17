@@ -8,6 +8,7 @@ import {
   AlertCircle,
   BookOpen,
   CheckCircle,
+  User,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Navbar } from "../components/Navbar";
@@ -18,6 +19,7 @@ export function RegisterPage() {
   const { signUp, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +38,10 @@ export function RegisterPage() {
     setError(null);
 
     // Basic validation
+    if (!fullName.trim()) {
+      setError("Full name is required");
+      return;
+    }
     if (!email.trim()) {
       setError("Email is required");
       return;
@@ -56,7 +62,7 @@ export function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await signUp(email, password);
+      const result = await signUp(email, password, fullName.trim());
       if (result.error) {
         setError(result.error);
       } else {
@@ -122,6 +128,28 @@ export function RegisterPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Full Name Field */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="fullName"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    id="fullName"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Doe"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition"
+                    disabled={isSubmitting || success}
+                  />
+                </div>
+              </div>
+
               {/* Email Field */}
               <div className="space-y-2">
                 <label

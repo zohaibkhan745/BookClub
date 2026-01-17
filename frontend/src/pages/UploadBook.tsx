@@ -165,12 +165,12 @@ export function UploadBook() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[#F6F0D7] pt-24 pb-0">
+      <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-0 transition-colors duration-300">
         <div className="px-4 md:px-12 max-w-4xl mx-auto">
           {/* Back Button */}
           <button
             onClick={() => navigate("/")}
-            className="flex items-center space-x-2 text-gray-700 hover:text-black mb-6 transition group"
+            className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mb-6 transition group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Home</span>
@@ -178,17 +178,19 @@ export function UploadBook() {
 
           {/* Page Header */}
           <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-black mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold text-black dark:text-white mb-2">
               Upload Your Book
             </h1>
-            <p className="text-gray-700">Share your books with the community</p>
+            <p className="text-gray-700 dark:text-gray-300">
+              Share your books with the community
+            </p>
           </div>
 
           {/* Success Message */}
           {submitSuccess && (
-            <div className="mb-6 p-4 bg-green-100 border border-green-400 rounded-lg flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-              <p className="text-green-800 font-medium">
+            <div className="mb-6 p-4 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 rounded-lg flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <p className="text-green-800 dark:text-green-300 font-medium">
                 Book uploaded successfully! Redirecting...
               </p>
             </div>
@@ -196,9 +198,9 @@ export function UploadBook() {
 
           {/* General Error Message */}
           {submitError && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-400 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-              <p className="text-red-800">{submitError}</p>
+            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 rounded-lg flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+              <p className="text-red-800 dark:text-red-300">{submitError}</p>
             </div>
           )}
 
@@ -206,10 +208,11 @@ export function UploadBook() {
           <form onSubmit={handleSubmit} className="space-y-6 pb-8">
             {/* Book Images */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                Book Images <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                Book Images{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
               </label>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Upload 1-3 images. Front cover required.
               </p>
               {fieldErrors.images && (
@@ -227,7 +230,7 @@ export function UploadBook() {
                       <img
                         src={image}
                         alt={`Book ${index + 1}`}
-                        className="w-full h-40 object-cover rounded-lg border-2 border-amber-200"
+                        className="w-full h-40 object-cover rounded-lg border-2 border-amber-200 dark:border-amber-700"
                       />
                       <button
                         type="button"
@@ -255,8 +258,8 @@ export function UploadBook() {
                   onDrop={handleDrop}
                   className={`relative border-2 border-dashed rounded-xl p-8 text-center transition ${
                     dragActive
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-amber-300 bg-white/50 backdrop-blur-sm"
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                      : "border-amber-300 dark:border-amber-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
                   }`}
                 >
                   <input
@@ -267,17 +270,17 @@ export function UploadBook() {
                     onChange={handleFileInput}
                     className="hidden"
                   />
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-700 mb-2">
+                  <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-700 dark:text-gray-300 mb-2">
                     Drag and drop your images here, or{" "}
                     <label
                       htmlFor="file-upload"
-                      className="text-blue-600 cursor-pointer hover:underline"
+                      className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
                     >
                       browse
                     </label>
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {images.length}/3 images uploaded
                   </p>
                 </div>
@@ -286,8 +289,9 @@ export function UploadBook() {
 
             {/* Title */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                Book Title <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                Book Title{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -297,10 +301,10 @@ export function UploadBook() {
                   clearFieldError("title");
                 }}
                 placeholder="Enter book title"
-                className={`w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                className={`w-full px-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
                   fieldErrors.title
                     ? "border-red-400 focus:border-red-500"
-                    : "border-amber-300 focus:border-blue-500"
+                    : "border-amber-300 dark:border-gray-600 focus:border-blue-500"
                 }`}
               />
               {fieldErrors.title ? (
@@ -309,7 +313,7 @@ export function UploadBook() {
                   {fieldErrors.title}
                 </p>
               ) : (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   {title.length}/100 characters
                 </p>
               )}
@@ -317,8 +321,8 @@ export function UploadBook() {
 
             {/* Author */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                Author <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                Author <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -328,10 +332,10 @@ export function UploadBook() {
                   clearFieldError("author");
                 }}
                 placeholder="Enter author name"
-                className={`w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                className={`w-full px-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
                   fieldErrors.author
                     ? "border-red-400 focus:border-red-500"
-                    : "border-amber-300 focus:border-blue-500"
+                    : "border-amber-300 dark:border-gray-600 focus:border-blue-500"
                 }`}
               />
               {fieldErrors.author && (
@@ -344,11 +348,12 @@ export function UploadBook() {
 
             {/* WhatsApp Number */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                WhatsApp Number <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                WhatsApp Number{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-medium">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 font-medium">
                   +92
                 </span>
                 <input
@@ -360,10 +365,10 @@ export function UploadBook() {
                     clearFieldError("whatsappNumber");
                   }}
                   placeholder="3001234567"
-                  className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                  className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
                     fieldErrors.whatsappNumber
                       ? "border-red-400 focus:border-red-500"
-                      : "border-amber-300 focus:border-green-500"
+                      : "border-amber-300 dark:border-gray-600 focus:border-green-500"
                   }`}
                   maxLength={10}
                 />
@@ -374,7 +379,7 @@ export function UploadBook() {
                   {fieldErrors.whatsappNumber}
                 </p>
               ) : (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Enter your 10-digit mobile number (without +92)
                 </p>
               )}
@@ -382,8 +387,9 @@ export function UploadBook() {
 
             {/* Category */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                Category / Genre <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                Category / Genre{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               {fieldErrors.category && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
@@ -403,7 +409,7 @@ export function UploadBook() {
                     className={`px-4 py-2 rounded-lg font-medium transition ${
                       category === cat
                         ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white"
-                        : "bg-white/50 backdrop-blur-sm border border-amber-300 text-gray-700 hover:border-purple-500"
+                        : "bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-purple-500"
                     }`}
                   >
                     {cat}
@@ -414,10 +420,13 @@ export function UploadBook() {
 
             {/* Type of Listing */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                Type of Listing <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                Type of Listing{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
               </label>
-              <p className="text-sm text-gray-600">Select exactly one option</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Select exactly one option
+              </p>
               {fieldErrors.listingType && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
@@ -434,7 +443,7 @@ export function UploadBook() {
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
                     listingType === "lend"
                       ? "bg-gradient-to-r from-green-500 to-green-600 text-white scale-105 shadow-lg"
-                      : "bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-green-500"
+                      : "bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-green-500"
                   }`}
                 >
                   <div className="text-center">
@@ -451,7 +460,7 @@ export function UploadBook() {
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
                     listingType === "borrow"
                       ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white scale-105 shadow-lg"
-                      : "bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-blue-500"
+                      : "bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-500"
                   }`}
                 >
                   <div className="text-center">
@@ -468,7 +477,7 @@ export function UploadBook() {
                   className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
                     listingType === "sell"
                       ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white scale-105 shadow-lg"
-                      : "bg-white/70 backdrop-blur-sm border-2 border-amber-300 text-gray-700 hover:border-orange-500"
+                      : "bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-orange-500"
                   }`}
                 >
                   <div className="text-center">
@@ -481,10 +490,11 @@ export function UploadBook() {
 
             {/* Book Condition */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
-                Book Condition <span className="text-red-600">*</span>
+              <label className="block text-black dark:text-white font-semibold">
+                Book Condition{" "}
+                <span className="text-red-600 dark:text-red-400">*</span>
               </label>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 What's the physical condition of the book?
               </p>
               {fieldErrors.condition && (
@@ -505,7 +515,7 @@ export function UploadBook() {
                     className={`px-3 py-3 rounded-lg font-medium transition text-center ${
                       condition === cond.value
                         ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white scale-105 shadow-md"
-                        : "bg-white/50 backdrop-blur-sm border border-amber-300 text-gray-700 hover:border-amber-500"
+                        : "bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-amber-500"
                     }`}
                   >
                     <div className="text-lg mb-1">{cond.emoji}</div>
@@ -518,11 +528,12 @@ export function UploadBook() {
             {/* Price (Conditional) */}
             {listingType === "sell" && (
               <div className="space-y-3">
-                <label className="block text-black font-semibold">
-                  Price <span className="text-red-600">*</span>
+                <label className="block text-black dark:text-white font-semibold">
+                  Price{" "}
+                  <span className="text-red-600 dark:text-red-400">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-medium">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 font-medium">
                     PKR
                   </span>
                   <input
@@ -533,10 +544,10 @@ export function UploadBook() {
                       clearFieldError("price");
                     }}
                     placeholder="0"
-                    className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border focus:outline-none text-gray-800 ${
+                    className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
                       fieldErrors.price
                         ? "border-red-400 focus:border-red-500"
-                        : "border-amber-300 focus:border-orange-500"
+                        : "border-amber-300 dark:border-gray-600 focus:border-orange-500"
                     }`}
                   />
                 </div>
@@ -551,9 +562,9 @@ export function UploadBook() {
 
             {/* Description */}
             <div className="space-y-3">
-              <label className="block text-black font-semibold">
+              <label className="block text-black dark:text-white font-semibold">
                 Short Description{" "}
-                <span className="text-gray-500 text-sm font-normal">
+                <span className="text-gray-500 dark:text-gray-400 text-sm font-normal">
                   (Optional but recommended)
                 </span>
               </label>
@@ -566,9 +577,9 @@ export function UploadBook() {
                 }}
                 placeholder="Anything someone should know before requesting this book?"
                 rows={4}
-                className="w-full px-4 py-3 rounded-lg bg-white/50 backdrop-blur-sm border border-amber-300 focus:outline-none focus:border-blue-500 text-gray-800 resize-none"
+                className="w-full px-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-amber-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 text-gray-800 dark:text-white placeholder:text-gray-400 resize-none"
               />
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {description.length}/300 characters
               </p>
             </div>

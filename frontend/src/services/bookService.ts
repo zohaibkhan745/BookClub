@@ -100,6 +100,16 @@ export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
   return response.data;
 }
 
+/** GET /user/books - Fetches books uploaded by the current user (requires auth) */
+export async function getUserBooks(): Promise<BookPreview[]> {
+  interface UserBooksResponse {
+    success: boolean;
+    data: BookPreview[];
+  }
+  const response = await apiGet<UserBooksResponse>('/user/books');
+  return response.data;
+}
+
 /** GET /books/:id - Fetches a book by ID */
 export async function getBookById(id: number): Promise<Book> {
   const response = await apiGet<BookApiResponse>(`/books/${id}`);

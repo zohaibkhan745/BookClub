@@ -40,6 +40,7 @@ def book_to_response(book) -> dict:
         "whatsappNumber": book.whatsapp_number or "",
         "listingType": book.listing_type or "lend",
         "price": book.price or "",
+        "listedBy": book.listed_by or "Anonymous",
     }
 
 
@@ -102,6 +103,28 @@ async def get_book(book_id: int, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/user/books")
+async def get_user_books(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    GET /user/books - Fetch all books uploaded by the current user.
+    Requires authentication.
+    """
+    try:
+        books = book_service.get_books_by_user(db, user.id)
+        return {
+            "success": True,
+            "data": [book_to_preview(b) for b in books]
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "FETCH_FAILED", "message": str(e)}
+        )
+
+
 @router.post("/books", status_code=status.HTTP_201_CREATED)
 async def create_book(
     book_data: BookCreate,
@@ -131,6 +154,9 @@ async def create_book(
         )
     
     try:
+        # Set the listed_by from authenticated user's full name (or email prefix as fallback)
+        book_data.listed_by = user.full_name or (user.email.split('@')[0] if user.email else "Anonymous")
+        book_data.user_id = user.id  # Store user ID for library feature
         book = book_service.create_book(db, book_data)
         return {
             "success": True,

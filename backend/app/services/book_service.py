@@ -56,6 +56,8 @@ def create_book(db: Session, book_data: BookCreate) -> Book:
         cover_image=book_data.cover_image,
         price=book_data.price,
         whatsapp_number=book_data.whatsapp_number,
+        listed_by=book_data.listed_by,
+        user_id=book_data.user_id,
         is_available=True,
     )
     db.add(db_book)
@@ -72,3 +74,10 @@ def update_book_availability(db: Session, book_id: int, is_available: bool) -> O
         db.commit()
         db.refresh(book)
     return book
+
+
+def get_books_by_user(db: Session, user_id: str, limit: int = 50) -> list[Book]:
+    """Fetch all books uploaded by a specific user."""
+    return db.query(Book).filter(
+        Book.user_id == user_id
+    ).order_by(desc(Book.created_at)).limit(limit).all()

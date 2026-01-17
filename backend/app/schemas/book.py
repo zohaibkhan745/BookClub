@@ -33,6 +33,8 @@ class BookCreate(BaseModel):
     cover_image: Optional[str] = None
     price: Optional[str] = None
     whatsapp_number: Optional[str] = None
+    listed_by: Optional[str] = None
+    user_id: Optional[str] = None
 
 
 # ============================================

@@ -22,13 +22,15 @@ export function LoadingSpinner({
       <Loader2
         className={`${sizeClasses[size]} text-amber-500 animate-spin mx-auto mb-3`}
       />
-      {message && <p className="text-gray-600 text-sm">{message}</p>}
+      {message && (
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{message}</p>
+      )}
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div className="min-h-screen bg-[#F6F0D7] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] flex items-center justify-center transition-colors duration-300">
         {content}
       </div>
     );

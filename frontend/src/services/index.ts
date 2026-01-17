@@ -2,6 +2,7 @@ export {
   getBookById,
   getAllBookSections,
   getBooksByGenre,
+  getUserBooks,
   createBook,
   borrowBook,
   joinClub,

@@ -15,15 +15,21 @@ export interface AuthResult {
 export interface AuthCredentials {
   email: string;
   password: string;
+  fullName?: string;
 }
 
 /**
  * Sign up a new user with email and password.
  */
-export async function signUp({ email, password }: AuthCredentials): Promise<AuthResult> {
+export async function signUp({ email, password, fullName }: AuthCredentials): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        full_name: fullName || email.split('@')[0],
+      },
+    },
   });
 
   return {
