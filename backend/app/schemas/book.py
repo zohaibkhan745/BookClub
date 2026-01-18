@@ -23,7 +23,13 @@ class BookCondition(str, Enum):
 # ============================================
 
 class BookCreate(BaseModel):
-    """Schema for creating a new book."""
+    """
+    Schema for creating a new book.
+    
+    Note: uploadedByUserId and uploadedByFullName are NOT accepted from frontend.
+    These are always derived from the authenticated user on the backend
+    to ensure data integrity and security.
+    """
     title: str = Field(..., min_length=1, max_length=255)
     author: str = Field(..., min_length=1, max_length=255)
     category: str = Field(..., min_length=1, max_length=100)
@@ -33,7 +39,7 @@ class BookCreate(BaseModel):
     cover_image: Optional[str] = None
     price: Optional[str] = None
     whatsapp_number: Optional[str] = None
-    # Ownership fields (set by backend from authenticated user)
+    # Internal fields - set by backend from authenticated user, never from frontend input
     user_id: Optional[str] = None
     listed_by: Optional[str] = None
 
@@ -54,7 +60,7 @@ class BookPreview(BaseModel):
 
 
 class BookResponse(BaseModel):
-    """Full book details."""
+    """Full book details for public display."""
     id: int
     title: str
     author: str
@@ -65,7 +71,14 @@ class BookResponse(BaseModel):
     pages: int = 0
     language: str = "English"
     rating: int = 0
-    listedBy: Optional[str] = None  # User who uploaded the book
+    # Public attribution - shows uploader's full name, never their email
+    listedBy: Optional[str] = None  # Format: "Listed by {uploadedByFullName}"
+    # Ownership info for conditional UI rendering
+    uploadedByUserId: Optional[str] = None  # Used to check if current user is the uploader
+    # Borrowing status
+    isBorrowed: bool = False
+    borrowedByName: Optional[str] = None  # Name of the person who borrowed the book
+    borrowedByUserId: Optional[str] = None  # Borrower's user ID (for library display)
     
     class Config:
         from_attributes = True
@@ -76,6 +89,11 @@ class BookSectionsResponse(BaseModel):
     trending: list[BookPreview]
     newArrivals: list[BookPreview]
     popular: list[BookPreview]
+
+
+class MarkBorrowedRequest(BaseModel):
+    """Request schema for marking a book as borrowed."""
+    borrower_full_name: str = Field(..., min_length=1, max_length=255, description="Full name of the borrower")
 
 
 # ============================================

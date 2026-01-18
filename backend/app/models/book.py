@@ -37,9 +37,16 @@ class Book(Base):
     whatsapp_number = Column(String(20), nullable=True)
     is_available = Column(Boolean, default=True)
     
-    # Book ownership fields
+    # Book ownership fields - IMPORTANT: These are set by the backend from the authenticated user,
+    # never from frontend input. This ensures data integrity and prevents spoofing.
     user_id = Column(String(36), nullable=True, index=True)  # Supabase user UUID
-    listed_by = Column(String(255), nullable=True)  # User's full name for display
+    listed_by = Column(String(255), nullable=True)  # User's full name for public display (email is never stored here)
+    
+    # Borrowing fields - Track who has borrowed this book
+    # These are set by the backend when the uploader marks the book as borrowed
+    is_borrowed = Column(Boolean, default=False)  # Whether the book is currently borrowed
+    borrowed_by_user_id = Column(String(36), nullable=True, index=True)  # Borrower's Supabase user UUID
+    borrowed_by_name = Column(String(255), nullable=True)  # Borrower's full name for display
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

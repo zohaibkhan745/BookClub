@@ -30,7 +30,7 @@ export function BookDetailPage() {
         setNotFound(true);
       } else {
         setError(
-          apiError.message || "Failed to load book details. Please try again."
+          apiError.message || "Failed to load book details. Please try again.",
         );
       }
     } finally {
@@ -70,10 +70,15 @@ export function BookDetailPage() {
     );
   }
 
+  // Handle book update (e.g., when marked as borrowed)
+  const handleBookUpdate = (updatedBook: Book) => {
+    setBook(updatedBook);
+  };
+
   return (
     <>
       <Navbar />
-      <BookDetail book={book} />
+      <BookDetail book={book} onBookUpdate={handleBookUpdate} />
       <div className="hidden md:block">
         <Footer />
       </div>

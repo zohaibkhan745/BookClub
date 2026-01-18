@@ -65,6 +65,12 @@ export function RegisterPage() {
       const result = await signUp(email, password, fullName);
       if (result.error) {
         setError(result.error);
+      } else if (result.needsConfirmation) {
+        // User created but needs email confirmation
+        setSuccess(true);
+        setError(null);
+        // Show a message about email confirmation
+        console.log("[RegisterPage] User created, needs email confirmation");
       } else {
         setSuccess(true);
         // Redirect after short delay

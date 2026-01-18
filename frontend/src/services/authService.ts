@@ -117,7 +117,9 @@ function formatAuthError(error: AuthError): FormattedAuthError {
  * Note: Supabase handles email uniqueness at the database level,
  * ensuring no duplicate accounts can be created.
  */
-export async function signUp({ email, password, fullName }: AuthCredentials): Promise<AuthResult & { formattedError?: FormattedAuthError }> {
+export async function signUp({ email, password, fullName }: AuthCredentials): Promise<AuthResult & { formattedError?: FormattedAuthError; needsConfirmation?: boolean }> {
+  console.log('[AuthService] signUp called with:', { email, fullName });
+  
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -128,11 +130,22 @@ export async function signUp({ email, password, fullName }: AuthCredentials): Pr
     },
   });
 
+  console.log('[AuthService] signUp response:', {
+    user: data.user ? { id: data.user.id, email: data.user.email, confirmed: data.user.confirmed_at } : null,
+    session: data.session ? 'exists' : 'null',
+    error: error?.message,
+  });
+
+  // Check if email confirmation is required
+  // When confirmation is required: user exists but session is null and no error
+  const needsConfirmation = !error && data.user && !data.session;
+
   return {
     user: data.user,
     session: data.session,
     error,
     formattedError: error ? formatAuthError(error) : undefined,
+    needsConfirmation,
   };
 }
 

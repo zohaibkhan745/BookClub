@@ -5,6 +5,9 @@ import type {
   ApiError,
   BorrowRequestData,
   BorrowRequestResponse,
+  BorrowRecord,
+  User,
+  UserPreview,
   JoinClubData,
   JoinClubResponse,
 } from '../types';
@@ -176,56 +179,6 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
   }
 }
 
-/** POST /borrow - Submits a request to borrow a book */
-export async function borrowBook(data: BorrowRequestData): Promise<BorrowRequestResponse> {
-  // Client-side validation
-  const errors: ApiError['details'] = [];
-
-  if (!data.bookId) {
-    errors.push({ field: 'bookId', message: 'Book ID is required' });
-  }
-  if (!data.borrowerName?.trim()) {
-    errors.push({ field: 'borrowerName', message: 'Name is required' });
-  }
-  if (!data.borrowerEmail?.trim()) {
-    errors.push({ field: 'borrowerEmail', message: 'Email is required' });
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.borrowerEmail)) {
-    errors.push({ field: 'borrowerEmail', message: 'Invalid email format' });
-  }
-  if (!data.borrowerPhone?.trim()) {
-    errors.push({ field: 'borrowerPhone', message: 'Phone number is required' });
-  }
-
-  if (errors.length > 0) {
-    throw createApiError('VALIDATION_ERROR', 'Validation failed', errors);
-  }
-
-  // Transform to backend format
-  const payload = {
-    book_id: data.bookId,
-    borrower_name: data.borrowerName.trim(),
-    borrower_email: data.borrowerEmail.trim(),
-    borrower_phone: data.borrowerPhone.trim(),
-    message: data.message?.trim() || null,
-  };
-
-  interface BorrowResponse {
-    request_id: string;
-    book_id: number;
-    status: string;
-    created_at: string;
-  }
-
-  const response = await apiPost<BorrowResponse>('/borrow', payload);
-  
-  return {
-    requestId: response.request_id,
-    bookId: response.book_id,
-    status: response.status as 'pending' | 'approved' | 'rejected',
-    createdAt: response.created_at,
-  };
-}
-
 /** POST /join - Registers a user to join the book club (client-side only for now) */
 export async function joinClub(data: JoinClubData): Promise<JoinClubResponse> {
   // Validate required fields
@@ -261,4 +214,358 @@ export async function joinClub(data: JoinClubData): Promise<JoinClubResponse> {
 
   clubMembers.set(response.memberId, response);
   return response;
+}
+
+// ============================================================================
+// BORROW MANAGEMENT (NEW - using borrow_records table)
+// ============================================================================
+
+/** GET /borrow/status/:bookId - Get current borrow status for a book */
+export async function getBorrowStatus(bookId: string): Promise<BorrowRecord | null> {
+  try {
+    interface BorrowStatusResponse {
+      success: boolean;
+      data: {
+        bookId: string;
+        isBorrowed: boolean;
+        borrowerName: string | null;
+        borrowerId: string | null;
+        dueAt: string | null;
+      };
+    }
+
+    const response = await apiGet<BorrowStatusResponse>(`/borrow/status/${bookId}`);
+    
+    if (!response.data.isBorrowed) {
+      return null;
+    }
+
+    return {
+      id: '', // Not provided by this endpoint
+      bookId: response.data.bookId,
+      borrowerId: response.data.borrowerId || '',
+      borrowerFullName: response.data.borrowerName || undefined,
+      borrowedAt: '', // Not provided by this endpoint
+      dueAt: response.data.dueAt || undefined,
+      status: 'active' as const, // If borrowed, status is active
+    };
+  } catch (error) {
+    console.error('Get borrow status error:', error);
+    throw error;
+  }
+}
+
+/** POST /borrow/request - Request to borrow a book (creates pending borrow record) */
+export async function requestBorrow(bookId: string, message?: string): Promise<BorrowRecord> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BorrowRecordResponse {
+      success: boolean;
+      data: {
+        id: string;
+        bookId: string;
+        borrowerId: string;
+        borrowedAt: string | null;
+        dueAt: string | null;
+        returnedAt: string | null;
+        status: string;
+        borrower?: BorrowerInfo;
+      };
+    }
+
+    const response = await apiPost<BorrowRecordResponse>('/borrow/request', {
+      book_id: bookId,
+      message: message?.trim() || null,
+    });
+
+    return {
+      id: response.data.id,
+      bookId: response.data.bookId,
+      borrowerId: response.data.borrowerId,
+      borrowerUsername: response.data.borrower?.username,
+      borrowerFullName: response.data.borrower?.fullName,
+      borrowedAt: response.data.borrowedAt || '',
+      dueAt: response.data.dueAt || undefined,
+      returnedAt: response.data.returnedAt || undefined,
+      status: response.data.status as 'active' | 'returned' | 'overdue',
+    };
+  } catch (error) {
+    console.error('Request borrow error:', error);
+    throw error;
+  }
+}
+
+/** POST /borrow/mark-borrowed - Owner marks book as borrowed to a specific user */
+export async function ownerMarkBorrowed(
+  bookId: string, 
+  borrowerUsername: string, 
+  dueAt?: string
+): Promise<BorrowRecord> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BorrowRecordResponse {
+      success: boolean;
+      data: {
+        id: string;
+        bookId: string;
+        borrowerId: string;
+        borrowedAt: string | null;
+        dueAt: string | null;
+        returnedAt: string | null;
+        status: string;
+        borrower?: BorrowerInfo;
+      };
+    }
+
+    const response = await apiPost<BorrowRecordResponse>('/borrow/mark-borrowed', {
+      book_id: bookId,
+      borrower_username: borrowerUsername.trim(),
+      due_at: dueAt || null,
+    });
+
+    return {
+      id: response.data.id,
+      bookId: response.data.bookId,
+      borrowerId: response.data.borrowerId,
+      borrowerUsername: response.data.borrower?.username,
+      borrowerFullName: response.data.borrower?.fullName,
+      borrowedAt: response.data.borrowedAt || '',
+      dueAt: response.data.dueAt || undefined,
+      returnedAt: response.data.returnedAt || undefined,
+      status: response.data.status as 'active' | 'returned' | 'overdue',
+    };
+  } catch (error) {
+    console.error('Owner mark borrowed error:', error);
+    throw error;
+  }
+}
+
+/** POST /borrow/return - Return a borrowed book */
+export async function returnBook(bookId: string): Promise<BorrowRecord> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BorrowRecordResponse {
+      success: boolean;
+      data: {
+        id: string;
+        bookId: string;
+        borrowerId: string;
+        borrowedAt: string | null;
+        dueAt: string | null;
+        returnedAt: string | null;
+        status: string;
+        borrower?: BorrowerInfo;
+      };
+    }
+
+    const response = await apiPost<BorrowRecordResponse>('/borrow/return', {
+      book_id: bookId,
+    });
+
+    return {
+      id: response.data.id,
+      bookId: response.data.bookId,
+      borrowerId: response.data.borrowerId,
+      borrowerUsername: response.data.borrower?.username,
+      borrowerFullName: response.data.borrower?.fullName,
+      borrowedAt: response.data.borrowedAt || '',
+      dueAt: response.data.dueAt || undefined,
+      returnedAt: response.data.returnedAt || undefined,
+      status: response.data.status as 'active' | 'returned' | 'overdue',
+    };
+  } catch (error) {
+    console.error('Return book error:', error);
+    throw error;
+  }
+}
+
+/** GET /borrow/history/my - Get current user's borrow history */
+export async function getMyBorrowHistory(): Promise<BorrowRecord[]> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BookInfo {
+      id: string;
+      title: string;
+      author: string;
+      image: string;
+    }
+    
+    interface BorrowHistoryItem {
+      id: string;
+      bookId: string;
+      borrowerId: string;
+      borrowedAt: string | null;
+      dueAt: string | null;
+      returnedAt: string | null;
+      status: string;
+      borrower?: BorrowerInfo;
+      book?: BookInfo;
+    }
+    
+    interface BorrowHistoryResponse {
+      success: boolean;
+      data: BorrowHistoryItem[];
+    }
+
+    const response = await apiGet<BorrowHistoryResponse>('/borrow/history/my');
+
+    return response.data.map((record) => ({
+      id: record.id,
+      bookId: record.bookId,
+      borrowerId: record.borrowerId,
+      borrowerUsername: record.borrower?.username,
+      borrowerFullName: record.borrower?.fullName,
+      borrowedAt: record.borrowedAt || '',
+      dueAt: record.dueAt || undefined,
+      returnedAt: record.returnedAt || undefined,
+      status: record.status as 'active' | 'returned' | 'overdue',
+      book: record.book,
+    }));
+  } catch (error) {
+    console.error('Get my borrow history error:', error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
+
+/** GET /users/search?q=... - Search for users by username or full name */
+export async function searchUsers(query: string): Promise<UserPreview[]> {
+  try {
+    interface UserSearchResult {
+      id: string;
+      username: string;
+      full_name: string;
+    }
+    
+    interface SearchUsersResponse {
+      success: boolean;
+      data: UserSearchResult[];
+    }
+
+    const response = await apiGet<SearchUsersResponse>(`/users/search?q=${encodeURIComponent(query)}`);
+
+    return response.data.map((user) => ({
+      id: user.id,
+      username: user.username,
+      fullName: user.full_name,
+    }));
+  } catch (error) {
+    console.error('Search users error:', error);
+    throw error;
+  }
+}
+
+/** POST /users/sync - Sync Supabase auth user to local users table */
+export async function syncUser(): Promise<User> {
+  try {
+    interface UserData {
+      id: string;
+      username: string;
+      full_name: string;
+      email: string;
+      created_at: string;
+      updated_at: string;
+    }
+    
+    interface SyncUserResponse {
+      success: boolean;
+      data: UserData;
+    }
+
+    const response = await apiPost<SyncUserResponse>('/users/sync', {});
+
+    return {
+      id: response.data.id,
+      username: response.data.username,
+      fullName: response.data.full_name,
+      email: response.data.email,
+      createdAt: response.data.created_at,
+      updatedAt: response.data.updated_at,
+    };
+  } catch (error) {
+    console.error('Sync user error:', error);
+    throw error;
+  }
+}
+
+/** GET /users/me - Get current authenticated user */
+export async function getCurrentUser(): Promise<User> {
+  try {
+    interface UserData {
+      id: string;
+      username: string;
+      full_name: string;
+      email: string;
+      created_at: string;
+      updated_at: string;
+    }
+    
+    interface GetUserResponse {
+      success: boolean;
+      data: UserData;
+    }
+
+    const response = await apiGet<GetUserResponse>('/users/me');
+
+    return {
+      id: response.data.id,
+      username: response.data.username,
+      fullName: response.data.full_name,
+      email: response.data.email,
+      createdAt: response.data.created_at,
+      updatedAt: response.data.updated_at,
+    };
+  } catch (error) {
+    console.error('Get current user error:', error);
+    throw error;
+  }
+}
+
+
+/** 
+ * POST /books/:id/mark-borrowed - Mark a book as borrowed.
+ * Only the book uploader can call this endpoint.
+ * The borrower must be a registered user.
+ * @deprecated Use ownerMarkBorrowed instead - this uses the old schema
+ */
+export async function markBookAsBorrowed(bookId: number, borrowerFullName: string): Promise<Book> {
+  // Client-side validation
+  if (!borrowerFullName?.trim()) {
+    throw createApiError('VALIDATION_ERROR', 'Borrower name is required');
+  }
+
+  interface MarkBorrowedResponse {
+    success: boolean;
+    data: Book;
+  }
+
+  const response = await apiPost<MarkBorrowedResponse>(
+    `/books/${bookId}/mark-borrowed`,
+    { borrower_full_name: borrowerFullName.trim() }
+  );
+
+  return response.data;
 }

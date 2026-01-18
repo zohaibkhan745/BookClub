@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import * as authService from "../services/authService";
+import { syncUser } from "../services/bookService";
 
 interface AuthContextType {
   user: User | null;
@@ -26,7 +27,7 @@ interface AuthContextType {
     email: string,
     password: string,
     fullName: string,
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -39,19 +40,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    authService.getSession().then((session) => {
+    authService.getSession().then(async (session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+
+      // Sync user to local database if logged in
+      if (session?.user) {
+        try {
+          await syncUser();
+          console.log("[AuthContext] User synced to local database");
+        } catch (err) {
+          console.error("[AuthContext] Failed to sync user:", err);
+        }
+      }
     });
 
     // Subscribe to auth changes
     const {
       data: { subscription },
-    } = authService.onAuthStateChange((user, session) => {
+    } = authService.onAuthStateChange(async (user, session) => {
       setUser(user);
       setSession(session);
       setIsLoading(false);
+
+      // Sync user to local database when they log in
+      if (user && session) {
+        try {
+          await syncUser();
+          console.log(
+            "[AuthContext] User synced to local database on auth change",
+          );
+        } catch (err) {
+          console.error(
+            "[AuthContext] Failed to sync user on auth change:",
+            err,
+          );
+        }
+      }
     });
 
     return () => {
@@ -70,9 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, fullName: string) => {
     const result = await authService.signUp({ email, password, fullName });
     if (result.error) {
-      return { error: result.error.message };
+      return { error: result.error.message, needsConfirmation: false };
     }
-    return { error: null };
+    // If needsConfirmation is true, user was created but needs to confirm email
+    if (result.needsConfirmation) {
+      return { error: null, needsConfirmation: true };
+    }
+    return { error: null, needsConfirmation: false };
   };
 
   const signOut = async () => {
