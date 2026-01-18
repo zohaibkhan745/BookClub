@@ -25,7 +25,7 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
           setShowLeftArrow(rowRef.current.scrollLeft > 0);
           setShowRightArrow(
             rowRef.current.scrollLeft <
-              rowRef.current.scrollWidth - rowRef.current.clientWidth - 10
+              rowRef.current.scrollWidth - rowRef.current.clientWidth - 10,
           );
         }
       }, 300);
@@ -82,7 +82,9 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
                   <img
                     src={book.image}
                     alt={book.title}
-                    className="w-full h-52 md:h-72 object-cover rounded-xl"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-52 md:h-72 object-cover rounded-xl bg-amber-100 dark:bg-gray-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity rounded-xl backdrop-blur-sm">
                     <div className="absolute bottom-0 p-3 w-full bg-black/20 backdrop-blur-md rounded-b-xl border-t border-white/10">

@@ -26,6 +26,52 @@ const BOOK_CONDITIONS: {
   { value: "poor", label: "Poor", emoji: "📚" },
 ];
 
+/** Compresses an image file to reduce size while maintaining quality */
+async function compressImage(
+  file: File,
+  maxWidth = 800,
+  quality = 0.7,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement("canvas");
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
+
+    img.onload = () => {
+      // Calculate new dimensions while maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+
+      // Draw and compress
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+      resolve(compressedDataUrl);
+    };
+
+    img.onerror = () => reject(new Error("Failed to load image"));
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Field-level error state */
 type FieldErrors = Record<string, string>;
 
@@ -85,18 +131,27 @@ export function UploadBook() {
     }
   };
 
-  const handleFiles = (files: FileList) => {
+  const handleFiles = async (files: FileList) => {
     const fileArray = Array.from(files);
     const remainingSlots = 3 - images.length;
     const filesToAdd = fileArray.slice(0, remainingSlots);
 
-    filesToAdd.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImages((prev) => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
+    // Process files with compression
+    for (const file of filesToAdd) {
+      try {
+        // Compress image before storing (reduces size by ~70%)
+        const compressedImage = await compressImage(file, 800, 0.7);
+        setImages((prev) => [...prev, compressedImage]);
+      } catch (error) {
+        console.error("Failed to compress image:", error);
+        // Fallback to original if compression fails
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImages((prev) => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
   };
 
   const removeImage = (index: number) => {

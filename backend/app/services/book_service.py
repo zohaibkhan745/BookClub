@@ -2,34 +2,62 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.models.book import Book
 from app.schemas.book import BookCreate
+from app.cache import cache, invalidate_books_cache
 from typing import Optional
 
 
 def get_all_books(db: Session, limit: int = 50) -> list[Book]:
-    """Fetch all available books."""
-    return db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(limit).all()
+    """Fetch all available books with caching."""
+    cache_key = f"books:all:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(limit).all()
+    cache.set(cache_key, result, ttl_seconds=30)
+    return result
 
 
 def get_book_by_id(db: Session, book_id: int) -> Optional[Book]:
-    """Fetch a single book by ID."""
-    return db.query(Book).filter(Book.id == book_id).first()
+    """Fetch a single book by ID with caching."""
+    cache_key = f"books:id:{book_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(Book.id == book_id).first()
+    if result:
+        cache.set(cache_key, result, ttl_seconds=60)  # Longer TTL for single books
+    return result
 
 
 def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
-    """Fetch all available books by genre/category."""
-    return db.query(Book).filter(
+    """Fetch all available books by genre/category with caching."""
+    cache_key = f"genre:{genre.lower()}:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
         Book.is_available == True,
         Book.category.ilike(f"%{genre}%")
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    cache.set(cache_key, result, ttl_seconds=30)
+    return result
 
 
 def get_books_by_section(db: Session, limit: int = 10) -> dict:
     """
-    Get books organized by homepage sections.
+    Get books organized by homepage sections with caching.
     - trending: Most recent books
     - newArrivals: Latest additions
     - popular: Random selection (simulated popularity)
     """
+    cache_key = f"books:sections:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     all_books = db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(30).all()
     
     # Split books into sections
@@ -37,11 +65,13 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
     new_arrivals = all_books[limit:limit*2] if len(all_books) >= limit*2 else all_books[:limit]
     popular = all_books[limit*2:limit*3] if len(all_books) >= limit*3 else all_books[:limit]
     
-    return {
+    result = {
         "trending": trending,
         "newArrivals": new_arrivals,
         "popular": popular,
     }
+    cache.set(cache_key, result, ttl_seconds=30)
+    return result
 
 
 def create_book(db: Session, book_data: BookCreate) -> Book:
@@ -70,6 +100,10 @@ def create_book(db: Session, book_data: BookCreate) -> Book:
     db.add(db_book)
     db.commit()
     db.refresh(db_book)
+    
+    # Invalidate cache after creating a book
+    invalidate_books_cache()
+    
     return db_book
 
 
@@ -80,6 +114,11 @@ def update_book_availability(db: Session, book_id: int, is_available: bool) -> O
         book.is_available = is_available
         db.commit()
         db.refresh(book)
+        
+        # Invalidate caches after updating
+        invalidate_books_cache()
+        cache.delete(f"books:id:{book_id}")
+        
     return book
 
 
@@ -148,4 +187,9 @@ def mark_book_as_borrowed(
         book.borrowed_by_name = borrowed_by_name
         db.commit()
         db.refresh(book)
+        
+        # Invalidate caches after marking as borrowed
+        invalidate_books_cache()
+        cache.delete(f"books:id:{book_id}")
+        
     return book

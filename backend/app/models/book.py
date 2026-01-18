@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Enum, Index
 from sqlalchemy.sql import func
 from app.db.database import Base
 import enum
@@ -24,18 +24,25 @@ class Book(Base):
     """Book model representing a book listing."""
     
     __tablename__ = "books"
+    __table_args__ = (
+        # Composite indexes for common query patterns
+        Index('idx_books_available_created', 'is_available', 'created_at'),
+        Index('idx_books_category_available', 'category', 'is_available'),
+        Index('idx_books_listing_available', 'listing_type', 'is_available'),
+        {'extend_existing': True},  # Allow redefining if metadata already exists
+    )
     
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False, index=True)
-    author = Column(String(255), nullable=False)
-    category = Column(String(100), nullable=False)
-    listing_type = Column(String(20), nullable=False, default=ListingType.lend.value)
+    author = Column(String(255), nullable=False, index=True)  # Added index
+    category = Column(String(100), nullable=False, index=True)  # Added index
+    listing_type = Column(String(20), nullable=False, default=ListingType.lend.value, index=True)  # Added index
     condition = Column(String(20), nullable=True, default=BookCondition.good.value)
     description = Column(Text, nullable=True)
     cover_image = Column(Text, nullable=True)  # Changed to Text for base64 images
     price = Column(String(50), nullable=True)  # Only for sell listings
     whatsapp_number = Column(String(20), nullable=True)
-    is_available = Column(Boolean, default=True)
+    is_available = Column(Boolean, default=True, index=True)  # Added index
     
     # Book ownership fields - IMPORTANT: These are set by the backend from the authenticated user,
     # never from frontend input. This ensures data integrity and prevents spoofing.

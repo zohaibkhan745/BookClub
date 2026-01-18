@@ -13,6 +13,7 @@ import type {
   JoinClubResponse,
 } from '../types';
 import { apiGet, apiPost, apiPatch, createApiError } from './api';
+import { clientCache, CACHE_KEYS, CACHE_TTL } from './cache';
 
 // ============================================
 // Types for API Responses
@@ -78,29 +79,56 @@ function generateId(prefix: string): string {
 // Book Service API Functions
 // ============================================
 
-/** GET /books - Fetches all homepage book sections */
+/** GET /books - Fetches all homepage book sections with caching */
 export async function getAllBookSections(): Promise<{
   trending: BookPreview[];
   newArrivals: BookPreview[];
   popular: BookPreview[];
 }> {
+  // Check cache first
+  const cached = clientCache.get<{
+    trending: BookPreview[];
+    newArrivals: BookPreview[];
+    popular: BookPreview[];
+  }>(CACHE_KEYS.BOOK_SECTIONS);
+  
+  if (cached) {
+    return cached;
+  }
+  
   const response = await apiGet<BookSectionsApiResponse>('/books');
   
   // Extract data from { success: true, data: {...} } wrapper
-  return {
+  const result = {
     trending: response.data.trending,
     newArrivals: response.data.newArrivals,
     popular: response.data.popular,
   };
+  
+  // Cache the result
+  clientCache.set(CACHE_KEYS.BOOK_SECTIONS, result, CACHE_TTL.MEDIUM);
+  
+  return result;
 }
 
-/** GET /books/genre/:genre - Fetches books by genre */
+/** GET /books/genre/:genre - Fetches books by genre with caching */
 export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
+  const cacheKey = CACHE_KEYS.GENRE_BOOKS(genre);
+  const cached = clientCache.get<BookPreview[]>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
   interface GenreBooksResponse {
     success: boolean;
     data: BookPreview[];
   }
   const response = await apiGet<GenreBooksResponse>(`/books/genre/${encodeURIComponent(genre)}`);
+  
+  // Cache the result
+  clientCache.set(cacheKey, response.data, CACHE_TTL.MEDIUM);
+  
   return response.data;
 }
 
@@ -109,6 +137,7 @@ export async function getUserLibrary(): Promise<{
   uploaded: BookPreview[];
   borrowed: BookPreview[];
 }> {
+  // Don't cache user library - it's personal data that changes
   interface UserLibraryResponse {
     success: boolean;
     data: {
@@ -123,11 +152,28 @@ export async function getUserLibrary(): Promise<{
   };
 }
 
-/** GET /books/:id - Fetches a book by ID */
+/** GET /books/:id - Fetches a book by ID with caching */
 export async function getBookById(id: number): Promise<Book> {
+  const cacheKey = CACHE_KEYS.BOOK_DETAIL(id);
+  const cached = clientCache.get<Book>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
   const response = await apiGet<BookApiResponse>(`/books/${id}`);
-  // Backend already returns correct Book format in response.data
-  return response.data as Book;
+  const book = response.data as Book;
+  
+  // Cache with longer TTL for individual book details
+  clientCache.set(cacheKey, book, CACHE_TTL.LONG);
+  
+  return book;
+}
+
+/** Invalidate all book-related caches. Call after any book mutation. */
+export function invalidateBooksCache(): void {
+  clientCache.invalidatePrefix('books:');
+  clientCache.invalidatePrefix('search:');
 }
 
 /** POST /books - Creates a new book listing */
@@ -173,6 +219,10 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
 
   try {
     const response = await apiPost<CreateBookApiResponse>('/books', payload);
+    
+    // Invalidate caches after creating a book
+    invalidateBooksCache();
+    
     return response.data as Book;
   } catch (error) {
     console.error('Create book error:', error);

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from app.db.database import engine, Base
 
 # Import all models to ensure they're registered with Base.metadata
@@ -19,6 +20,9 @@ app = FastAPI(
     description="API for the Book Club community platform",
     version="2.0.0",  # Version bump for schema refactor
 )
+
+# GZip compression for responses > 1KB (reduces bandwidth significantly)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # CORS middleware for frontend
 app.add_middleware(
