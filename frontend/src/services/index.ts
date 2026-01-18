@@ -15,6 +15,8 @@ export {
   searchUsers,
   syncUser,
   getCurrentUser as getCurrentLocalUser,
+  getUserStats,
+  updateUserProfile,
   // Legacy (deprecated)
   markBookAsBorrowed,
 } from './bookService';

@@ -116,6 +116,18 @@ export interface UserPreview {
   fullName: string;
 }
 
+/** User activity statistics */
+export interface UserStats {
+  booksListed: number;
+  booksSold: number;
+  booksBorrowed: number;
+}
+
+/** User profile with stats combined */
+export interface UserProfile extends User {
+  stats?: UserStats;
+}
+
 // ============================================
 // Borrow Record Types
 // ============================================

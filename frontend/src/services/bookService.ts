@@ -8,10 +8,11 @@ import type {
   BorrowRecord,
   User,
   UserPreview,
+  UserStats,
   JoinClubData,
   JoinClubResponse,
 } from '../types';
-import { apiGet, apiPost, createApiError } from './api';
+import { apiGet, apiPost, apiPatch, createApiError } from './api';
 
 // ============================================
 // Types for API Responses
@@ -540,6 +541,68 @@ export async function getCurrentUser(): Promise<User> {
     };
   } catch (error) {
     console.error('Get current user error:', error);
+    throw error;
+  }
+}
+
+
+/** GET /users/me/stats - Get current user's activity statistics */
+export async function getUserStats(): Promise<UserStats> {
+  try {
+    interface StatsData {
+      books_listed: number;
+      books_sold: number;
+      books_borrowed: number;
+    }
+    
+    interface GetStatsResponse {
+      success: boolean;
+      data: StatsData;
+    }
+
+    const response = await apiGet<GetStatsResponse>('/users/me/stats');
+
+    return {
+      booksListed: response.data.books_listed,
+      booksSold: response.data.books_sold,
+      booksBorrowed: response.data.books_borrowed,
+    };
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    throw error;
+  }
+}
+
+
+/** PATCH /users/me - Update current user's profile */
+export async function updateUserProfile(fullName: string): Promise<User> {
+  try {
+    interface UserData {
+      id: string;
+      username: string;
+      full_name: string;
+      email: string;
+      created_at: string;
+    }
+    
+    interface UpdateUserResponse {
+      success: boolean;
+      data: UserData;
+    }
+
+    const response = await apiPatch<UpdateUserResponse>('/users/me', {
+      full_name: fullName.trim(),
+    });
+
+    return {
+      id: response.data.id,
+      username: response.data.username,
+      fullName: response.data.full_name,
+      email: response.data.email,
+      createdAt: response.data.created_at,
+    };
+  } catch (error) {
+    console.error('Update user profile error:', error);
     throw error;
   }
 }

@@ -13,6 +13,8 @@ export type {
   ReturnBookRequest,
   User,
   UserPreview,
+  UserStats,
+  UserProfile,
   ApiError,
   BorrowRequestData,
   BorrowRequestResponse,

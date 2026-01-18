@@ -103,3 +103,29 @@ export async function apiPost<T>(endpoint: string, data: unknown): Promise<T> {
   return handleResponse<T>(response);
 }
 
+/** Makes a PATCH request to the API */
+export async function apiPatch<T>(endpoint: string, data: unknown): Promise<T> {
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<T>(response);
+}
+
+/** Makes a DELETE request to the API */
+export async function apiDelete<T>(endpoint: string): Promise<T> {
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+    },
+  });
+  return handleResponse<T>(response);
+}

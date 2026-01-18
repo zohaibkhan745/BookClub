@@ -155,12 +155,28 @@ export function Navbar() {
                 >
                   Upload Book
                 </button>
-                <button className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                  My Profile
-                </button>
-                <button className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                  Settings
-                </button>
+                {isAuthenticated && (
+                  <>
+                    <button
+                      onClick={() => {
+                        navigate("/profile");
+                        setProfileMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                    >
+                      My Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate("/settings");
+                        setProfileMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                    >
+                      Settings
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Auth Actions */}
@@ -256,12 +272,28 @@ export function Navbar() {
                 </button>
 
                 <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
-                  <button className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    My Profile
-                  </button>
-                  <button className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    Settings
-                  </button>
+                  {isAuthenticated && (
+                    <>
+                      <button
+                        onClick={() => {
+                          navigate("/profile");
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                      >
+                        My Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigate("/settings");
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                      >
+                        Settings
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Auth Actions */}

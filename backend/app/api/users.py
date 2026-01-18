@@ -8,7 +8,7 @@ Authentication Strategy:
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from jose import jwt
 from datetime import datetime, timedelta
 from typing import Optional
@@ -22,6 +22,7 @@ from app.schemas import (
     UserResponse,
     AuthResponse,
 )
+from app.models import User, Book, BorrowRecord
 from app.auth import get_current_user, AuthUser
 from app.config import get_settings
 
@@ -43,6 +44,124 @@ async def delete_all_users(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         return {"success": False, "error": str(e)}
+
+
+# ============================================
+# Profile Endpoints
+# ============================================
+
+@router.get("/me", response_model=dict)
+async def get_current_user_profile(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    GET /users/me - Get current authenticated user's profile.
+    
+    Returns user info including id, full_name, email, and created_at.
+    """
+    db_user = user_service.get_user_by_id(db, user.id)
+    
+    if not db_user:
+        # User exists in Supabase but not synced yet - sync them
+        db_user = user_service.sync_supabase_user(
+            db,
+            supabase_id=user.id,
+            email=user.email or "",
+            full_name=user.full_name or "User"
+        )
+    
+    return {
+        "success": True,
+        "data": {
+            "id": db_user.id,
+            "username": db_user.username,
+            "full_name": db_user.full_name,
+            "email": db_user.email,
+            "created_at": db_user.created_at.isoformat() if db_user.created_at else None
+        }
+    }
+
+
+@router.get("/me/stats", response_model=dict)
+async def get_current_user_stats(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    GET /users/me/stats - Get current user's activity statistics.
+    
+    Returns aggregate counts:
+    - books_listed: Total books uploaded by the user
+    - books_sold: Books marked as sold (listing_type='sell' and is_available=false)
+    - books_borrowed: Books the user has borrowed from others
+    
+    Uses efficient COUNT queries for performance.
+    """
+    # Count books listed (uploaded) by this user
+    books_listed = db.query(func.count(Book.id)).filter(
+        Book.user_id == user.id
+    ).scalar() or 0
+    
+    # Count books sold (sell listing that's no longer available)
+    # A book is "sold" when listing_type='sell' and is_available=False
+    books_sold = db.query(func.count(Book.id)).filter(
+        Book.user_id == user.id,
+        Book.listing_type == 'sell',
+        Book.is_available == False
+    ).scalar() or 0
+    
+    # Count books borrowed by this user (active borrow records)
+    books_borrowed = db.query(func.count(BorrowRecord.id)).filter(
+        BorrowRecord.borrower_id == user.id
+    ).scalar() or 0
+    
+    return {
+        "success": True,
+        "data": {
+            "books_listed": books_listed,
+            "books_sold": books_sold,
+            "books_borrowed": books_borrowed
+        }
+    }
+
+
+@router.patch("/me", response_model=dict)
+async def update_current_user_profile(
+    update_data: UserUpdate,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    PATCH /users/me - Update current user's profile.
+    
+    Only allows updating full_name. Email changes require re-authentication
+    through Supabase.
+    """
+    db_user = user_service.get_user_by_id(db, user.id)
+    
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "USER_NOT_FOUND", "message": "User not found"}
+        )
+    
+    # Only update full_name (email is managed by Supabase)
+    if update_data.full_name:
+        db_user.full_name = update_data.full_name
+        db.commit()
+        db.refresh(db_user)
+    
+    return {
+        "success": True,
+        "data": {
+            "id": db_user.id,
+            "username": db_user.username,
+            "full_name": db_user.full_name,
+            "email": db_user.email,
+            "created_at": db_user.created_at.isoformat() if db_user.created_at else None
+        }
+    }
 
 
 def create_access_token(user_id: str, email: str) -> str:

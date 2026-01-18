@@ -153,8 +153,8 @@ export function UploadBook() {
           typeof apiError.message === "string"
             ? apiError.message
             : typeof apiError.message === "object" && apiError.message !== null
-            ? JSON.stringify(apiError.message)
-            : "Failed to upload book. Please try again.";
+              ? JSON.stringify(apiError.message)
+              : "Failed to upload book. Please try again.";
         setSubmitError(errorMessage);
       }
     } finally {
@@ -433,7 +433,7 @@ export function UploadBook() {
                   {fieldErrors.listingType}
                 </p>
               )}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -449,23 +449,6 @@ export function UploadBook() {
                   <div className="text-center">
                     <div className="text-2xl mb-2">📚</div>
                     <div>Lend</div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setListingType("borrow");
-                    clearFieldError("listingType");
-                  }}
-                  className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
-                    listingType === "borrow"
-                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white scale-105 shadow-lg"
-                      : "bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-500"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2">🔍</div>
-                    <div>Borrow</div>
                   </div>
                 </button>
                 <button
