@@ -267,31 +267,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
             </p>
 
             {/* Book Details */}
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-1">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Published
-                </p>
-                <p className="font-semibold text-black dark:text-white">
-                  {book.year}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Pages
-                </p>
-                <p className="font-semibold text-black dark:text-white">
-                  {book.pages}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Language
-                </p>
-                <p className="font-semibold text-black dark:text-white">
-                  {book.language}
-                </p>
-              </div>
+            <div className="py-4">
               <div className="space-y-1">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Genre

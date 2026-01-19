@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from app.db.database import engine, Base
+import os
 
 # Import all models to ensure they're registered with Base.metadata
 from app.models import User, Book, BorrowRecord
@@ -24,10 +25,22 @@ app = FastAPI(
 # GZip compression for responses > 1KB (reduces bandwidth significantly)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# CORS origins - includes localhost for dev and production domains
+cors_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+
+# Add production frontend URL from environment if set
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    cors_origins.append(frontend_url)
+
 # CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
