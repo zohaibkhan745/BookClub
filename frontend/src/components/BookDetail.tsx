@@ -214,7 +214,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-0 transition-colors duration-300">
+    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-24 md:pb-0 transition-colors duration-300">
       <div className="px-4 md:px-12 max-w-7xl mx-auto">
         {/* Back Button */}
         <button
