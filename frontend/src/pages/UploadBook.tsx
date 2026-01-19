@@ -231,29 +231,14 @@ export function UploadBook() {
             <span>Back to Home</span>
           </button>
 
-          {/* Page Header with Mobile Upload Button */}
-          <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-black dark:text-white mb-2">
-                Upload Your Book
-              </h1>
-              <p className="text-gray-700 dark:text-gray-300">
-                Share your books with the community
-              </p>
-            </div>
-            {/* Mobile Upload Button at Top */}
-            <button
-              type="button"
-              onClick={() => {
-                const form = document.querySelector("form");
-                if (form) form.requestSubmit();
-              }}
-              disabled={isSubmitting}
-              className="md:hidden w-full px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <Upload className="w-5 h-5" />
-              {isSubmitting ? "Uploading..." : "Upload Book"}
-            </button>
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-black dark:text-white mb-2">
+              Upload Your Book
+            </h1>
+            <p className="text-gray-700 dark:text-gray-300">
+              Share your books with the community
+            </p>
           </div>
 
           {/* Success Message */}
