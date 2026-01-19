@@ -220,7 +220,7 @@ export function UploadBook() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-0 transition-colors duration-300">
+      <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-24 md:pb-0 transition-colors duration-300">
         <div className="px-4 md:px-12 max-w-4xl mx-auto">
           {/* Back Button */}
           <button
@@ -231,14 +231,29 @@ export function UploadBook() {
             <span>Back to Home</span>
           </button>
 
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-black dark:text-white mb-2">
-              Upload Your Book
-            </h1>
-            <p className="text-gray-700 dark:text-gray-300">
-              Share your books with the community
-            </p>
+          {/* Page Header with Mobile Upload Button */}
+          <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-black dark:text-white mb-2">
+                Upload Your Book
+              </h1>
+              <p className="text-gray-700 dark:text-gray-300">
+                Share your books with the community
+              </p>
+            </div>
+            {/* Mobile Upload Button at Top */}
+            <button
+              type="button"
+              onClick={() => {
+                const form = document.querySelector("form");
+                if (form) form.requestSubmit();
+              }}
+              disabled={isSubmitting}
+              className="md:hidden w-full px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <Upload className="w-5 h-5" />
+              {isSubmitting ? "Uploading..." : "Upload Book"}
+            </button>
           </div>
 
           {/* Success Message */}
@@ -623,12 +638,13 @@ export function UploadBook() {
             </div>
 
             {/* Submit Button */}
-            <div className="pt-4">
+            <div className="pt-4 pb-4 md:pb-0">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
+                <Upload className="w-5 h-5" />
                 {isSubmitting ? "Uploading..." : "Upload Book"}
               </button>
             </div>
