@@ -127,6 +127,24 @@ async def get_books(db: Session = Depends(get_db)):
         )
 
 
+@router.get("/books/all")
+async def get_all_books_endpoint(db: Session = Depends(get_db)):
+    """
+    GET /books/all - Fetch all books from the database.
+    """
+    try:
+        books = book_service.get_all_books(db, limit=100)
+        return {
+            "success": True,
+            "data": [book_to_preview(b) for b in books]
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "FETCH_FAILED", "message": str(e)}
+        )
+
+
 @router.get("/books/genre/{genre}")
 async def get_books_by_genre(genre: str, db: Session = Depends(get_db)):
     """

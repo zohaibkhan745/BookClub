@@ -1,6 +1,7 @@
 export {
   getBookById,
   getAllBookSections,
+  getAllBooks,
   getBooksByGenre,
   getUserLibrary,
   createBook,

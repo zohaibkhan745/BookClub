@@ -1,28 +1,25 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
-import { BookRow } from "../components/BookRow";
 import { CategorySection } from "../components/CategorySection";
 import { Footer } from "../components/Footer";
 import { ErrorState } from "../components/ui/ErrorState";
 import { MobileBottomNav } from "../components/MobileBottomNav";
-import { getAllBookSections } from "../services";
+import { getAllBooks } from "../services";
 import type { BookPreview, ApiError } from "../types";
 
 export function Home() {
-  const [trending, setTrending] = useState<BookPreview[]>([]);
-  const [newArrivals, setNewArrivals] = useState<BookPreview[]>([]);
-  const [popular, setPopular] = useState<BookPreview[]>([]);
+  const [books, setBooks] = useState<BookPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const loadBooks = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const sections = await getAllBookSections();
-      setTrending(sections.trending);
-      setNewArrivals(sections.newArrivals);
-      setPopular(sections.popular);
+      const allBooks = await getAllBooks();
+      setBooks(allBooks);
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message || "Failed to load books. Please try again.");
@@ -43,7 +40,7 @@ export function Home() {
         <CategorySection />
       </div>
 
-      <div className="px-4 md:px-12 pb-12 md:pb-12 pb-24 space-y-12">
+      <div className="px-4 md:px-12 pb-12 md:pb-12 pb-24">
         {error ? (
           <ErrorState
             message={error}
@@ -51,21 +48,65 @@ export function Home() {
             showHomeLink={false}
           />
         ) : (
-          <>
-            <BookRow title="Featured" books={trending} isLoading={isLoading} />
-            <BookRow
-              title="New Arrivals"
-              books={newArrivals}
-              isLoading={isLoading}
-            />
-            <BookRow title="Top Read" books={popular} isLoading={isLoading} />
-          </>
+          <div className="space-y-4">
+            <h3 className="text-black dark:text-white text-xl md:text-2xl font-semibold">
+              All Books
+            </h3>
+            {isLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse aspect-[2/3]"
+                  />
+                ))}
+              </div>
+            ) : books.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                No books available yet.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {books.map((book) => (
+                  <div
+                    key={book.id}
+                    onClick={() => navigate(`/book/${book.id}`)}
+                    className="cursor-pointer group"
+                  >
+                    <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                      <img
+                        src={book.image}
+                        alt={book.title}
+                        className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                        <h4 className="text-white font-semibold text-sm line-clamp-2">
+                          {book.title}
+                        </h4>
+                        <p className="text-gray-300 text-xs line-clamp-1">
+                          {book.author}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2 px-1">
+                      <h4 className="text-gray-800 dark:text-gray-200 font-medium text-sm line-clamp-1">
+                        {book.title}
+                      </h4>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1">
+                        {book.author}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       <Footer />
-
-      {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
     </div>
   );

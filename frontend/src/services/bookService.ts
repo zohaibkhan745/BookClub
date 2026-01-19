@@ -111,6 +111,26 @@ export async function getAllBookSections(): Promise<{
   return result;
 }
 
+/** GET /books/all - Fetches all books from the database */
+export async function getAllBooks(): Promise<BookPreview[]> {
+  const cacheKey = 'books:all';
+  const cached = clientCache.get<BookPreview[]>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
+  interface AllBooksResponse {
+    success: boolean;
+    data: BookPreview[];
+  }
+  const response = await apiGet<AllBooksResponse>('/books/all');
+  
+  clientCache.set(cacheKey, response.data, CACHE_TTL.MEDIUM);
+  
+  return response.data;
+}
+
 /** GET /books/genre/:genre - Fetches books by genre with caching */
 export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
   const cacheKey = CACHE_KEYS.GENRE_BOOKS(genre);
