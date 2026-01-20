@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.db.database import get_db
@@ -14,6 +14,11 @@ from app.auth import get_current_user, AuthUser
 from datetime import datetime
 
 router = APIRouter(prefix="/api/v1", tags=["books"])
+
+# Cache durations in seconds
+CACHE_SHORT = 60      # 1 minute - for list endpoints
+CACHE_MEDIUM = 300    # 5 minutes - for individual book details
+CACHE_NONE = 0        # No cache - for mutations
 
 
 @router.delete("/books/all")
@@ -75,11 +80,14 @@ def book_to_response(book) -> dict:
 
 
 @router.get("/books")
-async def get_books(db: Session = Depends(get_db)):
+async def get_books(response: Response, db: Session = Depends(get_db)):
     """
     GET /books - Fetch all books organized by homepage sections.
     """
     try:
+        # Add cache headers - cache for 60 seconds
+        response.headers["Cache-Control"] = f"public, max-age={CACHE_SHORT}, stale-while-revalidate=30"
+        
         sections = book_service.get_books_by_section(db)
         return {
             "success": True,
@@ -97,11 +105,14 @@ async def get_books(db: Session = Depends(get_db)):
 
 
 @router.get("/books/genre/{genre}")
-async def get_books_by_genre(genre: str, db: Session = Depends(get_db)):
+async def get_books_by_genre(genre: str, response: Response, db: Session = Depends(get_db)):
     """
     GET /books/genre/{genre} - Fetch all books by genre/category.
     """
     try:
+        # Add cache headers - cache for 60 seconds
+        response.headers["Cache-Control"] = f"public, max-age={CACHE_SHORT}, stale-while-revalidate=30"
+        
         books = book_service.get_books_by_genre(db, genre)
         return {
             "success": True,
@@ -115,7 +126,7 @@ async def get_books_by_genre(genre: str, db: Session = Depends(get_db)):
 
 
 @router.get("/books/{book_id}")
-async def get_book(book_id: int, db: Session = Depends(get_db)):
+async def get_book(book_id: int, response: Response, db: Session = Depends(get_db)):
     """
     GET /books/{id} - Fetch a single book by ID.
     """
@@ -126,6 +137,9 @@ async def get_book(book_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found."}
         )
+    
+    # Add cache headers - cache for 5 minutes (individual book details change less frequently)
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_MEDIUM}, stale-while-revalidate=60"
     
     return {
         "success": True,
@@ -184,6 +198,7 @@ async def create_book(
 
 @router.get("/user/library")
 async def get_user_library(
+    response: Response,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user)
 ):
@@ -193,6 +208,9 @@ async def get_user_library(
     Requires authentication.
     """
     try:
+        # Private cache - user-specific data
+        response.headers["Cache-Control"] = f"private, max-age={CACHE_SHORT}"
+        
         # Get books uploaded by this user
         uploaded_books = book_service.get_books_by_user(db, user.id)
         
