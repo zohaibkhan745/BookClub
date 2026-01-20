@@ -18,9 +18,10 @@ export function LibraryPage() {
   const [uploadedBooks, setUploadedBooks] = useState<BookPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Check if we should show a specific tab (e.g., after deleting a book)
-  const initialTab = (location.state as { tab?: "borrowed" | "uploaded" })?.tab || "borrowed";
+  const initialTab =
+    (location.state as { tab?: "borrowed" | "uploaded" })?.tab || "borrowed";
   const [activeTab, setActiveTab] = useState<"borrowed" | "uploaded">(
     initialTab,
   );

@@ -254,7 +254,7 @@ async def delete_book(
             logger.warning(f"Failed to delete image from storage for book {book_id}: {e}")
     
     # Step 4: Delete the book from database
-    deleted = book_service.delete_book(db, book_id)
+    deleted = book_service.delete_book(db, book_id, user_id=user.id)
     
     if not deleted:
         raise HTTPException(

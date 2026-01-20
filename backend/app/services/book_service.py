@@ -215,7 +215,7 @@ def mark_book_as_borrowed(
     return book
 
 
-def delete_book(db: Session, book_id: int) -> bool:
+def delete_book(db: Session, book_id: int, user_id: str = None) -> bool:
     """
     Delete a book from the database.
     
@@ -228,12 +228,19 @@ def delete_book(db: Session, book_id: int) -> bool:
     """
     book = db.query(Book).filter(Book.id == book_id).first()
     if book:
+        # Store user_id before deletion for cache invalidation
+        owner_id = user_id or book.user_id
+        
         db.delete(book)
         db.commit()
         
         # Invalidate all related caches
         invalidate_books_cache()
         cache.delete(f"books:id:{book_id}")
+        
+        # Invalidate user-specific library cache so deleted book disappears immediately
+        if owner_id:
+            invalidate_user_cache(owner_id)
         
         return True
     return False

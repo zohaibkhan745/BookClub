@@ -249,9 +249,9 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
       // Navigate to library page "My Uploads" tab after successful deletion
       navigate("/library", {
         replace: true,
-        state: { 
+        state: {
           message: `"${book.title}" has been deleted successfully`,
-          tab: "uploaded"  // Redirect to My Uploads section
+          tab: "uploaded", // Redirect to My Uploads section
         },
       });
     } catch (err) {
