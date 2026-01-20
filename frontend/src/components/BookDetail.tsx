@@ -244,16 +244,21 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
     try {
       await deleteBook(book.id);
-      
+
       // Show success feedback briefly then redirect
-      // Navigate to library page after successful deletion
-      navigate("/library", { 
+      // Navigate to library page "My Uploads" tab after successful deletion
+      navigate("/library", {
         replace: true,
-        state: { message: `"${book.title}" has been deleted successfully` }
+        state: { 
+          message: `"${book.title}" has been deleted successfully`,
+          tab: "uploaded"  // Redirect to My Uploads section
+        },
       });
     } catch (err) {
       const apiError = err as ApiError;
-      setDeleteError(apiError.message || "Failed to delete book. Please try again.");
+      setDeleteError(
+        apiError.message || "Failed to delete book. Please try again.",
+      );
       setIsDeleting(false);
     }
   };
@@ -607,7 +612,8 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
               Delete this book?
             </h2>
             <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-              This action cannot be undone. The book "{book.title}" will be permanently removed from your library.
+              This action cannot be undone. The book "{book.title}" will be
+              permanently removed from your library.
             </p>
 
             {/* Error Message */}

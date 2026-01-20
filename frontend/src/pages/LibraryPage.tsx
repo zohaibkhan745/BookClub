@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
@@ -12,13 +12,17 @@ import type { BookPreview, ApiError } from "../types";
 
 export function LibraryPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [borrowedBooks, setBorrowedBooks] = useState<BookPreview[]>([]);
   const [uploadedBooks, setUploadedBooks] = useState<BookPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Check if we should show a specific tab (e.g., after deleting a book)
+  const initialTab = (location.state as { tab?: "borrowed" | "uploaded" })?.tab || "borrowed";
   const [activeTab, setActiveTab] = useState<"borrowed" | "uploaded">(
-    "borrowed",
+    initialTab,
   );
 
   const loadBooks = async () => {
