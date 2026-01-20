@@ -2,8 +2,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.models.book import Book
 from app.schemas.book import BookCreate
-from app.cache import cache, invalidate_books_cache
+from app.cache import cache, invalidate_books_cache, invalidate_user_cache
 from typing import Optional
+
+# Cache TTL constants (in seconds)
+CACHE_TTL_SHORT = 60       # 1 minute - for list endpoints
+CACHE_TTL_MEDIUM = 120     # 2 minutes - for sections
+CACHE_TTL_LONG = 300       # 5 minutes - for individual items
+CACHE_TTL_USER = 60        # 1 minute - for user-specific data
 
 
 def get_all_books(db: Session, limit: int = 50) -> list[Book]:
@@ -14,7 +20,7 @@ def get_all_books(db: Session, limit: int = 50) -> list[Book]:
         return cached
     
     result = db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(limit).all()
-    cache.set(cache_key, result, ttl_seconds=30)
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
     return result
 
 
@@ -27,7 +33,7 @@ def get_book_by_id(db: Session, book_id: int) -> Optional[Book]:
     
     result = db.query(Book).filter(Book.id == book_id).first()
     if result:
-        cache.set(cache_key, result, ttl_seconds=60)  # Longer TTL for single books
+        cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
     return result
 
 
@@ -42,7 +48,7 @@ def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
         Book.is_available == True,
         Book.category.ilike(f"%{genre}%")
     ).order_by(desc(Book.created_at)).limit(limit).all()
-    cache.set(cache_key, result, ttl_seconds=30)
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
     return result
 
 
@@ -70,7 +76,7 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
         "newArrivals": new_arrivals,
         "popular": popular,
     }
-    cache.set(cache_key, result, ttl_seconds=30)
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_MEDIUM)
     return result
 
 
@@ -123,21 +129,35 @@ def update_book_availability(db: Session, book_id: int, is_available: bool) -> O
 
 
 def get_books_by_user(db: Session, user_id: str, limit: int = 50) -> list[Book]:
-    """Fetch all books uploaded by a specific user."""
-    return db.query(Book).filter(
+    """Fetch all books uploaded by a specific user with caching."""
+    cache_key = f"user:{user_id}:books:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
         Book.user_id == user_id
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_USER)
+    return result
 
 
 def get_books_borrowed_by_user(db: Session, user_id: str, limit: int = 50) -> list[Book]:
     """
-    Fetch all books borrowed by a specific user.
+    Fetch all books borrowed by a specific user with caching.
     Uses the borrowed_by_user_id field to identify borrowed books.
     """
-    return db.query(Book).filter(
+    cache_key = f"user:{user_id}:borrowed:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
         Book.borrowed_by_user_id == user_id,
         Book.is_borrowed == True
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_USER)
+    return result
 
 
 def find_user_by_full_name(db: Session, full_name: str) -> Optional[dict]:

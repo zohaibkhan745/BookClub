@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from app.db.database import engine, Base
+from app.cache import get_cache_stats
 import os
 
 # Import all models to ensure they're registered with Base.metadata
@@ -51,6 +52,15 @@ app.add_middleware(
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "book-club-api", "version": "2.0.0"}
+
+
+@app.get("/cache/stats")
+async def cache_stats():
+    """
+    Cache statistics endpoint for monitoring.
+    Returns hit/miss counts and hit rate percentage.
+    """
+    return get_cache_stats()
 
 
 # Register API routers
