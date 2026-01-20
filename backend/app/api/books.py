@@ -254,14 +254,17 @@ async def delete_book(
             logger.warning(f"Failed to delete image from storage for book {book_id}: {e}")
     
     # Step 4: Delete the book from database
+    logger.info(f"Attempting to delete book {book_id} ('{book.title}') by user {user.id}")
     deleted = book_service.delete_book(db, book_id, user_id=user.id)
     
     if not deleted:
+        logger.error(f"Failed to delete book {book_id} from database")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": "DELETE_FAILED", "message": "Failed to delete book"}
         )
     
+    logger.info(f"Successfully deleted book {book_id} ('{book.title}')")
     return {
         "success": True,
         "message": f"Book '{book.title}' has been deleted successfully"

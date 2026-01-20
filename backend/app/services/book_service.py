@@ -226,13 +226,21 @@ def delete_book(db: Session, book_id: int, user_id: str = None) -> bool:
     This function only handles the database mutation.
     Returns True if deletion was successful, False otherwise.
     """
+    # Query the book fresh from database (bypass cache)
     book = db.query(Book).filter(Book.id == book_id).first()
     if book:
         # Store user_id before deletion for cache invalidation
         owner_id = user_id or book.user_id
+        book_title = book.title  # Store for logging
         
-        db.delete(book)
-        db.commit()
+        try:
+            db.delete(book)
+            db.commit()
+            logger.info(f"Successfully deleted book {book_id} ('{book_title}') from database")
+        except Exception as e:
+            logger.error(f"Failed to delete book {book_id}: {e}")
+            db.rollback()
+            return False
         
         # Invalidate all related caches
         invalidate_books_cache()
@@ -243,4 +251,6 @@ def delete_book(db: Session, book_id: int, user_id: str = None) -> bool:
             invalidate_user_cache(owner_id)
         
         return True
+    
+    logger.warning(f"Book {book_id} not found in database for deletion")
     return False
