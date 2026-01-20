@@ -1,10 +1,24 @@
 import { useState } from "react";
-import { Upload, X, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Upload,
+  X,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { createBook } from "../services";
+import { useAuth } from "../context/AuthContext";
+import {
+  uploadBookImage,
+  deleteBookImage,
+  createImagePreview,
+  revokeImagePreview,
+} from "../services/imageUploadService";
 import type {
   ListingType,
   BookCategory,
@@ -26,50 +40,14 @@ const BOOK_CONDITIONS: {
   { value: "poor", label: "Poor", emoji: "📚" },
 ];
 
-/** Compresses an image file to reduce size while maintaining quality */
-async function compressImage(
-  file: File,
-  maxWidth = 800,
-  quality = 0.7,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const canvas = document.createElement("canvas");
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
-    };
-
-    img.onload = () => {
-      // Calculate new dimensions while maintaining aspect ratio
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
-        return;
-      }
-
-      // Draw and compress
-      ctx.drawImage(img, 0, 0, width, height);
-      const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-      resolve(compressedDataUrl);
-    };
-
-    img.onerror = () => reject(new Error("Failed to load image"));
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
+/** Image state with file, preview URL, and uploaded URL */
+interface ImageState {
+  file: File;
+  previewUrl: string;
+  uploadedUrl?: string;
+  uploadedPath?: string;
+  isUploading?: boolean;
+  error?: string;
 }
 
 /** Field-level error state */
@@ -77,7 +55,12 @@ type FieldErrors = Record<string, string>;
 
 export function UploadBook() {
   const navigate = useNavigate();
-  const [images, setImages] = useState<string[]>([]);
+  const { user, isAuthenticated } = useAuth();
+
+  // Image state - now stores file objects with preview URLs
+  const [imageStates, setImageStates] = useState<ImageState[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState<BookCategory | "">("");
@@ -132,30 +115,52 @@ export function UploadBook() {
   };
 
   const handleFiles = async (files: FileList) => {
+    if (!isAuthenticated || !user) {
+      setSubmitError("Please sign in to upload images.");
+      return;
+    }
+
     const fileArray = Array.from(files);
-    const remainingSlots = 3 - images.length;
+    const remainingSlots = 3 - imageStates.length;
     const filesToAdd = fileArray.slice(0, remainingSlots);
 
-    // Process files with compression
+    // Validate and add files with preview URLs
     for (const file of filesToAdd) {
-      try {
-        // Compress image before storing (reduces size by ~70%)
-        const compressedImage = await compressImage(file, 800, 0.7);
-        setImages((prev) => [...prev, compressedImage]);
-      } catch (error) {
-        console.error("Failed to compress image:", error);
-        // Fallback to original if compression fails
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImages((prev) => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
+      // Validate file type
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          images: "Only JPEG, PNG, and WebP images are allowed.",
+        }));
+        continue;
       }
+
+      // Validate file size (1MB max)
+      if (file.size > 1 * 1024 * 1024) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          images: "Image must be less than 1MB.",
+        }));
+        continue;
+      }
+
+      // Create preview URL and add to state
+      const previewUrl = createImagePreview(file);
+      setImageStates((prev) => [...prev, { file, previewUrl }]);
     }
   };
 
   const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+    setImageStates((prev) => {
+      const imageToRemove = prev[index];
+      // Revoke preview URL to free memory
+      revokeImagePreview(imageToRemove.previewUrl);
+      // If already uploaded, delete from storage
+      if (imageToRemove.uploadedPath) {
+        deleteBookImage(imageToRemove.uploadedPath).catch(console.error);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,11 +180,70 @@ export function UploadBook() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitSuccess(false);
+
+    if (!isAuthenticated || !user) {
+      setSubmitError("Please sign in to upload a book.");
+      return;
+    }
+
+    // Validate at least one image
+    if (imageStates.length === 0) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        images: "At least one image is required.",
+      }));
+      return;
+    }
+
     setIsSubmitting(true);
+    setIsUploadingImages(true);
 
     try {
+      // Step 1: Upload all images to Supabase Storage
+      const uploadedUrls: string[] = [];
+      const uploadedPaths: string[] = [];
+
+      for (let i = 0; i < imageStates.length; i++) {
+        const imageState = imageStates[i];
+
+        // Skip if already uploaded
+        if (imageState.uploadedUrl) {
+          uploadedUrls.push(imageState.uploadedUrl);
+          if (imageState.uploadedPath)
+            uploadedPaths.push(imageState.uploadedPath);
+          continue;
+        }
+
+        try {
+          const result = await uploadBookImage(imageState.file, user.id);
+          uploadedUrls.push(result.url);
+          uploadedPaths.push(result.path);
+
+          // Update state with uploaded URL
+          setImageStates((prev) =>
+            prev.map((img, idx) =>
+              idx === i
+                ? { ...img, uploadedUrl: result.url, uploadedPath: result.path }
+                : img,
+            ),
+          );
+        } catch (uploadErr) {
+          console.error("Image upload failed:", uploadErr);
+          setFieldErrors((prev) => ({
+            ...prev,
+            images: `Failed to upload image ${i + 1}. Please try again.`,
+          }));
+          setIsUploadingImages(false);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      setIsUploadingImages(false);
+
+      // Step 2: Create book with the uploaded image URLs
       await createBook({
-        images,
+        images: uploadedUrls,
         title,
         author,
         category,
@@ -189,7 +253,10 @@ export function UploadBook() {
         description,
         whatsappNumber: whatsappNumber ? `+92${whatsappNumber}` : "",
       });
+
       setSubmitSuccess(true);
+      // Clean up preview URLs
+      imageStates.forEach((img) => revokeImagePreview(img.previewUrl));
       // Navigate to home after brief success message
       setTimeout(() => navigate("/"), 1500);
     } catch (err) {
@@ -213,6 +280,7 @@ export function UploadBook() {
         setSubmitError(errorMessage);
       }
     } finally {
+      setIsUploadingImages(false);
       setIsSubmitting(false);
     }
   };
@@ -278,19 +346,20 @@ export function UploadBook() {
               )}
 
               {/* Image Previews */}
-              {images.length > 0 && (
+              {imageStates.length > 0 && (
                 <div className="grid grid-cols-3 gap-3 mb-3">
-                  {images.map((image, index) => (
+                  {imageStates.map((imageState, index) => (
                     <div key={index} className="relative group">
                       <img
-                        src={image}
+                        src={imageState.previewUrl}
                         alt={`Book ${index + 1}`}
                         className="w-full h-40 object-cover rounded-lg border-2 border-amber-200 dark:border-amber-700"
                       />
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
+                        disabled={isSubmitting}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -299,13 +368,18 @@ export function UploadBook() {
                           Front Cover
                         </span>
                       )}
+                      {imageState.uploadedUrl && (
+                        <span className="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs rounded">
+                          ✓ Uploaded
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
               {/* Upload Area */}
-              {images.length < 3 && (
+              {imageStates.length < 3 && (
                 <div
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
@@ -336,7 +410,7 @@ export function UploadBook() {
                     </label>
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {images.length}/3 images uploaded
+                    {imageStates.length}/3 images uploaded
                   </p>
                 </div>
               )}
@@ -629,8 +703,19 @@ export function UploadBook() {
                 disabled={isSubmitting}
                 className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <Upload className="w-5 h-5" />
-                {isSubmitting ? "Uploading..." : "Upload Book"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {isUploadingImages
+                      ? "Uploading images..."
+                      : "Creating book..."}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5" />
+                    Upload Book
+                  </>
+                )}
               </button>
             </div>
           </form>

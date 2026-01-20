@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_jwt_secret: str
     supabase_anon_key: str = ""  # For JWKS endpoint access
+    supabase_service_key: str = ""  # For server-side Storage uploads (optional)
     
     class Config:
         env_file = ".env"
