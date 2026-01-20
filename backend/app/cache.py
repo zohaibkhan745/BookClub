@@ -126,8 +126,10 @@ def invalidate_books_cache():
 
 
 def invalidate_user_cache(user_id: str):
-    """Invalidate cache for a specific user."""
-    cache.invalidate_pattern(f"user_library:{user_id}")
+    """Invalidate cache for a specific user (uploaded and borrowed books)."""
+    # Invalidate user:{user_id}:books:* (uploaded books cache)
+    # Invalidate user:{user_id}:borrowed:* (borrowed books cache)
+    cache.invalidate_pattern(f"user:{user_id}")
 
 
 def get_cache_stats() -> dict:
