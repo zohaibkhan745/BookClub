@@ -12,6 +12,12 @@ from app.schemas.book import (
 )
 from app.auth import get_current_user, AuthUser
 from datetime import datetime
+import os
+import re
+import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["books"])
 
@@ -194,6 +200,124 @@ async def create_book(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": "SERVER_ERROR", "message": str(e)}
         )
+
+
+@router.delete("/books/{book_id}")
+async def delete_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    DELETE /books/{book_id} - Delete a book listing.
+    
+    AUTHORIZATION RULES (enforced on backend - cannot be bypassed):
+    1. User must be authenticated (JWT required)
+    2. User must be the uploader/owner of the book (book.user_id === current_user.id)
+    
+    This endpoint also cleans up the cover image from Supabase Storage
+    if the book has one stored there.
+    
+    Returns:
+    - 200: Book deleted successfully
+    - 401: Not authenticated
+    - 403: Forbidden - user is not the book owner
+    - 404: Book not found
+    """
+    # Step 1: Fetch the book from database
+    book = book_service.get_book_by_id(db, book_id)
+    
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found"}
+        )
+    
+    # Step 2: AUTHORIZATION CHECK - Critical security enforcement
+    # Only the book owner (uploader) can delete their own book
+    # This check prevents unauthorized deletion via direct API calls
+    if book.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_AUTHORIZED", "message": "You can only delete books you uploaded"}
+        )
+    
+    # Step 3: Delete cover image from Supabase Storage (if exists)
+    # Only attempt deletion if the cover_image is a Supabase Storage URL
+    cover_image = book.cover_image
+    if cover_image and "supabase.co/storage/v1/object" in cover_image:
+        try:
+            await delete_image_from_storage(cover_image)
+        except Exception as e:
+            # Log the error but don't fail the deletion
+            # The book should still be deleted even if image cleanup fails
+            logger.warning(f"Failed to delete image from storage for book {book_id}: {e}")
+    
+    # Step 4: Delete the book from database
+    deleted = book_service.delete_book(db, book_id)
+    
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "DELETE_FAILED", "message": "Failed to delete book"}
+        )
+    
+    return {
+        "success": True,
+        "message": f"Book '{book.title}' has been deleted successfully"
+    }
+
+
+async def delete_image_from_storage(image_url: str) -> bool:
+    """
+    Delete an image from Supabase Storage bucket.
+    
+    Args:
+        image_url: Full public URL of the image in Supabase Storage
+        
+    Returns:
+        True if deletion successful, False otherwise
+        
+    The URL format is: 
+    https://{project}.supabase.co/storage/v1/object/public/book-images/{path}
+    We need to extract the path and call the Storage API to delete.
+    """
+    # Extract the file path from the URL
+    # URL: https://xxx.supabase.co/storage/v1/object/public/book-images/migrated/books/18.jpg
+    # Path: migrated/books/18.jpg
+    match = re.search(r'/storage/v1/object/public/book-images/(.+)$', image_url)
+    if not match:
+        logger.warning(f"Could not extract path from image URL: {image_url}")
+        return False
+    
+    file_path = match.group(1)
+    
+    # Get Supabase credentials from environment
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+    
+    if not supabase_url or not supabase_key:
+        logger.warning("Supabase credentials not configured for storage deletion")
+        return False
+    
+    # Call Supabase Storage API to delete the file
+    delete_url = f"{supabase_url}/storage/v1/object/book-images/{file_path}"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(
+            delete_url,
+            headers={
+                "Authorization": f"Bearer {supabase_key}",
+                "apikey": supabase_key,
+            }
+        )
+        
+        if response.status_code in [200, 204]:
+            logger.info(f"Successfully deleted image from storage: {file_path}")
+            return True
+        else:
+            logger.warning(f"Failed to delete image {file_path}: {response.status_code} - {response.text}")
+            return False
 
 
 @router.get("/user/library")

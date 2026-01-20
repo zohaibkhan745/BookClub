@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Search,
   CheckCircle,
+  Trash2,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -16,6 +17,7 @@ import {
   returnBook,
   searchUsers,
   getBorrowStatus,
+  deleteBook,
 } from "../services";
 import type { Book, ApiError, UserPreview, BorrowRecord } from "../types";
 
@@ -60,9 +62,18 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   const [borrowStatus, setBorrowStatus] = useState<BorrowRecord | null>(null);
   const [isBorrowStatusLoading, setIsBorrowStatusLoading] = useState(true);
 
+  // Delete book state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Determine if the current user is the uploader of this book
   // This check is used for conditional UI rendering only - backend enforces authorization
   const isUploader = isAuthenticated && user?.id === book.uploadedByUserId;
+
+  // Alias for clarity: the owner can delete their own book
+  // IMPORTANT: This is for UI visibility only - backend enforces the actual authorization
+  const isOwner = isUploader;
 
   // Derive borrow state from borrowStatus
   const isBorrowed = borrowStatus !== null && borrowStatus.status === "active";
@@ -210,6 +221,40 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
       setError(apiError.message || "Failed to mark book as returned");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ============================================
+  // Delete Book Handlers
+  // ============================================
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    setDeleteError(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setDeleteError(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteBook(book.id);
+      
+      // Show success feedback briefly then redirect
+      // Navigate to library page after successful deletion
+      navigate("/library", { 
+        replace: true,
+        state: { message: `"${book.title}" has been deleted successfully` }
+      });
+    } catch (err) {
+      const apiError = err as ApiError;
+      setDeleteError(apiError.message || "Failed to delete book. Please try again.");
+      setIsDeleting(false);
     }
   };
 
@@ -370,6 +415,21 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                 </button>
               )}
             </div>
+
+            {/* Delete Book Button - ONLY visible to the book owner (uploader) */}
+            {/* SECURITY NOTE: This visibility check is for UX only. Backend enforces authorization. */}
+            {isOwner && (
+              <div className="pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
+                <button
+                  onClick={handleDeleteClick}
+                  disabled={isDeleting}
+                  className="w-full px-6 py-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 font-semibold rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  {isDeleting ? "Deleting..." : "Delete Book"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -516,6 +576,75 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl hover:from-amber-600 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? "Confirming..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+            {/* Close Button */}
+            <button
+              onClick={handleDeleteCancel}
+              disabled={isDeleting}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Warning Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+            </div>
+
+            {/* Modal Header */}
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">
+              Delete this book?
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+              This action cannot be undone. The book "{book.title}" will be permanently removed from your library.
+            </p>
+
+            {/* Error Message */}
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-red-700 dark:text-red-400 text-sm">
+                  {deleteError}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteCancel}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </>
+                )}
               </button>
             </div>
           </div>

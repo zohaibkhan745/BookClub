@@ -5,6 +5,7 @@ export {
   getBooksByGenre,
   getUserLibrary,
   createBook,
+  deleteBook,
   joinClub,
   // New borrow management (using borrow_records table)
   getBorrowStatus,

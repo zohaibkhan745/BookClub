@@ -213,3 +213,27 @@ def mark_book_as_borrowed(
         cache.delete(f"books:id:{book_id}")
         
     return book
+
+
+def delete_book(db: Session, book_id: int) -> bool:
+    """
+    Delete a book from the database.
+    
+    Business Rules (enforced in API layer):
+    - Only the book uploader (owner) can delete their own book
+    - Book must exist
+    
+    This function only handles the database mutation.
+    Returns True if deletion was successful, False otherwise.
+    """
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if book:
+        db.delete(book)
+        db.commit()
+        
+        # Invalidate all related caches
+        invalidate_books_cache()
+        cache.delete(f"books:id:{book_id}")
+        
+        return True
+    return False

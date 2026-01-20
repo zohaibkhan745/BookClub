@@ -12,7 +12,7 @@ import type {
   JoinClubData,
   JoinClubResponse,
 } from '../types';
-import { apiGet, apiPost, apiPatch, createApiError } from './api';
+import { apiGet, apiPost, apiPatch, apiDelete, createApiError } from './api';
 import { clientCache, CACHE_KEYS, CACHE_TTL } from './cache';
 
 // ============================================
@@ -246,6 +246,39 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
     return response.data as Book;
   } catch (error) {
     console.error('Create book error:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// Delete Book API Response Type
+// ============================================
+
+interface DeleteBookApiResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * DELETE /books/:id - Deletes a book listing.
+ * 
+ * AUTHORIZATION: Only the book owner (uploader) can delete their book.
+ * This is enforced on the backend - frontend checks are for UX only.
+ * 
+ * @param bookId - The ID of the book to delete
+ * @returns Promise resolving to success message
+ * @throws ApiError if not authorized, book not found, or server error
+ */
+export async function deleteBook(bookId: number | string): Promise<string> {
+  try {
+    const response = await apiDelete<DeleteBookApiResponse>(`/books/${bookId}`);
+    
+    // Invalidate all book-related caches after deletion
+    invalidateBooksCache();
+    
+    return response.message;
+  } catch (error) {
+    console.error('Delete book error:', error);
     throw error;
   }
 }
