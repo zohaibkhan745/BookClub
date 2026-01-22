@@ -69,8 +69,6 @@ export function RegisterPage() {
         // User created but needs email confirmation
         setSuccess(true);
         setError(null);
-        // Show a message about email confirmation
-        console.log("[RegisterPage] User created, needs email confirmation");
       } else {
         setSuccess(true);
         // Redirect after short delay

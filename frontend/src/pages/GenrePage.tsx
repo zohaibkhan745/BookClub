@@ -90,7 +90,7 @@ export function GenrePage() {
         <div className="pt-24 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
           {/* Back Button */}
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate(-1)}
             className={`flex items-center space-x-2 mb-8 transition group ${
               backgroundImage
                 ? "text-white/80 hover:text-white"
@@ -98,7 +98,7 @@ export function GenrePage() {
             }`}
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Back to Home</span>
+            <span>Back</span>
           </button>
 
           {/* Page Title */}

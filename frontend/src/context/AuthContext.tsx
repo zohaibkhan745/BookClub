@@ -49,9 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         try {
           await syncUser();
-          console.log("[AuthContext] User synced to local database");
-        } catch (err) {
-          console.error("[AuthContext] Failed to sync user:", err);
+        } catch {
+          // Silent sync failure - non-critical
         }
       }
     });
@@ -68,14 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user && session) {
         try {
           await syncUser();
-          console.log(
-            "[AuthContext] User synced to local database on auth change",
-          );
-        } catch (err) {
-          console.error(
-            "[AuthContext] Failed to sync user on auth change:",
-            err,
-          );
+        } catch {
+          // Silent sync failure - non-critical
         }
       }
     });

@@ -255,6 +255,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
         },
       });
     } catch (err) {
+      console.error("[BookDetail] Delete failed:", err);
       const apiError = err as ApiError;
       setDeleteError(
         apiError.message || "Failed to delete book. Please try again.",
@@ -268,11 +269,11 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
       <div className="px-4 md:px-12 max-w-7xl mx-auto">
         {/* Back Button */}
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(-1)}
           className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mb-8 transition group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Home</span>
+          <span>Back</span>
         </button>
 
         {/* Main Content */}

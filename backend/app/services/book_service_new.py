@@ -5,48 +5,88 @@ Refactored to:
 - Use new Book model with owner_id/owner_full_name
 - Remove is_borrowed handling (now in borrow_service)
 - Use is_active instead of is_available
+- Added caching for better performance
 """
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from typing import Optional, List
 from datetime import datetime
 import uuid
+import logging
 
 from app.models import Book, BorrowRecord
 from app.schemas import BookCreate, BookUpdate
+from app.cache import cache, invalidate_books_cache, invalidate_user_cache
+
+logger = logging.getLogger(__name__)
+
+# Cache TTL constants (in seconds)
+CACHE_TTL_SHORT = 60      # 1 minute for frequently changing data
+CACHE_TTL_MEDIUM = 120    # 2 minutes for section data
+CACHE_TTL_LONG = 300      # 5 minutes for individual book details
 
 
 def get_all_books(db: Session, limit: int = 50) -> List[Book]:
-    """Fetch all available books."""
-    return db.query(Book).filter(
+    """Fetch all available books with caching."""
+    cache_key = f"books:all:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
         Book.is_available == True
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
+    return result
 
 
 def get_book_by_id(db: Session, book_id) -> Optional[Book]:
-    """Fetch a single book by ID (accepts string or int)."""
+    """Fetch a single book by ID with caching (accepts string or int)."""
     try:
         book_id_int = int(book_id)
     except (ValueError, TypeError):
         return None
-    return db.query(Book).filter(Book.id == book_id_int).first()
+    
+    cache_key = f"books:id:{book_id_int}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(Book.id == book_id_int).first()
+    if result:
+        cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
+    return result
 
 
 def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
-    """Fetch all available books by genre/category."""
-    return db.query(Book).filter(
+    """Fetch all available books by genre/category with caching."""
+    cache_key = f"genre:{genre.lower()}:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
         Book.is_available == True,
         Book.category.ilike(f"%{genre}%")
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
+    return result
 
 
 def get_books_by_section(db: Session, limit: int = 10) -> dict:
     """
-    Get books organized by homepage sections.
+    Get books organized by homepage sections with caching.
     - trending: Most recent books
     - newArrivals: Latest additions
     - popular: Random selection (simulated popularity)
     """
+    cache_key = f"books:sections:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     all_books = db.query(Book).filter(
         Book.is_available == True
     ).order_by(desc(Book.created_at)).limit(30).all()
@@ -56,11 +96,14 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
     new_arrivals = all_books[limit:limit*2] if len(all_books) >= limit*2 else all_books[:limit]
     popular = all_books[limit*2:limit*3] if len(all_books) >= limit*3 else all_books[:limit]
     
-    return {
+    result = {
         "trending": trending,
         "newArrivals": new_arrivals,
         "popular": popular,
     }
+    
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_MEDIUM)
+    return result
 
 
 def create_book(
@@ -154,7 +197,7 @@ def update_book(
 
 def soft_delete_book(db: Session, book_id: str, user_id: str) -> bool:
     """
-    Soft delete a book (set is_available = False).
+    Delete a book from the database.
     
     Args:
         db: Database session
@@ -173,17 +216,37 @@ def soft_delete_book(db: Session, book_id: str, user_id: str) -> bool:
     if book.user_id != user_id:
         raise PermissionError("Only the book owner can delete this book")
     
-    book.is_available = False
+    # Store owner_id for cache invalidation
+    owner_id = book.user_id
+    book_id_int = book.id
+    
+    # Actually delete the book from database
+    db.delete(book)
     db.commit()
     
+    # Invalidate caches
+    invalidate_books_cache()
+    cache.delete(f"books:id:{book_id_int}")
+    if owner_id:
+        invalidate_user_cache(owner_id)
+    
+    logger.info(f"Deleted book {book_id_int} and invalidated caches")
     return True
 
 
 def get_books_by_owner(db: Session, owner_id: str, limit: int = 50) -> List[Book]:
-    """Fetch all books uploaded by a specific user."""
-    return db.query(Book).filter(
+    """Fetch all books uploaded by a specific user with caching."""
+    cache_key = f"user:{owner_id}:books:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
         Book.user_id == owner_id
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
+    return result
 
 
 def search_books(

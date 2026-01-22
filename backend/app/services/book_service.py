@@ -226,19 +226,35 @@ def delete_book(db: Session, book_id: int, user_id: str = None) -> bool:
     This function only handles the database mutation.
     Returns True if deletion was successful, False otherwise.
     """
+    logger.info(f"[delete_book] Called with book_id={book_id}, user_id={user_id}")
+    
     # Query the book fresh from database (bypass cache)
     book = db.query(Book).filter(Book.id == book_id).first()
+    logger.info(f"[delete_book] Query result: book={'found' if book else 'NOT FOUND'}")
+    
     if book:
         # Store user_id before deletion for cache invalidation
         owner_id = user_id or book.user_id
         book_title = book.title  # Store for logging
         
+        logger.info(f"[delete_book] About to delete book {book_id} ('{book_title}')")
+        
         try:
             db.delete(book)
+            logger.info(f"[delete_book] db.delete() called, now committing...")
             db.commit()
-            logger.info(f"Successfully deleted book {book_id} ('{book_title}') from database")
+            logger.info(f"[delete_book] COMMIT SUCCESSFUL for book {book_id}")
+            
+            # Verify deletion
+            verify = db.query(Book).filter(Book.id == book_id).first()
+            if verify:
+                logger.error(f"[delete_book] VERIFICATION FAILED: Book {book_id} still exists after commit!")
+                return False
+            else:
+                logger.info(f"[delete_book] VERIFIED: Book {book_id} no longer exists in database")
+            
         except Exception as e:
-            logger.error(f"Failed to delete book {book_id}: {e}")
+            logger.error(f"[delete_book] EXCEPTION during delete: {type(e).__name__}: {e}")
             db.rollback()
             return False
         
@@ -250,7 +266,8 @@ def delete_book(db: Session, book_id: int, user_id: str = None) -> bool:
         if owner_id:
             invalidate_user_cache(owner_id)
         
+        logger.info(f"[delete_book] Returning True - deletion complete")
         return True
     
-    logger.warning(f"Book {book_id} not found in database for deletion")
+    logger.warning(f"[delete_book] Book {book_id} not found in database for deletion")
     return False

@@ -141,23 +141,7 @@ export function SearchPage() {
           </section>
         ) : (
           <>
-            {/* Recent Searches */}
-            <section className="mb-8">
-              <h2 className="text-lg font-semibold text-black dark:text-white mb-3">
-                Recent Searches
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {recentSearches.map((search) => (
-                  <button
-                    key={search}
-                    onClick={() => handleQueryChange(search)}
-                    className="px-4 py-2 bg-white dark:bg-[#2c2c2e] rounded-full text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3c3c3e] transition shadow-sm"
-                  >
-                    {search}
-                  </button>
-                ))}
-              </div>
-            </section>
+          
 
             {/* Browse Categories */}
             <section className="mb-8">

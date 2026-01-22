@@ -53,9 +53,30 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      // Code splitting for better caching
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks - separate heavy libraries
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+            'supabase': ['@supabase/supabase-js'],
+          },
+        },
+      },
+      // Minification settings
+      minify: 'esbuild',
+      // Generate source maps for production debugging
+      sourcemap: false,
+      // Chunk size warning limit
+      chunkSizeWarningLimit: 1000,
     },
     server: {
       port: 3000,
       open: true,
+    },
+    // Optimize dependencies
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom', 'lucide-react'],
     },
   });

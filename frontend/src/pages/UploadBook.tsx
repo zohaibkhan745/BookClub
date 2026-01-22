@@ -292,11 +292,11 @@ export function UploadBook() {
         <div className="px-4 md:px-12 max-w-4xl mx-auto">
           {/* Back Button */}
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate(-1)}
             className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mb-6 transition group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Back to Home</span>
+            <span>Back</span>
           </button>
 
           {/* Page Header */}
