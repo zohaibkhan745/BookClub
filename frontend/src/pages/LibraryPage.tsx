@@ -183,7 +183,7 @@ export function LibraryPage() {
                 : "Share your books with the community by uploading them."}
             </p>
             <Link
-              to={activeTab === "borrowed" ? "/store" : "/upload"}
+              to={activeTab === "borrowed" ? "/" : "/upload"}
               className="px-6 py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition flex items-center space-x-2"
             >
               {activeTab === "borrowed" ? (
