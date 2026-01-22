@@ -75,10 +75,18 @@ class BorrowRecord(Base):
     def __repr__(self):
         return f"<BorrowRecord(id={self.id}, book_id={self.book_id}, borrower_id={self.borrower_id}, status={self.status})>"
     
-    # Indexes for common queries
+    # Indexes for common queries - optimized for actual query patterns
     __table_args__ = (
-        # Index for finding active borrows (not yet returned)
-        Index('ix_borrow_records_active', 'book_id', 'returned_at'),
-        # Index for user's borrow history
+        # Primary index for get_active_borrow_for_book() - most frequently used query
+        # Covers: WHERE book_id = ? AND returned_at IS NULL AND status = 'borrowed'
+        Index('ix_borrow_records_active_v2', 'book_id', 'status', 'returned_at'),
+        
+        # Index for user's borrow history - ORDER BY borrowed_at DESC
         Index('ix_borrow_records_user_history', 'borrower_id', 'borrowed_at'),
+        
+        # Index for pending requests lookup - get_pending_requests_for_book()
+        Index('ix_borrow_records_pending', 'book_id', 'status', 'created_at'),
+        
+        # Index for overdue check - update_overdue_status() bulk update
+        Index('ix_borrow_records_overdue', 'status', 'due_at', 'returned_at'),
     )

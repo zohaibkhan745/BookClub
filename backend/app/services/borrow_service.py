@@ -13,13 +13,20 @@ Handles:
 - Checking if a book is currently borrowed
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, desc
+from sqlalchemy import and_, desc, update, exists
 from typing import Optional, List
 from datetime import datetime
 import uuid
+import logging
 
 from app.models import Book, BorrowRecord, User
 from app.models.borrow_record import BorrowStatus
+from app.cache import cache
+
+logger = logging.getLogger(__name__)
+
+# Cache TTL for borrow status (shorter since it changes frequently)
+CACHE_TTL_BORROW = 30  # 30 seconds
 
 
 def get_active_borrow_for_book(db: Session, book_id) -> Optional[BorrowRecord]:
@@ -54,6 +61,7 @@ def get_active_borrow_for_book(db: Session, book_id) -> Optional[BorrowRecord]:
 def is_book_borrowed(db: Session, book_id) -> bool:
     """
     Check if a book is currently borrowed.
+    Optimized: Uses EXISTS subquery instead of loading full record.
     
     Args:
         db: Database session
@@ -62,7 +70,21 @@ def is_book_borrowed(db: Session, book_id) -> bool:
     Returns:
         True if book is borrowed, False otherwise
     """
-    return get_active_borrow_for_book(db, book_id) is not None
+    try:
+        book_id_int = int(book_id)
+    except (ValueError, TypeError):
+        return False
+    
+    # Use EXISTS for better performance - doesn't load any data, just checks existence
+    return db.query(
+        exists().where(
+            and_(
+                BorrowRecord.book_id == book_id_int,
+                BorrowRecord.returned_at.is_(None),
+                BorrowRecord.status == BorrowStatus.borrowed.value
+            )
+        )
+    ).scalar()
 
 
 def get_borrow_status(db: Session, book_id) -> dict:
@@ -525,6 +547,7 @@ def get_book_borrow_history(db: Session, book_id, limit: int = 50) -> List[Borro
 def update_overdue_status(db: Session) -> int:
     """
     Update status to 'overdue' for borrows past their due date.
+    Optimized: Uses bulk UPDATE statement instead of loading all records.
     
     This should be run periodically (e.g., daily cron job).
     
@@ -533,19 +556,20 @@ def update_overdue_status(db: Session) -> int:
     """
     now = datetime.utcnow()
     
-    # Find active borrows that are past due
-    overdue_records = db.query(BorrowRecord).filter(
-        and_(
-            BorrowRecord.returned_at.is_(None),
-            BorrowRecord.due_at.isnot(None),
-            BorrowRecord.due_at < now,
-            BorrowRecord.status == BorrowStatus.borrowed.value
+    # Bulk update using UPDATE statement - much faster than load-modify-save
+    result = db.execute(
+        update(BorrowRecord)
+        .where(
+            and_(
+                BorrowRecord.returned_at.is_(None),
+                BorrowRecord.due_at.isnot(None),
+                BorrowRecord.due_at < now,
+                BorrowRecord.status == BorrowStatus.borrowed.value
+            )
         )
-    ).all()
-    
-    for record in overdue_records:
-        record.status = BorrowStatus.overdue.value
+        .values(status=BorrowStatus.overdue.value)
+    )
     
     db.commit()
     
-    return len(overdue_records)
+    return result.rowcount

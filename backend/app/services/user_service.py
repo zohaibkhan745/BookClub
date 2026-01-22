@@ -8,7 +8,7 @@ Handles:
 - Password hashing and verification
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, exists, and_, func
 from typing import Optional
 from passlib.context import CryptContext
 from app.models import User
@@ -54,16 +54,22 @@ def get_user_by_email_or_username(db: Session, identifier: str) -> Optional[User
 def check_user_exists(db: Session, email: str, username: str) -> dict:
     """
     Check if a user with the given email or username already exists.
+    Optimized: Single query with conditional aggregation instead of 2 queries.
     
     Returns:
         dict with 'email_exists' and 'username_exists' booleans
     """
-    email_exists = db.query(User).filter(User.email == email).first() is not None
-    username_exists = db.query(User).filter(User.username == username).first() is not None
+    # Use single query with conditional count - more efficient than 2 separate queries
+    result = db.query(
+        func.count(func.nullif(User.email != email, True)).label('email_count'),
+        func.count(func.nullif(User.username != username, True)).label('username_count')
+    ).filter(
+        or_(User.email == email, User.username == username)
+    ).first()
     
     return {
-        "email_exists": email_exists,
-        "username_exists": username_exists
+        "email_exists": (result.email_count or 0) > 0,
+        "username_exists": (result.username_count or 0) > 0
     }
 
 
@@ -175,11 +181,19 @@ def sync_supabase_user(db: Session, supabase_id: str, email: str, full_name: str
     
     # Create new user
     # Generate username from email (before @)
+    # Optimized: Single query to find max counter instead of N queries in a loop
     base_username = email.split('@')[0].lower()
+    
+    # Find existing usernames with this base in one query
+    existing = db.query(User.username).filter(
+        User.username.like(f"{base_username}%")
+    ).all()
+    existing_usernames = {u.username for u in existing}
+    
+    # Find available username
     username = base_username
     counter = 1
-    
-    while get_user_by_username(db, username):
+    while username in existing_usernames:
         username = f"{base_username}{counter}"
         counter += 1
     

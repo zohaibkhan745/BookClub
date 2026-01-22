@@ -29,6 +29,8 @@ class Book(Base):
         Index('idx_books_available_created', 'is_available', 'created_at'),
         Index('idx_books_category_available', 'category', 'is_available'),
         Index('idx_books_listing_available', 'listing_type', 'is_available'),
+        # Index for owner's books lookup - get_books_by_owner()
+        Index('idx_books_owner_created', 'user_id', 'created_at'),
         {'extend_existing': True},  # Allow redefining if metadata already exists
     )
     

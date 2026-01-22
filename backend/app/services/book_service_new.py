@@ -7,8 +7,8 @@ Refactored to:
 - Use is_active instead of is_available
 - Added caching for better performance
 """
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy import desc, func
 from typing import Optional, List
 from datetime import datetime
 import uuid
@@ -27,12 +27,18 @@ CACHE_TTL_LONG = 300      # 5 minutes for individual book details
 
 
 def get_all_books(db: Session, limit: int = 50) -> List[Book]:
-    """Fetch all available books with caching."""
+    """Fetch all available books with caching.
+    
+    Optimizations:
+    - Uses covering index (is_available, created_at)
+    - Limits results early to reduce memory usage
+    """
     cache_key = f"books:all:{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     
+    # Use indexed columns in filter and order_by for optimal query plan
     result = db.query(Book).filter(
         Book.is_available == True
     ).order_by(desc(Book.created_at)).limit(limit).all()
@@ -60,12 +66,18 @@ def get_book_by_id(db: Session, book_id) -> Optional[Book]:
 
 
 def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
-    """Fetch all available books by genre/category with caching."""
+    """Fetch all available books by genre/category with caching.
+    
+    Optimizations:
+    - Uses composite index (category, is_available)
+    - Case-insensitive match with ilike for flexibility
+    """
     cache_key = f"genre:{genre.lower()}:{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     
+    # Filter on indexed columns first, then apply ilike
     result = db.query(Book).filter(
         Book.is_available == True,
         Book.category.ilike(f"%{genre}%")
