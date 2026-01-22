@@ -54,21 +54,13 @@ export function SearchPage() {
   };
 
   const categories = [
-    { name: "Self Help", slug: "self-help", color: "bg-pink-500" },
-    { name: "Philosophy", slug: "philosophy", color: "bg-purple-500" },
-    { name: "Fiction", slug: "fiction", color: "bg-blue-500" },
-    { name: "Business", slug: "business", color: "bg-green-500" },
-    {
-      name: "Science Fiction",
-      slug: "science-fiction",
-      color: "bg-yellow-500",
-    },
-    { name: "History", slug: "history", color: "bg-red-500" },
-    { name: "Biography", slug: "biography", color: "bg-teal-500" },
-    { name: "Poetry", slug: "poetry", color: "bg-indigo-500" },
+    { name: "Self Help", slug: "self-help", color: "#F7DB91" },
+    { name: "Philosophy", slug: "philosophy", color: "#FFFBB1" },
+    { name: "Fiction", slug: "fiction", color: "#EDEDCE" },
+    { name: "History", slug: "history", color: "#F5E7C6" },
+    { name: "Biography", slug: "biography", color: "#F5E7C6" },
+    { name: "Poetry", slug: "poetry", color: "#FAF3E1" },
   ];
-
-  const recentSearches = ["Fiction", "History", "Self Help"];
 
   return (
     <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
@@ -93,7 +85,7 @@ export function SearchPage() {
             type="text"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder="Search books, authors, genres..."
+            placeholder="Search books"
             className="w-full pl-12 pr-10 py-3 md:py-4 bg-white dark:bg-[#2c2c2e] rounded-xl md:rounded-2xl text-black dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm"
           />
           {query && (
@@ -141,21 +133,20 @@ export function SearchPage() {
           </section>
         ) : (
           <>
-          
-
             {/* Browse Categories */}
             <section className="mb-8">
               <h2 className="text-lg font-semibold text-black dark:text-white mb-3">
                 Browse Categories
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {categories.map((category) => (
                   <button
                     key={category.slug}
                     onClick={() => navigate(`/genre/${category.slug}`)}
-                    className={`${category.color} rounded-xl py-4 px-4 text-left hover:scale-105 transition-transform shadow-lg`}
+                    className="rounded-xl py-4 px-4 text-left hover:scale-105 transition-transform shadow-lg"
+                    style={{ backgroundColor: category.color }}
                   >
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold" style={{ color: "#333" }}>
                       {category.name}
                     </span>
                   </button>

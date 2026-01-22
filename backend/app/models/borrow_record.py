@@ -20,9 +20,11 @@ def generate_uuid():
 
 class BorrowStatus(str, enum.Enum):
     """Status of a borrow record."""
-    borrowed = "borrowed"    # Book is currently borrowed
+    requested = "requested"  # User has requested to borrow (pending owner approval)
+    borrowed = "borrowed"    # Book is currently borrowed (approved by owner)
     returned = "returned"    # Book has been returned
     overdue = "overdue"      # Book is overdue (past due_at date)
+    cancelled = "cancelled"  # Request was cancelled or rejected
 
 
 class BorrowRecord(Base):

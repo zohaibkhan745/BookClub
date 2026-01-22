@@ -16,7 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   uploadBookImage,
   deleteBookImage,
-  createImagePreview,
+  compressImage,
   revokeImagePreview,
 } from "../services/imageUploadService";
 import type {
@@ -124,29 +124,83 @@ export function UploadBook() {
     const remainingSlots = 3 - imageStates.length;
     const filesToAdd = fileArray.slice(0, remainingSlots);
 
-    // Validate and add files with preview URLs
+    // Clear previous image errors
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.images;
+      return next;
+    });
+
+    // Process files sequentially
     for (const file of filesToAdd) {
-      // Validate file type
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      // Validate file type (now accepts more formats since we convert to WebP)
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "image/bmp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
         setFieldErrors((prev) => ({
           ...prev,
-          images: "Only JPEG, PNG, and WebP images are allowed.",
+          images: "Only JPEG, PNG, WebP, GIF, and BMP images are allowed.",
         }));
         continue;
       }
 
-      // Validate file size (1MB max)
-      if (file.size > 1 * 1024 * 1024) {
+      // Validate file size (20MB max for input)
+      if (file.size > 20 * 1024 * 1024) {
         setFieldErrors((prev) => ({
           ...prev,
-          images: "Image must be less than 1MB.",
+          images: "Image must be less than 20MB.",
         }));
         continue;
       }
 
-      // Create preview URL and add to state
-      const previewUrl = createImagePreview(file);
-      setImageStates((prev) => [...prev, { file, previewUrl }]);
+      // Show temporary loading state
+      const tempPreviewUrl = URL.createObjectURL(file);
+      const tempIndex = imageStates.length;
+
+      setImageStates((prev) => [
+        ...prev,
+        { file, previewUrl: tempPreviewUrl, isUploading: true },
+      ]);
+
+      try {
+        // Compress the image (converts to WebP, max 1200px, under 1MB)
+        const { blob, previewUrl } = await compressImage(file);
+
+        // Create a new File object from the compressed blob
+        const compressedFile = new File(
+          [blob],
+          file.name.replace(/\.[^.]+$/, ".webp"),
+          { type: "image/webp" },
+        );
+
+        // Revoke the temporary preview URL
+        revokeImagePreview(tempPreviewUrl);
+
+        // Update state with compressed image
+        setImageStates((prev) =>
+          prev.map((img, idx) =>
+            idx === tempIndex
+              ? { file: compressedFile, previewUrl, isUploading: false }
+              : img,
+          ),
+        );
+      } catch (error) {
+        // Remove the failed image from state
+        setImageStates((prev) => prev.filter((_, idx) => idx !== tempIndex));
+        revokeImagePreview(tempPreviewUrl);
+
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to process image.";
+        setFieldErrors((prev) => ({
+          ...prev,
+          images: errorMessage,
+        }));
+      }
     }
   };
 

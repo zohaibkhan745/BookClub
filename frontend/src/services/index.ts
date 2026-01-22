@@ -7,9 +7,12 @@ export {
   createBook,
   deleteBook,
   joinClub,
-  // New borrow management (using borrow_records table)
+  // Borrow management (using borrow_records table)
   getBorrowStatus,
-  requestBorrow,
+  requestToBorrow,
+  getBookBorrowRequests,
+  approveBorrowRequest,
+  cancelBorrowRequest,
   ownerMarkBorrowed,
   returnBook,
   getMyBorrowHistory,
@@ -24,6 +27,8 @@ export {
   // Legacy (deprecated)
   markBookAsBorrowed,
 } from './bookService';
+
+export type { BorrowRequestResult } from './bookService';
 
 export { API_BASE_URL, API_URL } from './api';
 

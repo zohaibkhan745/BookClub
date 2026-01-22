@@ -57,7 +57,7 @@ def borrow_record_to_response(record, include_book: bool = False) -> dict:
 
 
 @router.post("/request")
-async def borrow_book(
+async def request_to_borrow(
     request: BorrowBookRequest,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user)
@@ -65,8 +65,8 @@ async def borrow_book(
     """
     POST /borrow/request - Request to borrow a book.
     
-    The authenticated user becomes the borrower.
-    The book must not be currently borrowed.
+    Creates a borrow request with status='REQUESTED'.
+    The book owner must approve the request.
     """
     try:
         # Ensure user exists in local DB
@@ -79,12 +79,111 @@ async def borrow_book(
                 full_name=user.full_name or "User"
             )
         
-        # Create borrow record
-        borrow_record = borrow_service.borrow_book(
+        # Create borrow request (status=REQUESTED)
+        borrow_record = borrow_service.request_to_borrow(
             db=db,
             book_id=request.book_id,
             borrower_id=user.id,
-            due_at=request.due_at
+        )
+        
+        # Get book's WhatsApp number for redirect
+        book = book_service.get_book_by_id(db, request.book_id)
+        whatsapp_number = book.whatsapp_number if book else None
+        
+        response_data = borrow_record_to_response(borrow_record)
+        response_data["whatsappNumber"] = whatsapp_number
+        
+        return {
+            "success": True,
+            "data": response_data
+        }
+    
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "NOT_FOUND", "message": error_msg}
+            )
+        elif "already have a pending" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "ALREADY_REQUESTED", "message": error_msg}
+            )
+        elif "own book" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "OWN_BOOK", "message": error_msg}
+            )
+        elif "not available" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "NOT_AVAILABLE", "message": error_msg}
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "REQUEST_FAILED", "message": error_msg}
+            )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "SERVER_ERROR", "message": str(e)}
+        )
+
+
+@router.get("/requests/{book_id}")
+async def get_book_requests(
+    book_id: str,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    GET /borrow/requests/{book_id} - Get all pending borrow requests for a book.
+    
+    Only the book owner can see the requests.
+    """
+    # Verify book exists and user is owner
+    book = book_service.get_book_by_id(db, book_id)
+    
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "BOOK_NOT_FOUND", "message": "Book not found"}
+        )
+    
+    if book.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_AUTHORIZED", "message": "Only the book owner can view requests"}
+        )
+    
+    requests = borrow_service.get_pending_requests_for_book(db, book_id)
+    
+    return {
+        "success": True,
+        "data": [borrow_record_to_response(r) for r in requests]
+    }
+
+
+@router.post("/approve/{request_id}")
+async def approve_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    POST /borrow/approve/{request_id} - Approve a borrow request.
+    
+    Changes status to BORROWED and marks book as unavailable.
+    Only the book owner can approve.
+    """
+    try:
+        borrow_record = borrow_service.approve_borrow_request(
+            db=db,
+            request_id=request_id,
+            owner_id=user.id
         )
         
         return {
@@ -99,15 +198,63 @@ async def borrow_book(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "NOT_FOUND", "message": error_msg}
             )
-        elif "already borrowed" in error_msg.lower():
+        elif "not authorized" in error_msg.lower() or "only the book owner" in error_msg.lower():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "ALREADY_BORROWED", "message": error_msg}
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "NOT_AUTHORIZED", "message": error_msg}
             )
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "BORROW_FAILED", "message": error_msg}
+                detail={"code": "APPROVE_FAILED", "message": error_msg}
+            )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "SERVER_ERROR", "message": str(e)}
+        )
+
+
+@router.post("/cancel/{request_id}")
+async def cancel_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    POST /borrow/cancel/{request_id} - Cancel a borrow request.
+    
+    Can be done by the requester or the book owner.
+    """
+    try:
+        borrow_record = borrow_service.cancel_borrow_request(
+            db=db,
+            request_id=request_id,
+            user_id=user.id
+        )
+        
+        return {
+            "success": True,
+            "data": borrow_record_to_response(borrow_record)
+        }
+    
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "NOT_FOUND", "message": error_msg}
+            )
+        elif "not authorized" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "NOT_AUTHORIZED", "message": error_msg}
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "CANCEL_FAILED", "message": error_msg}
             )
     
     except Exception as e:

@@ -5,7 +5,7 @@ export type ListingType = 'lend' | 'borrow' | 'sell' | 'exchange';
 export type BookCondition = 'new' | 'like-new' | 'good' | 'fair' | 'poor';
 
 /** Borrow status values */
-export type BorrowStatusValue = 'borrowed' | 'returned' | 'overdue';
+export type BorrowStatusValue = 'requested' | 'borrowed' | 'returned' | 'overdue' | 'cancelled';
 
 /** Book category names */
 export type BookCategory =

@@ -321,8 +321,13 @@ export async function joinClub(data: JoinClubData): Promise<JoinClubResponse> {
 }
 
 // ============================================================================
-// BORROW MANAGEMENT (NEW - using borrow_records table)
+// BORROW MANAGEMENT (using borrow_records table)
 // ============================================================================
+
+/** Borrow request response with WhatsApp number */
+export interface BorrowRequestResult extends BorrowRecord {
+  whatsappNumber?: string | null;
+}
 
 /** GET /borrow/status/:bookId - Get current borrow status for a book */
 export async function getBorrowStatus(bookId: string): Promise<BorrowRecord | null> {
@@ -351,7 +356,7 @@ export async function getBorrowStatus(bookId: string): Promise<BorrowRecord | nu
       borrowerFullName: response.data.borrowerName || undefined,
       borrowedAt: '', // Not provided by this endpoint
       dueAt: response.data.dueAt || undefined,
-      status: 'active' as const, // If borrowed, status is active
+      status: 'borrowed', // If borrowed, status is borrowed
     };
   } catch (error) {
     console.error('Get borrow status error:', error);
@@ -359,8 +364,99 @@ export async function getBorrowStatus(bookId: string): Promise<BorrowRecord | nu
   }
 }
 
-/** POST /borrow/request - Request to borrow a book (creates pending borrow record) */
-export async function requestBorrow(bookId: string, message?: string): Promise<BorrowRecord> {
+/** POST /borrow/request - Request to borrow a book (creates REQUESTED status, returns WhatsApp number) */
+export async function requestToBorrow(bookId: string): Promise<BorrowRequestResult> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BorrowRecordResponse {
+      success: boolean;
+      data: {
+        id: string;
+        bookId: string;
+        borrowerId: string;
+        borrowedAt: string | null;
+        dueAt: string | null;
+        returnedAt: string | null;
+        status: string;
+        whatsappNumber?: string | null;
+        borrower?: BorrowerInfo;
+      };
+    }
+
+    const response = await apiPost<BorrowRecordResponse>('/borrow/request', {
+      book_id: bookId,
+    });
+
+    return {
+      id: response.data.id,
+      bookId: response.data.bookId,
+      borrowerId: response.data.borrowerId,
+      borrowerUsername: response.data.borrower?.username,
+      borrowerFullName: response.data.borrower?.fullName,
+      borrowedAt: response.data.borrowedAt || '',
+      dueAt: response.data.dueAt || undefined,
+      returnedAt: response.data.returnedAt || undefined,
+      status: response.data.status as BorrowRecord['status'],
+      whatsappNumber: response.data.whatsappNumber,
+    };
+  } catch (error) {
+    console.error('Request to borrow error:', error);
+    throw error;
+  }
+}
+
+/** GET /borrow/requests/:bookId - Get all pending borrow requests for a book (owner only) */
+export async function getBookBorrowRequests(bookId: string): Promise<BorrowRecord[]> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BorrowRecordItem {
+      id: string;
+      bookId: string;
+      borrowerId: string;
+      borrowedAt: string | null;
+      dueAt: string | null;
+      returnedAt: string | null;
+      status: string;
+      borrower?: BorrowerInfo;
+    }
+    
+    interface BorrowRequestsResponse {
+      success: boolean;
+      data: BorrowRecordItem[];
+    }
+
+    const response = await apiGet<BorrowRequestsResponse>(`/borrow/requests/${bookId}`);
+
+    return response.data.map((record) => ({
+      id: record.id,
+      bookId: record.bookId,
+      borrowerId: record.borrowerId,
+      borrowerUsername: record.borrower?.username,
+      borrowerFullName: record.borrower?.fullName,
+      borrower: record.borrower,
+      borrowedAt: record.borrowedAt || '',
+      dueAt: record.dueAt || undefined,
+      returnedAt: record.returnedAt || undefined,
+      status: record.status as BorrowRecord['status'],
+    }));
+  } catch (error) {
+    console.error('Get book borrow requests error:', error);
+    throw error;
+  }
+}
+
+/** POST /borrow/approve/:requestId - Approve a borrow request (owner only) */
+export async function approveBorrowRequest(requestId: string): Promise<BorrowRecord> {
   try {
     interface BorrowerInfo {
       id: string;
@@ -382,10 +478,10 @@ export async function requestBorrow(bookId: string, message?: string): Promise<B
       };
     }
 
-    const response = await apiPost<BorrowRecordResponse>('/borrow/request', {
-      book_id: bookId,
-      message: message?.trim() || null,
-    });
+    const response = await apiPost<BorrowRecordResponse>(`/borrow/approve/${requestId}`, {});
+
+    // Invalidate book caches
+    invalidateBooksCache();
 
     return {
       id: response.data.id,
@@ -396,10 +492,52 @@ export async function requestBorrow(bookId: string, message?: string): Promise<B
       borrowedAt: response.data.borrowedAt || '',
       dueAt: response.data.dueAt || undefined,
       returnedAt: response.data.returnedAt || undefined,
-      status: response.data.status as 'active' | 'returned' | 'overdue',
+      status: response.data.status as BorrowRecord['status'],
     };
   } catch (error) {
-    console.error('Request borrow error:', error);
+    console.error('Approve borrow request error:', error);
+    throw error;
+  }
+}
+
+/** POST /borrow/cancel/:requestId - Cancel a borrow request */
+export async function cancelBorrowRequest(requestId: string): Promise<BorrowRecord> {
+  try {
+    interface BorrowerInfo {
+      id: string;
+      username: string;
+      fullName: string;
+    }
+    
+    interface BorrowRecordResponse {
+      success: boolean;
+      data: {
+        id: string;
+        bookId: string;
+        borrowerId: string;
+        borrowedAt: string | null;
+        dueAt: string | null;
+        returnedAt: string | null;
+        status: string;
+        borrower?: BorrowerInfo;
+      };
+    }
+
+    const response = await apiPost<BorrowRecordResponse>(`/borrow/cancel/${requestId}`, {});
+
+    return {
+      id: response.data.id,
+      bookId: response.data.bookId,
+      borrowerId: response.data.borrowerId,
+      borrowerUsername: response.data.borrower?.username,
+      borrowerFullName: response.data.borrower?.fullName,
+      borrowedAt: response.data.borrowedAt || '',
+      dueAt: response.data.dueAt || undefined,
+      returnedAt: response.data.returnedAt || undefined,
+      status: response.data.status as BorrowRecord['status'],
+    };
+  } catch (error) {
+    console.error('Cancel borrow request error:', error);
     throw error;
   }
 }
@@ -446,7 +584,7 @@ export async function ownerMarkBorrowed(
       borrowedAt: response.data.borrowedAt || '',
       dueAt: response.data.dueAt || undefined,
       returnedAt: response.data.returnedAt || undefined,
-      status: response.data.status as 'active' | 'returned' | 'overdue',
+      status: response.data.status as BorrowRecord['status'],
     };
   } catch (error) {
     console.error('Owner mark borrowed error:', error);
@@ -490,7 +628,7 @@ export async function returnBook(bookId: string): Promise<BorrowRecord> {
       borrowedAt: response.data.borrowedAt || '',
       dueAt: response.data.dueAt || undefined,
       returnedAt: response.data.returnedAt || undefined,
-      status: response.data.status as 'active' | 'returned' | 'overdue',
+      status: response.data.status as BorrowRecord['status'],
     };
   } catch (error) {
     console.error('Return book error:', error);
@@ -542,7 +680,7 @@ export async function getMyBorrowHistory(): Promise<BorrowRecord[]> {
       borrowedAt: record.borrowedAt || '',
       dueAt: record.dueAt || undefined,
       returnedAt: record.returnedAt || undefined,
-      status: record.status as 'active' | 'returned' | 'overdue',
+      status: record.status as BorrowRecord['status'],
       book: record.book,
     }));
   } catch (error) {

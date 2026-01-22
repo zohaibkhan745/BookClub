@@ -26,7 +26,8 @@ def get_active_borrow_for_book(db: Session, book_id) -> Optional[BorrowRecord]:
     """
     Get the current active borrow record for a book.
     
-    A book is "borrowed" if returned_at IS NULL.
+    A book is "borrowed" if status=BORROWED and returned_at IS NULL.
+    (Not REQUESTED - that's a pending request)
     
     Args:
         db: Database session
@@ -44,7 +45,8 @@ def get_active_borrow_for_book(db: Session, book_id) -> Optional[BorrowRecord]:
     return db.query(BorrowRecord).filter(
         and_(
             BorrowRecord.book_id == book_id_int,
-            BorrowRecord.returned_at.is_(None)
+            BorrowRecord.returned_at.is_(None),
+            BorrowRecord.status == BorrowStatus.borrowed.value
         )
     ).options(joinedload(BorrowRecord.borrower)).first()
 
@@ -158,7 +160,223 @@ def borrow_book(
         status=BorrowStatus.borrowed.value,
     )
     
+    # Mark book as unavailable
+    book.is_available = False
+    
     db.add(borrow_record)
+    db.commit()
+    db.refresh(borrow_record)
+    
+    return borrow_record
+
+
+def request_to_borrow(
+    db: Session,
+    book_id,
+    borrower_id: str,
+) -> BorrowRecord:
+    """
+    Create a borrow REQUEST for a book (status=REQUESTED).
+    
+    This creates a pending request that the owner must approve.
+    
+    Args:
+        db: Database session
+        book_id: ID of the book to request
+        borrower_id: ID of the user requesting to borrow
+    
+    Returns:
+        Created BorrowRecord with status='requested'
+    
+    Raises:
+        ValueError: If book doesn't exist, is unavailable, or user already requested
+    """
+    # Convert to int if string
+    try:
+        book_id_int = int(book_id)
+    except (ValueError, TypeError):
+        raise ValueError("Invalid book ID")
+    
+    # Verify book exists
+    book = db.query(Book).filter(Book.id == book_id_int).first()
+    if not book:
+        raise ValueError("Book not found")
+    
+    if not book.is_available:
+        raise ValueError("Book is not available for borrowing")
+    
+    # Verify borrower exists
+    borrower = db.query(User).filter(User.id == borrower_id).first()
+    if not borrower:
+        raise ValueError("User not found")
+    
+    # Cannot request your own book
+    if book.user_id == borrower_id:
+        raise ValueError("Cannot request your own book")
+    
+    # Check if user already has a pending request for this book
+    existing_request = db.query(BorrowRecord).filter(
+        and_(
+            BorrowRecord.book_id == book_id_int,
+            BorrowRecord.borrower_id == borrower_id,
+            BorrowRecord.status == BorrowStatus.requested.value
+        )
+    ).first()
+    
+    if existing_request:
+        raise ValueError("You already have a pending request for this book")
+    
+    # Create borrow request record
+    borrow_record = BorrowRecord(
+        id=str(uuid.uuid4()),
+        book_id=book_id_int,
+        borrower_id=borrower_id,
+        borrowed_at=datetime.utcnow(),  # Request timestamp
+        status=BorrowStatus.requested.value,
+    )
+    
+    db.add(borrow_record)
+    db.commit()
+    db.refresh(borrow_record)
+    
+    # Load borrower relationship
+    db.refresh(borrow_record, ['borrower'])
+    
+    return borrow_record
+
+
+def get_pending_requests_for_book(db: Session, book_id) -> List[BorrowRecord]:
+    """
+    Get all pending borrow requests for a book.
+    
+    Args:
+        db: Database session
+        book_id: ID of the book
+    
+    Returns:
+        List of BorrowRecords with status='requested'
+    """
+    try:
+        book_id_int = int(book_id)
+    except (ValueError, TypeError):
+        return []
+    
+    return db.query(BorrowRecord).filter(
+        and_(
+            BorrowRecord.book_id == book_id_int,
+            BorrowRecord.status == BorrowStatus.requested.value
+        )
+    ).options(joinedload(BorrowRecord.borrower)).order_by(desc(BorrowRecord.created_at)).all()
+
+
+def approve_borrow_request(
+    db: Session,
+    request_id: str,
+    owner_id: str,
+    due_at: Optional[datetime] = None
+) -> BorrowRecord:
+    """
+    Owner approves a borrow request, changing status to BORROWED.
+    
+    This also:
+    1. Updates the book's is_available to False
+    2. Cancels all other pending requests for this book
+    
+    Args:
+        db: Database session
+        request_id: ID of the borrow request to approve
+        owner_id: ID of the book owner (for authorization)
+        due_at: Optional due date
+    
+    Returns:
+        Updated BorrowRecord with status='borrowed'
+    
+    Raises:
+        ValueError: If request not found, not pending, or user not authorized
+    """
+    # Get the borrow request
+    borrow_record = db.query(BorrowRecord).filter(
+        BorrowRecord.id == request_id
+    ).options(joinedload(BorrowRecord.book), joinedload(BorrowRecord.borrower)).first()
+    
+    if not borrow_record:
+        raise ValueError("Borrow request not found")
+    
+    if borrow_record.status != BorrowStatus.requested.value:
+        raise ValueError("This request is no longer pending")
+    
+    # Verify owner authorization
+    book = borrow_record.book
+    if not book:
+        raise ValueError("Book not found")
+    
+    if book.user_id != owner_id:
+        raise ValueError("Only the book owner can approve requests")
+    
+    # Update the approved request
+    borrow_record.status = BorrowStatus.borrowed.value
+    borrow_record.borrowed_at = datetime.utcnow()
+    if due_at:
+        borrow_record.due_at = due_at
+    
+    # Mark book as unavailable
+    book.is_available = False
+    
+    # Cancel all other pending requests for this book
+    other_requests = db.query(BorrowRecord).filter(
+        and_(
+            BorrowRecord.book_id == book.id,
+            BorrowRecord.id != request_id,
+            BorrowRecord.status == BorrowStatus.requested.value
+        )
+    ).all()
+    
+    for req in other_requests:
+        req.status = BorrowStatus.cancelled.value
+    
+    db.commit()
+    db.refresh(borrow_record)
+    
+    return borrow_record
+
+
+def cancel_borrow_request(
+    db: Session,
+    request_id: str,
+    user_id: str
+) -> BorrowRecord:
+    """
+    Cancel a borrow request.
+    
+    Can be done by the requester or the book owner.
+    
+    Args:
+        db: Database session
+        request_id: ID of the borrow request
+        user_id: ID of the user cancelling
+    
+    Returns:
+        Updated BorrowRecord with status='cancelled'
+    """
+    borrow_record = db.query(BorrowRecord).filter(
+        BorrowRecord.id == request_id
+    ).options(joinedload(BorrowRecord.book)).first()
+    
+    if not borrow_record:
+        raise ValueError("Borrow request not found")
+    
+    if borrow_record.status != BorrowStatus.requested.value:
+        raise ValueError("Only pending requests can be cancelled")
+    
+    # Check authorization - either requester or book owner
+    is_requester = borrow_record.borrower_id == user_id
+    is_owner = borrow_record.book and borrow_record.book.user_id == user_id
+    
+    if not is_requester and not is_owner:
+        raise ValueError("Not authorized to cancel this request")
+    
+    borrow_record.status = BorrowStatus.cancelled.value
+    
     db.commit()
     db.refresh(borrow_record)
     
@@ -209,6 +427,10 @@ def return_book(db: Session, book_id, user_id: str) -> BorrowRecord:
     active_borrow.returned_at = datetime.utcnow()
     active_borrow.status = BorrowStatus.returned.value
     
+    # Mark book as available again
+    if book:
+        book.is_available = True
+    
     db.commit()
     db.refresh(active_borrow)
     
@@ -257,11 +479,12 @@ def get_books_borrowed_by_user(db: Session, user_id: str, limit: int = 50) -> Li
     Returns:
         List of Books currently borrowed by the user
     """
-    # Get active borrow records for this user
+    # Get active borrow records for this user (only BORROWED status, not REQUESTED)
     active_borrows = db.query(BorrowRecord).filter(
         and_(
             BorrowRecord.borrower_id == user_id,
-            BorrowRecord.returned_at.is_(None)
+            BorrowRecord.returned_at.is_(None),
+            BorrowRecord.status == BorrowStatus.borrowed.value
         )
     ).limit(limit).all()
     

@@ -1,15 +1,23 @@
 /**
  * Image Upload Service
  * Handles image compression and upload to Supabase Storage.
+ * Uses browser-image-compression for efficient client-side compression.
  */
 
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../lib/supabase';
 
-/** Allowed image MIME types */
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+/** Allowed image MIME types for input */
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
 
-/** Maximum file size in bytes (1MB) */
-const MAX_FILE_SIZE = 1 * 1024 * 1024;
+/** Maximum INPUT file size in bytes (20MB) */
+const MAX_INPUT_FILE_SIZE = 20 * 1024 * 1024;
+
+/** Maximum OUTPUT file size in bytes (1MB) */
+const MAX_OUTPUT_FILE_SIZE = 1 * 1024 * 1024;
+
+/** Maximum width for resizing */
+const MAX_WIDTH_PX = 1200;
 
 /** Supabase Storage bucket name */
 const BUCKET_NAME = 'book-images';
@@ -24,21 +32,26 @@ export interface ImageUploadError {
   message: string;
 }
 
+export interface CompressionResult {
+  blob: Blob;
+  previewUrl: string;
+}
+
 /**
- * Validates the image file before upload.
+ * Validates the input image file before compression.
  */
-function validateFile(file: File): ImageUploadError | null {
+function validateInputFile(file: File): ImageUploadError | null {
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     return {
       code: 'INVALID_TYPE',
-      message: 'Only JPEG, PNG, and WebP images are allowed.',
+      message: 'Only JPEG, PNG, WebP, GIF, and BMP images are allowed.',
     };
   }
 
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > MAX_INPUT_FILE_SIZE) {
     return {
       code: 'FILE_TOO_LARGE',
-      message: 'Image must be less than 1MB.',
+      message: `Image must be less than ${MAX_INPUT_FILE_SIZE / (1024 * 1024)}MB.`,
     };
   }
 
@@ -46,99 +59,91 @@ function validateFile(file: File): ImageUploadError | null {
 }
 
 /**
- * Compresses an image file and returns it as a Blob.
- * Reduces file size while maintaining reasonable quality.
+ * Compresses an image file using browser-image-compression.
+ * 
+ * - Accepts files up to 20MB
+ * - Outputs WebP format
+ * - Resizes to max 1200px width
+ * - Compresses to under 1MB
+ * 
+ * @param file - The input image file
+ * @returns Compressed blob and preview URL
  */
-export async function compressImage(
-  file: File,
-  maxWidth = 800,
-  quality = 0.8
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const canvas = document.createElement('canvas');
+export async function compressImage(file: File): Promise<CompressionResult> {
+  // Validate input file
+  const validationError = validateInputFile(file);
+  if (validationError) {
+    throw new Error(validationError.message);
+  }
 
-    img.onload = () => {
-      // Calculate new dimensions while maintaining aspect ratio
-      let width = img.width;
-      let height = img.height;
+  const options = {
+    maxSizeMB: MAX_OUTPUT_FILE_SIZE / (1024 * 1024), // 1MB
+    maxWidthOrHeight: MAX_WIDTH_PX,
+    useWebWorker: true,
+    fileType: 'image/webp' as const,
+    initialQuality: 0.85,
+    alwaysKeepResolution: false,
+  };
 
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+  try {
+    // Compress the image
+    const compressedBlob = await imageCompression(file, options);
+
+    // Verify output size is under 1MB
+    if (compressedBlob.size > MAX_OUTPUT_FILE_SIZE) {
+      // If still too large, try again with lower quality
+      const fallbackOptions = {
+        ...options,
+        initialQuality: 0.6,
+        maxSizeMB: 0.8, // Target even smaller
+      };
+      const recompressedBlob = await imageCompression(file, fallbackOptions);
+      
+      if (recompressedBlob.size > MAX_OUTPUT_FILE_SIZE) {
+        throw new Error('Unable to compress image below 1MB. Please use a smaller image.');
       }
+      
+      return {
+        blob: recompressedBlob,
+        previewUrl: URL.createObjectURL(recompressedBlob),
+      };
+    }
 
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
-
-      // Draw and compress
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to compress image'));
-          }
-        },
-        'image/jpeg',
-        quality
-      );
+    return {
+      blob: compressedBlob,
+      previewUrl: URL.createObjectURL(compressedBlob),
     };
-
-    img.onerror = () => reject(new Error('Failed to load image'));
-
-    // Create object URL from file
-    img.src = URL.createObjectURL(file);
-  });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to compress image. Please try a different file.');
+  }
 }
 
 /**
  * Generates a unique file path for the image in Supabase Storage.
- * Format: books/{userId}/{timestamp}.jpg
+ * Format: books/{userId}/{timestamp}.webp
  */
 function generateFilePath(userId: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
-  return `books/${userId}/${timestamp}-${random}.jpg`;
+  return `books/${userId}/${timestamp}-${random}.webp`;
 }
 
 /**
- * Uploads an image to Supabase Storage.
+ * Uploads a compressed image to Supabase Storage.
  * 
- * @param file - The image file to upload
+ * @param file - The original image file (up to 20MB)
  * @param userId - The authenticated user's ID
  * @returns The public URL of the uploaded image
- * @throws Error if upload fails or user is not authenticated
  */
 export async function uploadBookImage(
   file: File,
   userId: string
 ): Promise<ImageUploadResult> {
-  // Validate file
-  const validationError = validateFile(file);
-  if (validationError) {
-    throw new Error(validationError.message);
-  }
-
-  // Compress image
-  let imageBlob: Blob;
-  try {
-    imageBlob = await compressImage(file);
-  } catch {
-    throw new Error('Failed to process image. Please try a different file.');
-  }
-
-  // Check compressed size
-  if (imageBlob.size > MAX_FILE_SIZE) {
-    throw new Error('Compressed image is still too large. Please use a smaller image.');
-  }
+  // Compress image first
+  const { blob: compressedBlob } = await compressImage(file);
 
   // Generate unique file path
   const filePath = generateFilePath(userId);
@@ -146,8 +151,8 @@ export async function uploadBookImage(
   // Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from(BUCKET_NAME)
-    .upload(filePath, imageBlob, {
-      contentType: 'image/jpeg',
+    .upload(filePath, compressedBlob, {
+      contentType: 'image/webp',
       cacheControl: '3600',
       upsert: false,
     });
@@ -174,7 +179,6 @@ export async function uploadBookImage(
 
 /**
  * Deletes an image from Supabase Storage.
- * Used when book creation fails after image upload.
  */
 export async function deleteBookImage(filePath: string): Promise<void> {
   const { error } = await supabase.storage

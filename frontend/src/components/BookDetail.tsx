@@ -9,6 +9,8 @@ import {
   Search,
   CheckCircle,
   Trash2,
+  Users,
+  Clock,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -18,6 +20,9 @@ import {
   searchUsers,
   getBorrowStatus,
   deleteBook,
+  requestToBorrow,
+  getBookBorrowRequests,
+  approveBorrowRequest,
 } from "../services";
 import type { Book, ApiError, UserPreview, BorrowRecord } from "../types";
 
@@ -48,7 +53,6 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
   // Modal state for "Mark as Borrowed"
   const [showBorrowerModal, setShowBorrowerModal] = useState(false);
-  const [borrowerUsername, setBorrowerUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +65,20 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   // Borrow status state (fetched from API)
   const [borrowStatus, setBorrowStatus] = useState<BorrowRecord | null>(null);
   const [isBorrowStatusLoading, setIsBorrowStatusLoading] = useState(true);
+
+  // Borrow requests state (for owner)
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
+  const [borrowRequests, setBorrowRequests] = useState<BorrowRecord[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [approvingRequestId, setApprovingRequestId] = useState<string | null>(
+    null,
+  );
+
+  // Requesting to borrow state
+  const [isRequestingBorrow, setIsRequestingBorrow] = useState(false);
+
+  // Return book confirmation state
+  const [showReturnConfirm, setShowReturnConfirm] = useState(false);
 
   // Delete book state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -76,7 +94,8 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   const isOwner = isUploader;
 
   // Derive borrow state from borrowStatus
-  const isBorrowed = borrowStatus !== null && borrowStatus.status === "active";
+  const isBorrowed =
+    borrowStatus !== null && borrowStatus.status === "borrowed";
   const borrowerName = borrowStatus?.borrowerFullName;
 
   // Show "Mark as Borrowed" button only if:
@@ -132,24 +151,93 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
     return () => clearTimeout(searchTimeout);
   }, [userSearchQuery]);
 
-  const handleBorrowClick = () => {
+  const handleBorrowClick = async () => {
     // Check if user is authenticated
     if (!isAuthenticated) {
       navigate("/login", { state: { from: location.pathname } });
       return;
     }
 
-    if (book.whatsappNumber) {
-      openWhatsApp(book.whatsappNumber, book.title);
-    } else {
-      alert("Contact information not available for this book.");
+    setIsRequestingBorrow(true);
+    setError(null);
+
+    try {
+      // Create borrow request (status: REQUESTED)
+      const result = await requestToBorrow(String(book.id));
+
+      // Redirect to WhatsApp with the owner's number
+      const whatsappNumber = result.whatsappNumber || book.whatsappNumber;
+      if (whatsappNumber) {
+        openWhatsApp(whatsappNumber, book.title);
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      if (apiError.code === "ALREADY_REQUESTED") {
+        // User already has a pending request - just open WhatsApp
+        if (book.whatsappNumber) {
+          openWhatsApp(book.whatsappNumber, book.title);
+        }
+      } else if (apiError.code === "OWN_BOOK") {
+        setError("You cannot borrow your own book");
+      } else if (apiError.code === "NOT_AVAILABLE") {
+        setError("This book is no longer available");
+      } else {
+        setError(apiError.message || "Failed to send borrow request");
+      }
+    } finally {
+      setIsRequestingBorrow(false);
+    }
+  };
+
+  // Fetch pending borrow requests for this book (owner only)
+  const handleViewRequests = async () => {
+    setShowRequestsModal(true);
+    setIsLoadingRequests(true);
+    setError(null);
+
+    try {
+      const requests = await getBookBorrowRequests(String(book.id));
+      setBorrowRequests(requests);
+    } catch (err) {
+      console.error("Failed to fetch borrow requests:", err);
+      const apiError = err as ApiError;
+      setError(apiError.message || "Failed to load borrow requests");
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  };
+
+  // Approve a borrow request
+  const handleApproveRequest = async (requestId: string) => {
+    setApprovingRequestId(requestId);
+    setError(null);
+
+    try {
+      const borrowRecord = await approveBorrowRequest(requestId);
+
+      // Close modal and update status
+      setShowRequestsModal(false);
+      setBorrowStatus(borrowRecord);
+
+      // Notify parent of update
+      if (onBookUpdate) {
+        onBookUpdate({
+          ...book,
+          isBorrowed: true,
+          borrowedByName: borrowRecord.borrowerFullName,
+        });
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || "Failed to approve request");
+    } finally {
+      setApprovingRequestId(null);
     }
   };
 
   const handleMarkAsBorrowed = () => {
     setShowBorrowerModal(true);
     setError(null);
-    setBorrowerUsername("");
     setUserSearchQuery("");
     setUserSearchResults([]);
     setSelectedUser(null);
@@ -157,7 +245,6 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
   const handleSelectUser = (userPreview: UserPreview) => {
     setSelectedUser(userPreview);
-    setBorrowerUsername(userPreview.username);
     setUserSearchQuery(userPreview.fullName);
     setUserSearchResults([]);
   };
@@ -196,11 +283,16 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
     }
   };
 
-  const handleReturnBook = async () => {
-    if (!confirm("Are you sure you want to mark this book as returned?")) {
-      return;
-    }
+  const handleReturnClick = () => {
+    setShowReturnConfirm(true);
+    setError(null);
+  };
 
+  const handleReturnCancel = () => {
+    setShowReturnConfirm(false);
+  };
+
+  const handleReturnConfirm = async () => {
     setIsSubmitting(true);
     setError(null);
 
@@ -208,6 +300,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
       await returnBook(String(book.id));
       // Update local borrow status
       setBorrowStatus(null);
+      setShowReturnConfirm(false);
       // Notify parent component of the update (if needed)
       if (onBookUpdate) {
         onBookUpdate({
@@ -369,7 +462,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              {/* Main action button - changes based on borrow status */}
+              {/* Main action button - changes based on borrow status and ownership */}
               {isBorrowStatusLoading ? (
                 // Loading state
                 <button
@@ -387,14 +480,28 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                   <UserCheck className="w-5 h-5" />
                   Borrowed
                 </button>
+              ) : isUploader ? (
+                // Owner sees "View Requests" instead of Borrow button
+                <button
+                  onClick={handleViewRequests}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                >
+                  <Users className="w-5 h-5" />
+                  View Requests
+                </button>
               ) : (
-                // Book is available - show borrow/buy button
+                // Book is available - show borrow/buy button (sends request + opens WhatsApp)
                 <button
                   onClick={handleBorrowClick}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  disabled={isRequestingBorrow}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  {book.listingType === "sell" ? "Buy" : "Borrow"}
+                  {isRequestingBorrow
+                    ? "Sending Request..."
+                    : book.listingType === "sell"
+                      ? "Buy"
+                      : "Borrow"}
                 </button>
               )}
 
@@ -412,15 +519,25 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
               {/* "Return Book" button - ONLY visible to the book uploader when book IS borrowed */}
               {canReturnBook && (
                 <button
-                  onClick={handleReturnBook}
+                  onClick={handleReturnClick}
                   disabled={isSubmitting}
                   className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-indigo-600 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <RotateCcw className="w-5 h-5" />
-                  {isSubmitting ? "Returning..." : "Mark as Returned"}
+                  Mark as Returned
                 </button>
               )}
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-red-700 dark:text-red-400 text-sm">
+                  {error}
+                </p>
+              </div>
+            )}
 
             {/* Delete Book Button - ONLY visible to the book owner (uploader) */}
             {/* SECURITY NOTE: This visibility check is for UX only. Backend enforces authorization. */}
@@ -439,6 +556,107 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
           </div>
         </div>
       </div>
+
+      {/* Borrow Requests Modal - For book owner to see and approve requesters */}
+      {showRequestsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowRequestsModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                Borrow Requests
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Users who want to borrow "{book.title}"
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {isLoadingRequests ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              ) : borrowRequests.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">
+                    No pending requests yet
+                  </p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                    When users request to borrow this book, they'll appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {borrowRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="p-4 bg-gray-50 dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                            <span className="text-purple-600 dark:text-purple-400 font-semibold text-lg">
+                              {request.borrowerFullName?.charAt(0) || "?"}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                              {request.borrowerFullName || "Unknown User"}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(
+                                request.borrowedAt,
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleApproveRequest(request.id)}
+                          disabled={approvingRequestId === request.id}
+                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {approvingRequestId === request.id ? (
+                            <>
+                              <span className="animate-spin">⏳</span>
+                              Approving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Approve
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Close button at bottom */}
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowRequestsModal(false)}
+                className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mark as Borrowed Modal */}
       {showBorrowerModal && (
@@ -556,7 +774,6 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                     onClick={() => {
                       setSelectedUser(null);
                       setUserSearchQuery("");
-                      setBorrowerUsername("");
                     }}
                     className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg transition"
                     title="Clear selection"
@@ -582,6 +799,96 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl hover:from-amber-600 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? "Confirming..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Confirmation Modal */}
+      {showReturnConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+            {/* Close Button */}
+            <button
+              onClick={handleReturnCancel}
+              disabled={isSubmitting}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <RotateCcw className="w-8 h-8 text-green-500" />
+              </div>
+            </div>
+
+            {/* Modal Header */}
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">
+              Mark as Returned?
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+              This will mark{" "}
+              <span className="font-medium text-gray-900 dark:text-white">
+                "{book.title}"
+              </span>{" "}
+              as returned and make it available for borrowing again.
+            </p>
+
+            {/* Borrower Info */}
+            {borrowerName && (
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Returning from
+                  </p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {borrowerName}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-red-700 dark:text-red-400 text-sm">
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleReturnCancel}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReturnConfirm}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Returning...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    Mark Returned
+                  </>
+                )}
               </button>
             </div>
           </div>
