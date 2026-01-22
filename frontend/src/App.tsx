@@ -10,7 +10,6 @@ import {
   LazyUploadBook,
   LazyGenrePage,
   LazyLibraryPage,
-  LazyBookStorePage,
   LazySearchPage,
   LazyLoginPage,
   LazyRegisterPage,
@@ -44,7 +43,6 @@ export default function App() {
               />
               <Route path="/genre/:genre" element={<LazyGenrePage />} />
               <Route path="/library" element={<LazyLibraryPage />} />
-              <Route path="/store" element={<LazyBookStorePage />} />
               <Route path="/search" element={<LazySearchPage />} />
               <Route path="/login" element={<LazyLoginPage />} />
               <Route path="/register" element={<LazyRegisterPage />} />

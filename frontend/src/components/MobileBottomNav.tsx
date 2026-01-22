@@ -1,4 +1,4 @@
-import { Home, BookOpen, ShoppingBag, Search } from "lucide-react";
+import { Home, BookOpen, Search } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 
@@ -10,7 +10,6 @@ export function MobileBottomNav() {
   const navItems = [
     { id: "home", label: "Home", icon: Home, path: "/" },
     { id: "library", label: "Library", icon: BookOpen, path: "/library" },
-    { id: "store", label: "Book Store", icon: ShoppingBag, path: "/store" },
     { id: "search", label: "Search", icon: Search, path: "/search" },
   ];
 
@@ -53,8 +52,8 @@ export function MobileBottomNav() {
                     ? "#ef4444"
                     : "#64D2FF"
                   : isLight
-                  ? "#4b5563"
-                  : "#9ca3af",
+                    ? "#4b5563"
+                    : "#9ca3af",
               }}
             >
               <Icon

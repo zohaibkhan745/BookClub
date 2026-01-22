@@ -6,7 +6,6 @@ import {
   Sun,
   Home,
   Library,
-  ShoppingBag,
   LogIn,
   LogOut,
 } from "lucide-react";
@@ -50,7 +49,6 @@ export function Navbar() {
   const navItems = [
     { id: "home", label: "Home", icon: Home, path: "/" },
     { id: "library", label: "Library", icon: Library, path: "/library" },
-    { id: "store", label: "Book Store", icon: ShoppingBag, path: "/store" },
     { id: "search", label: "Search", icon: Search, path: "/search" },
   ];
 

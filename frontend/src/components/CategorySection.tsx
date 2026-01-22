@@ -2,12 +2,12 @@ import { BookOpen, Brain, Heart, Globe, Zap, Music } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Import category background images
-import philosophyBg from "../assets/images/Philosophy.png";
-import selfHelpBg from "../assets/images/Self Help.jpeg";
-import fictionBg from "../assets/images/Fiction.jpg";
-import historyBg from "../assets/images/History.jpg";
-import biographyBg from "../assets/images/Biography.jpg";
-import poetryBg from "../assets/images/Poetry.jpeg";
+import philosophyBg from "../assets/images/Philosophy.webp";
+import selfHelpBg from "../assets/images/Self Help.webp";
+import fictionBg from "../assets/images/Fiction.webp";
+import historyBg from "../assets/images/History.webp";
+import biographyBg from "../assets/images/Biography.webp";
+import poetryBg from "../assets/images/Poetry.webp";
 
 interface Category {
   id: number;
