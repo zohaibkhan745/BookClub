@@ -56,10 +56,14 @@ export function SearchPage() {
   const categories = [
     { name: "Self Help", slug: "self-help", color: "#F7DB91" },
     { name: "Philosophy", slug: "philosophy", color: "#FFFBB1" },
-    { name: "Fiction", slug: "fiction", color: "#EDEDCE" },
-    { name: "History", slug: "history", color: "#F5E7C6" },
-    { name: "Biography", slug: "biography", color: "#F5E7C6" },
-    { name: "Poetry", slug: "poetry", color: "#FAF3E1" },
+    { name: "Fiction", slug: "fiction", color: "#E8D5B7" },
+    { name: "Romance", slug: "romance", color: "#F5C6D0" },
+    { name: "Mystery", slug: "mystery", color: "#D4C5E0" },
+    { name: "History", slug: "history", color: "#C9D4C5" },
+    { name: "Biography", slug: "biography", color: "#B8D4D4" },
+    { name: "Science", slug: "science", color: "#C5D8E0" },
+    { name: "Technology", slug: "technology", color: "#D0D8E8" },
+    { name: "Poetry", slug: "poetry", color: "#E8D8E0" },
   ];
 
   return (

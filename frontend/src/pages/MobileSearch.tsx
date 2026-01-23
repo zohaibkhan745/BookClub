@@ -56,18 +56,16 @@ export function MobileSearch() {
   };
 
   const categories = [
-    { name: "Self Help", slug: "self-help", color: "bg-pink-500" },
-    { name: "Philosophy", slug: "philosophy", color: "bg-purple-500" },
-    { name: "Fiction", slug: "fiction", color: "bg-blue-500" },
-    { name: "Business", slug: "business", color: "bg-green-500" },
-    {
-      name: "Science Fiction",
-      slug: "science-fiction",
-      color: "bg-yellow-500",
-    },
-    { name: "History", slug: "history", color: "bg-red-500" },
+    { name: "Self Help", slug: "self-help", color: "bg-amber-400" },
+    { name: "Philosophy", slug: "philosophy", color: "bg-yellow-400" },
+    { name: "Fiction", slug: "fiction", color: "bg-orange-400" },
+    { name: "Romance", slug: "romance", color: "bg-rose-400" },
+    { name: "Mystery", slug: "mystery", color: "bg-purple-400" },
+    { name: "History", slug: "history", color: "bg-emerald-500" },
     { name: "Biography", slug: "biography", color: "bg-teal-500" },
-    { name: "Poetry", slug: "poetry", color: "bg-indigo-500" },
+    { name: "Science", slug: "science", color: "bg-cyan-500" },
+    { name: "Technology", slug: "technology", color: "bg-blue-500" },
+    { name: "Poetry", slug: "poetry", color: "bg-indigo-400" },
   ];
 
   return (
