@@ -23,6 +23,7 @@ import {
   requestToBorrow,
   getBookBorrowRequests,
   approveBorrowRequest,
+  cancelBorrowRequest,
 } from "../services";
 import type { Book, ApiError, UserPreview, BorrowRecord } from "../types";
 
@@ -71,6 +72,9 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   const [borrowRequests, setBorrowRequests] = useState<BorrowRecord[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [approvingRequestId, setApprovingRequestId] = useState<string | null>(
+    null,
+  );
+  const [decliningRequestId, setDecliningRequestId] = useState<string | null>(
     null,
   );
 
@@ -232,6 +236,24 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
       setError(apiError.message || "Failed to approve request");
     } finally {
       setApprovingRequestId(null);
+    }
+  };
+
+  // Decline a borrow request
+  const handleDeclineRequest = async (requestId: string) => {
+    setDecliningRequestId(requestId);
+    setError(null);
+
+    try {
+      await cancelBorrowRequest(requestId);
+
+      // Remove the declined request from the list
+      setBorrowRequests((prev) => prev.filter((r) => r.id !== requestId));
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || "Failed to decline request");
+    } finally {
+      setDecliningRequestId(null);
     }
   };
 
@@ -602,15 +624,15 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                       key={request.id}
                       className="p-4 bg-gray-50 dark:bg-[#1c1c1e] rounded-xl border border-gray-200 dark:border-gray-700"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-purple-600 dark:text-purple-400 font-semibold text-lg">
                               {request.borrowerFullName?.charAt(0) || "?"}
                             </span>
                           </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 dark:text-white truncate">
                               {request.borrowerFullName || "Unknown User"}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -621,23 +643,42 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                             </p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleApproveRequest(request.id)}
-                          disabled={approvingRequestId === request.id}
-                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {approvingRequestId === request.id ? (
-                            <>
-                              <span className="animate-spin">⏳</span>
-                              Approving...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4" />
-                              Approve
-                            </>
-                          )}
-                        </button>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => handleDeclineRequest(request.id)}
+                            disabled={decliningRequestId === request.id || approvingRequestId === request.id}
+                            className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {decliningRequestId === request.id ? (
+                              <>
+                                <span className="animate-spin text-sm">⏳</span>
+                                <span className="hidden sm:inline">Declining...</span>
+                              </>
+                            ) : (
+                              <>
+                                <X className="w-4 h-4" />
+                                <span className="hidden sm:inline">Decline</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleApproveRequest(request.id)}
+                            disabled={approvingRequestId === request.id || decliningRequestId === request.id}
+                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {approvingRequestId === request.id ? (
+                              <>
+                                <span className="animate-spin text-sm">⏳</span>
+                                <span className="hidden sm:inline">Approving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span className="hidden sm:inline">Approve</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
