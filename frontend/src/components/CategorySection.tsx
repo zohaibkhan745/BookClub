@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Heart, Globe, Zap, Music } from "lucide-react";
+import { BookOpen, Brain, Heart, Globe, Zap, Music, Search, Sparkles, Atom, Cpu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Import category background images
@@ -8,6 +8,10 @@ import fictionBg from "../assets/images/Fiction.webp";
 import historyBg from "../assets/images/History.webp";
 import biographyBg from "../assets/images/Biography.webp";
 import poetryBg from "../assets/images/Poetry.webp";
+import mysteryBg from "../assets/images/Mystery.webp";
+import romanceBg from "../assets/images/Romance.webp";
+import scienceBg from "../assets/images/Science.webp";
+import technologyBg from "../assets/images/Technology.webp";
 
 interface Category {
   id: number;
@@ -70,6 +74,38 @@ export function CategorySection() {
       color: "from-indigo-500 to-purple-500",
       backgroundImage: poetryBg,
     },
+    {
+      id: 7,
+      name: "Mystery",
+      slug: "mystery",
+      icon: Search,
+      color: "from-slate-600 to-gray-800",
+      backgroundImage: mysteryBg,
+    },
+    {
+      id: 8,
+      name: "Romance",
+      slug: "romance",
+      icon: Sparkles,
+      color: "from-rose-400 to-pink-600",
+      backgroundImage: romanceBg,
+    },
+    {
+      id: 9,
+      name: "Science",
+      slug: "science",
+      icon: Atom,
+      color: "from-emerald-500 to-teal-600",
+      backgroundImage: scienceBg,
+    },
+    {
+      id: 10,
+      name: "Technology",
+      slug: "technology",
+      icon: Cpu,
+      color: "from-cyan-500 to-blue-600",
+      backgroundImage: technologyBg,
+    },
   ];
 
   const handleCategoryClick = (slug: string) => {
@@ -81,7 +117,7 @@ export function CategorySection() {
       <h3 className="text-black dark:text-white text-xl md:text-2xl font-semibold">
         Browse by Category
       </h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
         {categories.map((category) => {
           const Icon = category.icon;
           const hasBackgroundImage = !!category.backgroundImage;
