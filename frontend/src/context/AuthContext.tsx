@@ -46,26 +46,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [credits, setCredits] = useState<CreditInfo | null>(null);
   const [badge, setBadge] = useState<UserBadge | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
+  const [creditsFetched, setCreditsFetched] = useState(false);
 
-  // Fetch credits from API - memoized to prevent recreating on every render
+  // Fetch credits from API - only fetches once per session
   const refreshCredits = useCallback(async () => {
-    if (!user) {
-      setCredits(null);
-      setBadge(null);
-      return;
-    }
-
     setCreditsLoading(true);
     try {
       const stats = await getUserStats();
       setCredits(stats.credits || null);
       setBadge(stats.badge || null);
+      setCreditsFetched(true);
     } catch (error) {
       console.error("Failed to fetch credits:", error);
     } finally {
       setCreditsLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     // Get initial session
@@ -107,15 +103,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Fetch credits when user changes (login/logout)
+  // Fetch credits ONCE when user logs in (not on every render)
+  // Uses user.id to track identity changes, not the user object itself
   useEffect(() => {
-    if (user) {
+    if (user && !creditsFetched) {
       refreshCredits();
-    } else {
+    } else if (!user) {
       setCredits(null);
       setBadge(null);
+      setCreditsFetched(false);
     }
-  }, [user, refreshCredits]);
+  }, [user?.id]); // Only depend on user.id, not the whole user object
 
   const signIn = async (email: string, password: string) => {
     const result = await authService.signIn({ email, password });
