@@ -44,3 +44,21 @@ export {
   getCurrentUser,
   getAccessToken,
 } from './authService';
+
+// Forum service exports
+export {
+  getForumThreads,
+  getThreadDetail,
+  createThread,
+  deleteThread,
+  createReply,
+  deleteReply,
+  formatRelativeTime,
+} from './forumService';
+
+export type {
+  ForumAuthor,
+  ForumReply,
+  ForumThread,
+  ForumThreadDetail,
+} from './forumService';

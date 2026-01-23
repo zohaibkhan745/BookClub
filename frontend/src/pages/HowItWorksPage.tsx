@@ -7,6 +7,10 @@ import {
   BookOpen,
   ArrowRight,
   Sparkles,
+  Trophy,
+  Star,
+  Award,
+  BookMarked,
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -114,6 +118,16 @@ export function HowItWorksPage() {
               Four easy steps to start sharing books with your community. Join
               thousands of readers making stories accessible.
             </p>
+
+            {/* Physical Books Notice */}
+            <div className="mt-8 inline-flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
+              <BookMarked className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <p className="text-sm md:text-base text-amber-800 dark:text-amber-300">
+                <span className="font-semibold">Physical Books Only</span> —
+                This community is for sharing real, paper books and hardcovers.
+                No PDFs or eBooks.
+              </p>
+            </div>
           </div>
 
           {/* Steps - Zigzag Layout */}
@@ -226,6 +240,119 @@ export function HowItWorksPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Credit & Badge System Section */}
+          <div className="mt-24 max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 rounded-full mb-4">
+                <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                  Earn Rewards
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Credits & Badges
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Get rewarded for being an active member of our book-sharing
+                community.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* How to Earn Credits */}
+              <div className="bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center">
+                    <Star className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Earn Credits
+                  </h3>
+                </div>
+                <ul className="space-y-3 text-gray-700 dark:text-gray-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 font-bold">+1</span>
+                    <span>Welcome bonus when you sign up</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 font-bold">+1</span>
+                    <span>Upload a book to share with the community</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* How Borrowing Works */}
+              <div className="bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-amber-200 dark:border-amber-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 rounded-xl flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    How Borrowing Works
+                  </h3>
+                </div>
+                <ul className="space-y-3 text-gray-700 dark:text-gray-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-500 font-bold">🔒</span>
+                    <span>When you borrow, 1 credit is frozen (held)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 font-bold">🔓</span>
+                    <span>
+                      When you return the book, your credit is unfrozen
+                    </span>
+                  </li>
+                </ul>
+                <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                  Your credits are never spent—just temporarily held while you
+                  enjoy the book!
+                </p>
+              </div>
+            </div>
+
+            {/* Badges */}
+            <div className="mt-8 bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center">
+                  <Award className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Unlock Badges
+                </h3>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                Earn badges as you reach credit milestones. Show off your
+                contributions to the community!
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                  <span>📚</span>
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    Bookworm (10+)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                  <span>⭐</span>
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                    Contributor (25+)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+                  <span>🏆</span>
+                  <span className="text-sm font-medium text-purple-800 dark:text-purple-300">
+                    Champion (50+)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-full">
+                  <span>👑</span>
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    Legend (100+)
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

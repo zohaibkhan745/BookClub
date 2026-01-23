@@ -1,4 +1,4 @@
-import { Home, BookOpen, Search } from "lucide-react";
+import { Home, BookOpen, Search, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 
@@ -10,6 +10,12 @@ export function MobileBottomNav() {
   const navItems = [
     { id: "home", label: "Home", icon: Home, path: "/" },
     { id: "library", label: "Library", icon: BookOpen, path: "/library" },
+    {
+      id: "community",
+      label: "Community",
+      icon: MessageCircle,
+      path: "/community",
+    },
     { id: "search", label: "Search", icon: Search, path: "/search" },
   ];
 

@@ -8,6 +8,7 @@ import {
   Library,
   LogOut,
   Trophy,
+  MessageCircle,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -74,6 +75,12 @@ export function Navbar() {
   const navItems = [
     { id: "home", label: "Home", icon: Home, path: "/" },
     { id: "library", label: "Library", icon: Library, path: "/library" },
+    {
+      id: "community",
+      label: "Community",
+      icon: MessageCircle,
+      path: "/community",
+    },
     { id: "search", label: "Search", icon: Search, path: "/search" },
   ];
 

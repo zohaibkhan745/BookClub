@@ -6,12 +6,13 @@ from app.cache import get_cache_stats
 import os
 
 # Import all models to ensure they're registered with Base.metadata
-from app.models import User, Book, BorrowRecord
+from app.models import User, Book, BorrowRecord, ForumThread, ForumReply
 
 # Import API routers
 from app.api import books_new as books
 from app.api import borrow_new as borrow
 from app.api import users
+from app.api import forum
 
 # Create database tables (for development - use Alembic migrations in production)
 # Note: This won't modify existing tables, only create new ones
@@ -67,3 +68,4 @@ async def cache_stats():
 app.include_router(books.router)
 app.include_router(borrow.router)
 app.include_router(users.router)
+app.include_router(forum.router)
