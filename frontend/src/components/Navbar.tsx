@@ -6,7 +6,6 @@ import {
   Sun,
   Home,
   Library,
-  LogIn,
   LogOut,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -115,120 +114,128 @@ export function Navbar() {
           })}
         </div>
 
-        {/* Mobile Profile Icon */}
-        <div className="md:hidden relative" ref={mobileProfileRef}>
-          <button
-            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-          >
-            <User className="w-5 h-5 text-black dark:text-white" />
-          </button>
+        {/* Mobile Profile Area */}
+        <div className="md:hidden flex items-center space-x-2">
+          {/* Login Button - Only show when not authenticated */}
+          {!isAuthenticated && (
+            <button
+              onClick={() => navigate("/login")}
+              className="px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition"
+            >
+              Login
+            </button>
+          )}
 
-          {/* Mobile Profile Dropdown */}
-          {profileMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#2c2c2e] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
-              <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
-                <p className="font-semibold text-gray-800 dark:text-white">
-                  {isAuthenticated ? user?.email?.split("@")[0] : "Guest User"}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                  {isAuthenticated ? user?.email : "Sign in for more features"}
-                </p>
-              </div>
+          {/* Profile Icon */}
+          <div className="relative" ref={mobileProfileRef}>
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
+            >
+              <User className="w-5 h-5 text-black dark:text-white" />
+            </button>
 
-              {/* Theme Toggle */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleTheme();
-                }}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-              >
-                <span className="flex items-center space-x-3">
-                  {theme === "dark" ? (
-                    <Moon className="w-5 h-5 text-[#64D2FF]" />
-                  ) : (
-                    <Sun className="w-5 h-5 text-yellow-500" />
-                  )}
-                  <span className="text-gray-700 dark:text-gray-200">
-                    {theme === "dark" ? "Dark Mode" : "Light Mode"}
-                  </span>
-                </span>
-                <div
-                  className={`w-10 h-6 rounded-full transition-colors ${
-                    theme === "dark" ? "bg-[#64D2FF]" : "bg-gray-300"
-                  } relative`}
-                >
-                  <div
-                    className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      theme === "dark" ? "translate-x-5" : "translate-x-1"
-                    }`}
-                  />
+            {/* Mobile Profile Dropdown */}
+            {profileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#2c2c2e] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+                <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                  <p className="font-semibold text-gray-800 dark:text-white">
+                    {isAuthenticated
+                      ? user?.email?.split("@")[0]
+                      : "Guest User"}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                    {isAuthenticated
+                      ? user?.email
+                      : "Sign in for more features"}
+                  </p>
                 </div>
-              </button>
 
-              <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                {/* Theme Toggle */}
                 <button
-                  onClick={() => {
-                    navigate("/upload");
-                    setProfileMenuOpen(false);
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleTheme();
                   }}
-                  className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                 >
-                  Upload Book
-                </button>
-                {isAuthenticated && (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigate("/profile");
-                        setProfileMenuOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                    >
-                      My Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate("/settings");
-                        setProfileMenuOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                    >
-                      Settings
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* Auth Actions */}
-              <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
-                {isAuthenticated ? (
-                  <button
-                    onClick={handleSignOutClick}
-                    disabled={isSigningOut}
-                    className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  <span className="flex items-center space-x-3">
+                    {theme === "dark" ? (
+                      <Moon className="w-5 h-5 text-[#64D2FF]" />
+                    ) : (
+                      <Sun className="w-5 h-5 text-yellow-500" />
+                    )}
+                    <span className="text-gray-700 dark:text-gray-200">
+                      {theme === "dark" ? "Dark Mode" : "Light Mode"}
+                    </span>
+                  </span>
+                  <div
+                    className={`w-10 h-6 rounded-full transition-colors ${
+                      theme === "dark" ? "bg-[#64D2FF]" : "bg-gray-300"
+                    } relative`}
                   >
-                    <LogOut
-                      className={`w-4 h-4 ${isSigningOut ? "animate-pulse" : ""}`}
+                    <div
+                      className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        theme === "dark" ? "translate-x-5" : "translate-x-1"
+                      }`}
                     />
-                    <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
-                  </button>
-                ) : (
+                  </div>
+                </button>
+
+                <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
                   <button
                     onClick={() => {
-                      navigate("/login");
+                      navigate("/upload");
                       setProfileMenuOpen(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                    className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                   >
-                    <LogIn className="w-4 h-4" />
-                    <span>Sign In</span>
+                    Upload Book
                   </button>
+                  {isAuthenticated && (
+                    <>
+                      <button
+                        onClick={() => {
+                          navigate("/profile");
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                      >
+                        My Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigate("/settings");
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                      >
+                        Settings
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Auth Actions - Only show Sign Out when authenticated */}
+                {isAuthenticated && (
+                  <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
+                    <button
+                      onClick={handleSignOutClick}
+                      disabled={isSigningOut}
+                      className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <LogOut
+                        className={`w-4 h-4 ${isSigningOut ? "animate-pulse" : ""}`}
+                      />
+                      <span>
+                        {isSigningOut ? "Signing out..." : "Sign Out"}
+                      </span>
+                    </button>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Right Side - Desktop Only */}
@@ -239,6 +246,16 @@ export function Navbar() {
           >
             Upload Book
           </button>
+
+          {/* Login Button - Only show when not authenticated */}
+          {!isAuthenticated && (
+            <button
+              onClick={() => navigate("/login")}
+              className="px-4 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition"
+            >
+              Login
+            </button>
+          )}
 
           {/* Profile Dropdown - Desktop */}
           <div className="relative" ref={profileRef}>
@@ -321,9 +338,9 @@ export function Navbar() {
                   )}
                 </div>
 
-                {/* Auth Actions */}
-                <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
-                  {isAuthenticated ? (
+                {/* Auth Actions - Only show Sign Out when authenticated */}
+                {isAuthenticated && (
+                  <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
                     <button
                       onClick={handleSignOutClick}
                       disabled={isSigningOut}
@@ -336,19 +353,8 @@ export function Navbar() {
                         {isSigningOut ? "Signing out..." : "Sign Out"}
                       </span>
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        navigate("/login");
-                        setProfileMenuOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      <span>Sign In</span>
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
