@@ -16,6 +16,10 @@ import fictionBg from "../assets/images/Fiction.webp";
 import historyBg from "../assets/images/History.webp";
 import biographyBg from "../assets/images/Biography.webp";
 import poetryBg from "../assets/images/Poetry.webp";
+import mysteryBg from "../assets/images/Mystery.webp";
+import romanceBg from "../assets/images/Romance.webp";
+import scienceBg from "../assets/images/Science.webp";
+import technologyBg from "../assets/images/Technology.webp";
 
 // Map genre slugs to background images
 const genreBackgrounds: Record<string, string> = {
@@ -25,6 +29,10 @@ const genreBackgrounds: Record<string, string> = {
   history: historyBg,
   biography: biographyBg,
   poetry: poetryBg,
+  mystery: mysteryBg,
+  romance: romanceBg,
+  science: scienceBg,
+  technology: technologyBg,
 };
 
 export function GenrePage() {

@@ -1,4 +1,15 @@
-import { BookOpen, Brain, Heart, Globe, Zap, Music, Search, Sparkles, Atom, Cpu } from "lucide-react";
+import {
+  BookOpen,
+  Brain,
+  Heart,
+  Globe,
+  Zap,
+  Music,
+  Search,
+  Sparkles,
+  Atom,
+  Cpu,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Import category background images
