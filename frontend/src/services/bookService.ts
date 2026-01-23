@@ -165,6 +165,37 @@ export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
   return result;
 }
 
+/** GET /books/search?q=... - Search books by title or author */
+export async function searchBooks(query: string, category?: string): Promise<BookPreview[]> {
+  if (!query.trim()) {
+    return [];
+  }
+  
+  const cacheKey = CACHE_KEYS.SEARCH_RESULTS(query + (category || ''));
+  const cached = clientCache.get<BookPreview[]>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
+  interface SearchBooksResponse {
+    success: boolean;
+    data: Array<{ id: number | string; title: string; author: string; image: string; is_available?: boolean }>;
+  }
+  
+  let url = `/books/search?q=${encodeURIComponent(query)}`;
+  if (category) {
+    url += `&category=${encodeURIComponent(category)}`;
+  }
+  
+  const response = await apiGet<SearchBooksResponse>(url);
+  
+  const result = response.data.map(mapBookPreview);
+  clientCache.set(cacheKey, result, CACHE_TTL.SEARCH);
+  
+  return result;
+}
+
 /** GET /user/library - Fetches the current user's library (uploaded + borrowed books) */
 export async function getUserLibrary(): Promise<{
   uploaded: BookPreview[];

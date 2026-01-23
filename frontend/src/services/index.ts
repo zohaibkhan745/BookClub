@@ -3,6 +3,7 @@ export {
   getAllBookSections,
   getAllBooks,
   getBooksByGenre,
+  searchBooks,
   getUserLibrary,
   createBook,
   deleteBook,

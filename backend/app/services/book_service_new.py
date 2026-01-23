@@ -276,7 +276,7 @@ def search_books(
     Returns:
         List of matching books
     """
-    q = db.query(Book).filter(Book.is_available == True)
+    q = db.query(Book)
     
     if query:
         search_term = f"%{query}%"

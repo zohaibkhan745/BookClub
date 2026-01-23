@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { MobileBookRow } from "../components/MobileBookRow";
-import { getAllBookSections, getBooksByGenre } from "../services";
+import { getAllBookSections, searchBooks } from "../services";
 import type { BookPreview } from "../types";
 
 export function MobileSearch() {
@@ -37,8 +37,8 @@ export function MobileSearch() {
 
     setIsSearching(true);
     try {
-      // Search by genre for now
-      const results = await getBooksByGenre(searchQuery);
+      // Search by title or author
+      const results = await searchBooks(searchQuery);
       setSearchResults(results);
     } catch (err) {
       console.error("Search failed:", err);

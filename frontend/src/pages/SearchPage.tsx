@@ -4,7 +4,7 @@ import { Search, X } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
-import { getAllBookSections, getBooksByGenre } from "../services";
+import { getAllBookSections, searchBooks } from "../services";
 import type { BookPreview } from "../types";
 
 export function SearchPage() {
@@ -37,7 +37,7 @@ export function SearchPage() {
 
     setIsSearching(true);
     try {
-      const results = await getBooksByGenre(searchQuery);
+      const results = await searchBooks(searchQuery);
       setSearchResults(results);
     } catch (err) {
       console.error("Search failed:", err);
