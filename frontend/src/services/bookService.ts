@@ -202,18 +202,44 @@ export async function getUserLibrary(): Promise<{
   borrowed: BookPreview[];
 }> {
   // Don't cache user library - it's personal data that changes
+  interface LibraryBookData {
+    id: number | string;
+    title: string;
+    author: string;
+    image: string;
+    is_available?: boolean;
+    pendingRequestCount?: number;
+  }
+  
   interface UserLibraryResponse {
     success: boolean;
     data: {
-      uploaded: BookPreview[];
-      borrowed: BookPreview[];
+      uploaded: LibraryBookData[];
+      borrowed: LibraryBookData[];
     };
   }
   const response = await apiGet<UserLibraryResponse>('/user/library');
-  return {
-    uploaded: response.data?.uploaded || [],
-    borrowed: response.data?.borrowed || [],
-  };
+  
+  // Map uploaded books with pendingRequestCount
+  const uploaded = (response.data?.uploaded || []).map((book) => ({
+    id: String(book.id),
+    title: book.title,
+    author: book.author,
+    image: book.image,
+    isAvailable: book.is_available ?? true,
+    pendingRequestCount: book.pendingRequestCount ?? 0,
+  }));
+  
+  // Map borrowed books
+  const borrowed = (response.data?.borrowed || []).map((book) => ({
+    id: String(book.id),
+    title: book.title,
+    author: book.author,
+    image: book.image,
+    isAvailable: book.is_available ?? true,
+  }));
+  
+  return { uploaded, borrowed };
 }
 
 /** GET /books/:id - Fetches a book by ID with caching */
@@ -859,7 +885,9 @@ export async function getUserStats(): Promise<UserStats> {
 }
 
 
-/** PATCH /users/me - Update current user's profile */
+import { updateUserMetadata } from './authService';
+
+/** PATCH /users/me - Update current user's profile (both backend DB and Supabase) */
 export async function updateUserProfile(fullName: string): Promise<User> {
   try {
     interface UserData {
@@ -875,9 +903,17 @@ export async function updateUserProfile(fullName: string): Promise<User> {
       data: UserData;
     }
 
+    // Update in backend database
     const response = await apiPatch<UpdateUserResponse>('/users/me', {
       full_name: fullName.trim(),
     });
+
+    // Also update in Supabase user metadata
+    const { error: supabaseError } = await updateUserMetadata(fullName.trim());
+    if (supabaseError) {
+      console.warn('Failed to update Supabase user metadata:', supabaseError);
+      // Don't throw - backend update succeeded, that's the primary source
+    }
 
     return {
       id: response.data.id,

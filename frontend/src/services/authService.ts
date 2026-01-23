@@ -174,6 +174,22 @@ export async function signOut(): Promise<{ error: AuthError | null }> {
 }
 
 /**
+ * Update the current user's profile metadata in Supabase.
+ */
+export async function updateUserMetadata(fullName: string): Promise<{ user: User | null; error: AuthError | null }> {
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      full_name: fullName,
+    },
+  });
+
+  return {
+    user: data.user,
+    error,
+  };
+}
+
+/**
  * Get the current session.
  */
 export async function getSession(): Promise<Session | null> {

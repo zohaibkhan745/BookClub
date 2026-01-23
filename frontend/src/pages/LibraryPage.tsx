@@ -55,6 +55,12 @@ export function LibraryPage() {
 
   const currentBooks = activeTab === "borrowed" ? borrowedBooks : uploadedBooks;
 
+  // Calculate total pending requests across all uploaded books
+  const totalPendingRequests = uploadedBooks.reduce(
+    (sum, book) => sum + (book.pendingRequestCount || 0),
+    0,
+  );
+
   // Show loading while auth is being checked
   if (authLoading) {
     return (
@@ -144,13 +150,19 @@ export function LibraryPage() {
           </button>
           <button
             onClick={() => setActiveTab("uploaded")}
-            className={`px-4 py-2 rounded-full font-medium transition-all ${
+            className={`relative px-4 py-2 rounded-full font-medium transition-all ${
               activeTab === "uploaded"
                 ? "bg-red-500 text-white"
                 : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
             }`}
           >
             My Uploads
+            {/* Total pending requests badge */}
+            {totalPendingRequests > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                {totalPendingRequests > 99 ? "99+" : totalPendingRequests}
+              </span>
+            )}
           </button>
         </div>
 
@@ -209,11 +221,36 @@ export function LibraryPage() {
                     alt={book.title}
                     className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
                   />
+                  {/* Notification badge for pending requests */}
+                  {activeTab === "uploaded" &&
+                    book.pendingRequestCount !== undefined &&
+                    book.pendingRequestCount > 0 && (
+                      <div className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 bg-red-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                        <span className="text-white text-xs font-bold">
+                          {book.pendingRequestCount > 9
+                            ? "9+"
+                            : book.pendingRequestCount}
+                        </span>
+                      </div>
+                    )}
                 </div>
                 <div className="mt-2 px-1">
-                  <h3 className="font-semibold text-gray-800 dark:text-white text-sm line-clamp-1">
-                    {book.title}
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-800 dark:text-white text-sm line-clamp-1 flex-1">
+                      {book.title}
+                    </h3>
+                    {/* View Requests indicator */}
+                    {activeTab === "uploaded" &&
+                      book.pendingRequestCount !== undefined &&
+                      book.pendingRequestCount > 0 && (
+                        <span className="ml-1 text-xs text-red-500 font-medium whitespace-nowrap">
+                          {book.pendingRequestCount}{" "}
+                          {book.pendingRequestCount === 1
+                            ? "request"
+                            : "requests"}
+                        </span>
+                      )}
+                  </div>
                   <p className="text-gray-600 dark:text-gray-400 text-xs">
                     {book.author}
                   </p>

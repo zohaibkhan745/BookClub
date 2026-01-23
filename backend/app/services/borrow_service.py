@@ -291,6 +291,35 @@ def get_pending_requests_for_book(db: Session, book_id) -> List[BorrowRecord]:
     ).options(joinedload(BorrowRecord.borrower)).order_by(desc(BorrowRecord.created_at)).all()
 
 
+def get_pending_request_counts_for_books(db: Session, book_ids: List[int]) -> dict:
+    """
+    Get pending borrow request counts for multiple books at once.
+    
+    Args:
+        db: Database session
+        book_ids: List of book IDs
+    
+    Returns:
+        Dict mapping book_id to count of pending requests
+    """
+    if not book_ids:
+        return {}
+    
+    from sqlalchemy import func
+    
+    results = db.query(
+        BorrowRecord.book_id,
+        func.count(BorrowRecord.id).label('count')
+    ).filter(
+        and_(
+            BorrowRecord.book_id.in_(book_ids),
+            BorrowRecord.status == BorrowStatus.requested.value
+        )
+    ).group_by(BorrowRecord.book_id).all()
+    
+    return {book_id: count for book_id, count in results}
+
+
 def approve_borrow_request(
     db: Session,
     request_id: str,

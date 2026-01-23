@@ -41,6 +41,7 @@ export interface BookPreview {
   author: string;
   image: string;
   isAvailable?: boolean;  // Whether book is available for borrowing
+  pendingRequestCount?: number;  // Number of pending borrow requests (for owners)
 }
 
 /**

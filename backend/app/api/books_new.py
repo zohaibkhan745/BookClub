@@ -341,6 +341,7 @@ async def get_user_library(
     """
     GET /user/library - Fetch the current user's library.
     Returns books uploaded by the user and books borrowed by the user.
+    Includes pending request counts for uploaded books.
     """
     try:
         # Ensure user exists in local DB
@@ -356,13 +357,24 @@ async def get_user_library(
         # Get books uploaded by this user
         uploaded_books = book_service.get_books_by_owner(db, user.id)
         
+        # Get pending request counts for uploaded books
+        uploaded_book_ids = [b.id for b in uploaded_books]
+        pending_counts = borrow_service.get_pending_request_counts_for_books(db, uploaded_book_ids)
+        
         # Get books borrowed by this user
         borrowed_books = borrow_service.get_books_borrowed_by_user(db, user.id)
+        
+        # Build response with pending counts
+        uploaded_response = []
+        for book in uploaded_books:
+            book_data = book_to_response(book, db)
+            book_data["pendingRequestCount"] = pending_counts.get(book.id, 0)
+            uploaded_response.append(book_data)
         
         return {
             "success": True,
             "data": {
-                "uploaded": [book_to_response(b, db) for b in uploaded_books],
+                "uploaded": uploaded_response,
                 "borrowed": [book_to_response(b, db) for b in borrowed_books],
             }
         }
