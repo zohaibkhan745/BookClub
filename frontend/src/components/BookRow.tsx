@@ -79,6 +79,12 @@ export function BookRow({ title, books, isLoading = false }: BookRowProps) {
                 className="flex-none w-36 md:w-48 cursor-pointer transition-transform duration-300 hover:scale-110 hover:z-10"
               >
                 <div className="relative group/card">
+                  {/* Currently Borrowed Badge */}
+                  {book.isAvailable === false && (
+                    <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-md shadow-lg">
+                      Borrowed
+                    </div>
+                  )}
                   <img
                     src={book.image}
                     alt={book.title}

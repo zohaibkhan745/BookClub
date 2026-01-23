@@ -75,6 +75,17 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 }
 
+/** Helper to map snake_case book preview to camelCase */
+function mapBookPreview(book: { id: number | string; title: string; author: string; image: string; is_available?: boolean }): BookPreview {
+  return {
+    id: String(book.id),
+    title: book.title,
+    author: book.author,
+    image: book.image,
+    isAvailable: book.is_available !== false, // Default to true if not specified
+  };
+}
+
 // ============================================
 // Book Service API Functions
 // ============================================
@@ -98,11 +109,11 @@ export async function getAllBookSections(): Promise<{
   
   const response = await apiGet<BookSectionsApiResponse>('/books');
   
-  // Extract data from { success: true, data: {...} } wrapper
+  // Extract data and map is_available to isAvailable
   const result = {
-    trending: response.data.trending,
-    newArrivals: response.data.newArrivals,
-    popular: response.data.popular,
+    trending: response.data.trending.map(mapBookPreview),
+    newArrivals: response.data.newArrivals.map(mapBookPreview),
+    popular: response.data.popular.map(mapBookPreview),
   };
   
   // Cache the result
@@ -122,13 +133,14 @@ export async function getAllBooks(): Promise<BookPreview[]> {
   
   interface AllBooksResponse {
     success: boolean;
-    data: BookPreview[];
+    data: Array<{ id: number | string; title: string; author: string; image: string; is_available?: boolean }>;
   }
   const response = await apiGet<AllBooksResponse>('/books/all');
   
-  clientCache.set(cacheKey, response.data, CACHE_TTL.MEDIUM);
+  const result = response.data.map(mapBookPreview);
+  clientCache.set(cacheKey, result, CACHE_TTL.MEDIUM);
   
-  return response.data;
+  return result;
 }
 
 /** GET /books/genre/:genre - Fetches books by genre with caching */
@@ -142,14 +154,15 @@ export async function getBooksByGenre(genre: string): Promise<BookPreview[]> {
   
   interface GenreBooksResponse {
     success: boolean;
-    data: BookPreview[];
+    data: Array<{ id: number | string; title: string; author: string; image: string; is_available?: boolean }>;
   }
   const response = await apiGet<GenreBooksResponse>(`/books/genre/${encodeURIComponent(genre)}`);
   
-  // Cache the result
-  clientCache.set(cacheKey, response.data, CACHE_TTL.MEDIUM);
+  // Map and cache the result
+  const result = response.data.map(mapBookPreview);
+  clientCache.set(cacheKey, result, CACHE_TTL.MEDIUM);
   
-  return response.data;
+  return result;
 }
 
 /** GET /user/library - Fetches the current user's library (uploaded + borrowed books) */

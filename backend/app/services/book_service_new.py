@@ -27,10 +27,10 @@ CACHE_TTL_LONG = 300      # 5 minutes for individual book details
 
 
 def get_all_books(db: Session, limit: int = 50) -> List[Book]:
-    """Fetch all available books with caching.
+    """Fetch all books with caching (including borrowed ones).
     
     Optimizations:
-    - Uses covering index (is_available, created_at)
+    - Uses index on created_at
     - Limits results early to reduce memory usage
     """
     cache_key = f"books:all:{limit}"
@@ -38,10 +38,8 @@ def get_all_books(db: Session, limit: int = 50) -> List[Book]:
     if cached is not None:
         return cached
     
-    # Use indexed columns in filter and order_by for optimal query plan
-    result = db.query(Book).filter(
-        Book.is_available == True
-    ).order_by(desc(Book.created_at)).limit(limit).all()
+    # Show all books, including borrowed ones (is_available=False)
+    result = db.query(Book).order_by(desc(Book.created_at)).limit(limit).all()
     
     cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
     return result
@@ -66,10 +64,10 @@ def get_book_by_id(db: Session, book_id) -> Optional[Book]:
 
 
 def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
-    """Fetch all available books by genre/category with caching.
+    """Fetch all books by genre/category with caching (including borrowed).
     
     Optimizations:
-    - Uses composite index (category, is_available)
+    - Uses index on category
     - Case-insensitive match with ilike for flexibility
     """
     cache_key = f"genre:{genre.lower()}:{limit}"
@@ -77,9 +75,8 @@ def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
     if cached is not None:
         return cached
     
-    # Filter on indexed columns first, then apply ilike
+    # Show all books in genre, including borrowed ones
     result = db.query(Book).filter(
-        Book.is_available == True,
         Book.category.ilike(f"%{genre}%")
     ).order_by(desc(Book.created_at)).limit(limit).all()
     
@@ -90,6 +87,7 @@ def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
 def get_books_by_section(db: Session, limit: int = 10) -> dict:
     """
     Get books organized by homepage sections with caching.
+    Shows all books including borrowed ones.
     - trending: Most recent books
     - newArrivals: Latest additions
     - popular: Random selection (simulated popularity)
@@ -99,9 +97,8 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
     if cached is not None:
         return cached
     
-    all_books = db.query(Book).filter(
-        Book.is_available == True
-    ).order_by(desc(Book.created_at)).limit(30).all()
+    # Show all books, including borrowed ones
+    all_books = db.query(Book).order_by(desc(Book.created_at)).limit(30).all()
     
     # Split books into sections
     trending = all_books[:limit] if len(all_books) >= limit else all_books

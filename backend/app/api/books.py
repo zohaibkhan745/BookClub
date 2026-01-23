@@ -55,6 +55,7 @@ def book_to_preview(book) -> dict:
         "title": book.title,
         "author": book.author,
         "image": book.cover_image or "",
+        "is_available": book.is_available if hasattr(book, 'is_available') else True,
     }
 
 

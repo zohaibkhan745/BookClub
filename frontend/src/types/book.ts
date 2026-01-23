@@ -40,6 +40,7 @@ export interface BookPreview {
   title: string;
   author: string;
   image: string;
+  isAvailable?: boolean;  // Whether book is available for borrowing
 }
 
 /**

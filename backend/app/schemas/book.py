@@ -54,6 +54,7 @@ class BookPreview(BaseModel):
     title: str
     author: str
     image: str
+    is_available: bool = True  # Whether book is available for borrowing
     
     class Config:
         from_attributes = True
