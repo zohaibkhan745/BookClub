@@ -9,6 +9,7 @@ import { ArrowLeft, Save, LogOut, Trash2, Lock } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import {
   SettingsSection,
   SettingsRow,
@@ -29,6 +30,7 @@ export function SettingsPage() {
     text: string;
   } | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -65,15 +67,30 @@ export function SettingsPage() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleLogoutConfirm = async () => {
     setIsLoggingOut(true);
     try {
+      // Sign out from Supabase (clears session)
       await signOut();
-      navigate("/");
+
+      // Clear all localStorage data
+      localStorage.clear();
+
+      // Redirect to home page
+      setShowLogoutDialog(false);
+      navigate("/", { replace: true });
     } catch (err) {
       console.error("[SettingsPage] Error logging out:", err);
       setIsLoggingOut(false);
     }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutDialog(false);
   };
 
   // Show loading while auth is being determined
@@ -202,7 +219,7 @@ export function SettingsPage() {
               description="Sign out of your account on this device"
             >
               <button
-                onClick={handleLogout}
+                onClick={handleLogoutClick}
                 disabled={isLoggingOut}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
@@ -234,6 +251,19 @@ export function SettingsPage() {
         <Footer />
       </div>
       <MobileBottomNav />
+
+      {/* Sign Out Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutDialog}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        isLoading={isLoggingOut}
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+        variant="danger"
+      />
     </div>
   );
 }

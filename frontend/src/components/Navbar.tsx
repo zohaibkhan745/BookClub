@@ -13,6 +13,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -20,13 +21,36 @@ export function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated, signOut } = useAuth();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const mobileProfileRef = useRef<HTMLDivElement>(null);
 
-  const handleSignOut = async () => {
-    await signOut();
-    setProfileMenuOpen(false);
-    navigate("/");
+  const handleSignOutClick = () => {
+    setShowSignOutDialog(true);
+  };
+
+  const handleSignOutConfirm = async () => {
+    setIsSigningOut(true);
+    try {
+      // Sign out from Supabase (clears session)
+      await signOut();
+
+      // Clear all localStorage data
+      localStorage.clear();
+
+      // Close menu and redirect to home
+      setProfileMenuOpen(false);
+      setShowSignOutDialog(false);
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("[Navbar] Sign out error:", error);
+      setIsSigningOut(false);
+    }
+  };
+
+  const handleSignOutCancel = () => {
+    setShowSignOutDialog(false);
   };
 
   // Close profile menu when clicking outside
@@ -181,11 +205,14 @@ export function Navbar() {
               <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
                 {isAuthenticated ? (
                   <button
-                    onClick={handleSignOut}
-                    className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                    onClick={handleSignOutClick}
+                    disabled={isSigningOut}
+                    className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
+                    <LogOut
+                      className={`w-4 h-4 ${isSigningOut ? "animate-pulse" : ""}`}
+                    />
+                    <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
                   </button>
                 ) : (
                   <button
@@ -298,11 +325,16 @@ export function Navbar() {
                 <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
                   {isAuthenticated ? (
                     <button
-                      onClick={handleSignOut}
-                      className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                      onClick={handleSignOutClick}
+                      disabled={isSigningOut}
+                      className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
+                      <LogOut
+                        className={`w-4 h-4 ${isSigningOut ? "animate-pulse" : ""}`}
+                      />
+                      <span>
+                        {isSigningOut ? "Signing out..." : "Sign Out"}
+                      </span>
                     </button>
                   ) : (
                     <button
@@ -322,6 +354,19 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Sign Out Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showSignOutDialog}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        isLoading={isSigningOut}
+        onConfirm={handleSignOutConfirm}
+        onCancel={handleSignOutCancel}
+        variant="danger"
+      />
     </nav>
   );
 }
