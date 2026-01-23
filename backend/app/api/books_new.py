@@ -252,6 +252,11 @@ async def create_book(
             owner_full_name=user.full_name or "Anonymous"
         )
         
+        # Award credit for uploading a book
+        db_user.credits += 1
+        db.commit()
+        db.refresh(db_user)
+        
         return {
             "success": True,
             "data": book_to_response(book, db)
@@ -307,26 +312,134 @@ async def delete_book(
     user: AuthUser = Depends(get_current_user)
 ):
     """
-    DELETE /books/{id} - Soft delete a book listing.
-    Only the book owner can delete.
+    DELETE /books/{id} - Delete a book listing with credit clawback.
+    
+    Anti-Cheat Credit System:
+    - User loses 1 credit when deleting a book (clawback)
+    
+    Validation Rules (must pass before deletion):
+    1. Book exists and user is the owner
+    2. Book is not currently borrowed (status = BORROWED)
+    3. Collateral bankruptcy check: User must have enough credits after deletion
+       to cover their active loans (books they are currently borrowing)
     """
     try:
-        success = book_service.soft_delete_book(db, book_id, user.id)
+        # Get the book first
+        book = book_service.get_book_by_id(db, book_id)
         
-        if not success:
+        if not book:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "BOOK_NOT_FOUND", "message": "Book not found"}
             )
         
-        return {"success": True, "message": "Book deleted"}
+        # Verify ownership
+        if book.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "NOT_AUTHORIZED", "message": "Only the book owner can delete this book"}
+            )
+        
+        # =====================================================
+        # CHECK 1: Is the book currently in use (borrowed)?
+        # =====================================================
+        # A book cannot be deleted if someone is currently borrowing it.
+        # This prevents deleting a book that is physically with someone else.
+        if borrow_service.is_book_borrowed(db, book_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "BOOK_IN_USE",
+                    "message": "Cannot delete this book. It is currently borrowed by someone. "
+                               "Wait for them to return it first."
+                }
+            )
+        
+        # =====================================================
+        # CHECK 2: Collateral Bankruptcy Check
+        # =====================================================
+        # The user's credit acts as "collateral" for books they borrow.
+        # Deleting a book removes 1 credit. We must ensure the user
+        # still has enough credits to cover their active loans.
+        #
+        # MATH:
+        # - Current Credits: Total credits the user has
+        # - Future Balance = Current Credits - 1 (after clawback)
+        # - Active Loans: Number of books user is currently borrowing
+        #
+        # Rule: Future Balance >= Active Loans
+        # If Future Balance < Active Loans => BLOCK deletion
+        #
+        # Example:
+        # - User has 2 credits, borrowing 2 books
+        # - If they delete a book: Future Balance = 2 - 1 = 1
+        # - 1 < 2 (active loans) => BLOCKED
+        # - They must return 1 book first before deleting their own book.
+        
+        db_user = user_service.get_user_by_id(db, user.id)
+        if not db_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"}
+            )
+        
+        current_credits = db_user.credits or 1  # Default to 1 if None
+        future_balance = current_credits - 1
+        active_loans = borrow_service.get_active_borrow_count_for_user(db, user.id)
+        
+        if future_balance < active_loans:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "COLLATERAL_BANKRUPTCY",
+                    "message": f"Cannot delete this book. You have {active_loans} borrowed book(s) "
+                               f"but would only have {future_balance} credit(s) left. "
+                               f"Return a borrowed book first, then you can delete this one."
+                }
+            )
+        
+        # =====================================================
+        # Deletion and Credit Clawback
+        # =====================================================
+        # All checks passed - proceed with deletion
+        
+        # Store book info for logging
+        book_id_int = book.id
+        book_title = book.title
+        
+        # Delete the book
+        db.delete(book)
+        
+        # Clawback 1 credit from the user
+        db_user.credits = max(0, current_credits - 1)  # Don't go below 0
+        
+        # Commit both operations atomically
+        db.commit()
+        
+        # Invalidate caches
+        from app.services.book_service_new import invalidate_books_cache, invalidate_user_cache
+        from app.cache import cache
+        invalidate_books_cache()
+        cache.delete(f"books:id:{book_id_int}")
+        invalidate_user_cache(user.id)
+        
+        return {
+            "success": True,
+            "message": "Book deleted",
+            "creditsDeducted": 1,
+            "newCreditBalance": db_user.credits
+        }
     
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except PermissionError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "NOT_AUTHORIZED", "message": str(e)}
         )
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": "SERVER_ERROR", "message": str(e)}

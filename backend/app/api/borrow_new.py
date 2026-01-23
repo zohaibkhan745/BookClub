@@ -67,6 +67,7 @@ async def request_to_borrow(
     
     Creates a borrow request with status='REQUESTED'.
     The book owner must approve the request.
+    Requires at least 1 available credit.
     """
     try:
         # Ensure user exists in local DB
@@ -77,6 +78,14 @@ async def request_to_borrow(
                 supabase_id=user.id,
                 email=user.email or "",
                 full_name=user.full_name or "User"
+            )
+        
+        # Check if user has enough credits to borrow
+        can_borrow, message = borrow_service.can_user_borrow(db, user.id)
+        if not can_borrow:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INSUFFICIENT_CREDITS", "message": message}
             )
         
         # Create borrow request (status=REQUESTED)

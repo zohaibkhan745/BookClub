@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from app.db.database import get_db
-from app.services import user_service
+from app.services import user_service, borrow_service
 from app.schemas import (
     UserCreate,
     UserLogin,
@@ -116,12 +116,38 @@ async def get_current_user_stats(
         BorrowRecord.borrower_id == user.id
     ).scalar() or 0
     
+    # Get credit info
+    db_user = user_service.get_user_by_id(db, user.id)
+    total_credits = db_user.credits if db_user else 1
+    available_credits = borrow_service.get_available_credits(db, user.id)
+    active_borrows = borrow_service.get_active_borrow_count_for_user(db, user.id)
+    
+    # Determine badge based on total credits
+    if total_credits >= 20:
+        badge = "Community Pillar"
+        badge_color = "gold"
+    elif total_credits >= 5:
+        badge = "Librarian"
+        badge_color = "blue"
+    else:
+        badge = "Novice"
+        badge_color = "gray"
+    
     return {
         "success": True,
         "data": {
             "books_listed": books_listed,
             "books_sold": books_sold,
-            "books_borrowed": books_borrowed
+            "books_borrowed": books_borrowed,
+            "credits": {
+                "total": total_credits,
+                "available": available_credits,
+                "frozen": active_borrows  # Credits frozen by active borrows
+            },
+            "badge": {
+                "name": badge,
+                "color": badge_color
+            }
         }
     }
 
@@ -160,6 +186,149 @@ async def update_current_user_profile(
             "full_name": db_user.full_name,
             "email": db_user.email,
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None
+        }
+    }
+
+
+@router.get("/leaderboard", response_model=dict)
+async def get_leaderboard(
+    db: Session = Depends(get_db),
+    limit: int = 10
+):
+    """
+    GET /users/leaderboard - Get top users by credits.
+    
+    Returns the top N users ranked by total credits.
+    Includes their badge tier and rank position.
+    Public endpoint - does not require authentication.
+    """
+    # Get top users by credits
+    top_users = db.query(User).order_by(User.credits.desc().nullslast()).limit(limit).all()
+    
+    leaderboard = []
+    for rank, user in enumerate(top_users, 1):
+        user_credits = user.credits or 1  # Default to 1 if None
+        
+        # Determine badge
+        if user_credits >= 20:
+            badge = "Community Pillar"
+            badge_color = "gold"
+        elif user_credits >= 5:
+            badge = "Librarian"
+            badge_color = "blue"
+        else:
+            badge = "Novice"
+            badge_color = "gray"
+        
+        # Count books uploaded
+        books_uploaded = db.query(func.count(Book.id)).filter(
+            Book.user_id == user.id
+        ).scalar() or 0
+        
+        leaderboard.append({
+            "rank": rank,
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "credits": user_credits,
+            "books_uploaded": books_uploaded,
+            "badge": {
+                "name": badge,
+                "color": badge_color
+            }
+        })
+    
+    return {
+        "success": True,
+        "data": leaderboard
+    }
+
+
+@router.post("/sync-credits", response_model=dict)
+async def sync_all_user_credits(db: Session = Depends(get_db)):
+    """
+    POST /users/sync-credits - Sync credits for all users based on uploaded books.
+    
+    This is a migration/fix endpoint to correct credits for users who uploaded
+    books before the credit system was implemented.
+    
+    Credit formula: 1 (signup bonus) + number of books uploaded
+    
+    WARNING: Admin/development endpoint. Should be protected in production.
+    """
+    # Get all users
+    users = db.query(User).all()
+    
+    updated_users = []
+    for user in users:
+        # Count books uploaded by this user
+        books_count = db.query(func.count(Book.id)).filter(
+            Book.user_id == user.id
+        ).scalar() or 0
+        
+        # Calculate correct credits: 1 (signup) + books uploaded
+        correct_credits = 1 + books_count
+        
+        # Only update if different
+        if user.credits != correct_credits:
+            old_credits = user.credits or 0
+            user.credits = correct_credits
+            updated_users.append({
+                "id": user.id,
+                "username": user.username,
+                "old_credits": old_credits,
+                "new_credits": correct_credits,
+                "books_uploaded": books_count
+            })
+    
+    # Commit all changes
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Synced credits for {len(updated_users)} user(s)",
+        "updated_users": updated_users
+    }
+
+
+@router.post("/me/sync-credits", response_model=dict)
+async def sync_my_credits(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    POST /users/me/sync-credits - Sync credits for the current user.
+    
+    Recalculates credits based on: 1 (signup) + number of books uploaded.
+    Useful for users who uploaded books before the credit system.
+    """
+    db_user = user_service.get_user_by_id(db, user.id)
+    
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "USER_NOT_FOUND", "message": "User not found"}
+        )
+    
+    # Count books uploaded by this user
+    books_count = db.query(func.count(Book.id)).filter(
+        Book.user_id == user.id
+    ).scalar() or 0
+    
+    # Calculate correct credits: 1 (signup) + books uploaded
+    correct_credits = 1 + books_count
+    
+    old_credits = db_user.credits or 0
+    db_user.credits = correct_credits
+    db.commit()
+    db.refresh(db_user)
+    
+    return {
+        "success": True,
+        "data": {
+            "old_credits": old_credits,
+            "new_credits": correct_credits,
+            "books_uploaded": books_count
         }
     }
 

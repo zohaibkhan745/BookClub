@@ -123,6 +123,32 @@ export interface UserStats {
   booksListed: number;
   booksSold: number;
   booksBorrowed: number;
+  credits?: CreditInfo;
+  badge?: UserBadge;
+}
+
+/** Credit information for a user */
+export interface CreditInfo {
+  total: number;      // Total credits earned
+  available: number;  // Credits available for borrowing
+  frozen: number;     // Credits frozen by active borrows
+}
+
+/** User badge tier based on credits */
+export interface UserBadge {
+  name: 'Novice' | 'Librarian' | 'Community Pillar';
+  color: 'gray' | 'blue' | 'gold';
+}
+
+/** Leaderboard entry */
+export interface LeaderboardEntry {
+  rank: number;
+  id: string;
+  username: string;
+  full_name: string;
+  credits: number;
+  books_uploaded: number;
+  badge: UserBadge;
 }
 
 /** User profile with stats combined */

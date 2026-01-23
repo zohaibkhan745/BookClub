@@ -7,12 +7,14 @@ import {
   Home,
   Library,
   LogOut,
+  Trophy,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { CreditBadge } from "./CreditBadge";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -116,6 +118,9 @@ export function Navbar() {
 
         {/* Mobile Profile Area */}
         <div className="md:hidden flex items-center space-x-2">
+          {/* Credit Badge - Only show when authenticated */}
+          {isAuthenticated && <CreditBadge />}
+
           {/* Login Button - Only show when not authenticated */}
           {!isAuthenticated && (
             <button
@@ -192,6 +197,16 @@ export function Navbar() {
                   >
                     Upload Book
                   </button>
+                  <button
+                    onClick={() => {
+                      navigate("/leaderboard");
+                      setProfileMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center gap-2"
+                  >
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                    Leaderboard
+                  </button>
                   {isAuthenticated && (
                     <>
                       <button
@@ -240,6 +255,18 @@ export function Navbar() {
 
         {/* Right Side - Desktop Only */}
         <div className="hidden md:flex items-center space-x-3">
+          {/* Credit Badge - Only show when authenticated */}
+          {isAuthenticated && <CreditBadge />}
+
+          {/* Leaderboard Button */}
+          <button
+            onClick={() => navigate("/leaderboard")}
+            className="p-2 hover:bg-[rgba(0,0,0,0.05)] dark:hover:bg-[rgba(255,255,255,0.1)] rounded-full transition"
+            title="Leaderboard"
+          >
+            <Trophy className="w-5 h-5 text-yellow-500" />
+          </button>
+
           <button
             onClick={() => navigate("/upload")}
             className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:from-red-600 hover:to-red-700 transition shadow-sm hover:shadow-md"

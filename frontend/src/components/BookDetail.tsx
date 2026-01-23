@@ -50,7 +50,7 @@ function openWhatsApp(phoneNumber: string, bookTitle: string) {
 export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, refreshCredits } = useAuth();
 
   // Modal state for "Mark as Borrowed"
   const [showBorrowerModal, setShowBorrowerModal] = useState(false);
@@ -185,6 +185,11 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
         setError("You cannot borrow your own book");
       } else if (apiError.code === "NOT_AVAILABLE") {
         setError("This book is no longer available");
+      } else if (apiError.code === "INSUFFICIENT_CREDITS") {
+        setError(
+          apiError.message ||
+            "Insufficient credits. Upload a book or return borrowed books to earn more credits.",
+        );
       } else {
         setError(apiError.message || "Failed to send borrow request");
       }
@@ -218,6 +223,9 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
     try {
       const borrowRecord = await approveBorrowRequest(requestId);
+
+      // Refresh credits (borrower's credit is now frozen)
+      await refreshCredits();
 
       // Close modal and update status
       setShowRequestsModal(false);
@@ -320,6 +328,8 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
     try {
       await returnBook(String(book.id));
+      // Refresh credits (borrower's frozen credit is now available again)
+      await refreshCredits();
       // Update local borrow status
       setBorrowStatus(null);
       setShowReturnConfirm(false);
@@ -359,6 +369,9 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
     try {
       await deleteBook(book.id);
+
+      // Refresh credits (1 credit deducted for deletion)
+      await refreshCredits();
 
       // Show success feedback briefly then redirect
       // Navigate to library page "My Uploads" tab after successful deletion
@@ -646,35 +659,49 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleDeclineRequest(request.id)}
-                            disabled={decliningRequestId === request.id || approvingRequestId === request.id}
+                            disabled={
+                              decliningRequestId === request.id ||
+                              approvingRequestId === request.id
+                            }
                             className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
                           >
                             {decliningRequestId === request.id ? (
                               <>
                                 <span className="animate-spin text-sm">⏳</span>
-                                <span className="hidden sm:inline">Declining...</span>
+                                <span className="hidden sm:inline">
+                                  Declining...
+                                </span>
                               </>
                             ) : (
                               <>
                                 <X className="w-4 h-4" />
-                                <span className="hidden sm:inline">Decline</span>
+                                <span className="hidden sm:inline">
+                                  Decline
+                                </span>
                               </>
                             )}
                           </button>
                           <button
                             onClick={() => handleApproveRequest(request.id)}
-                            disabled={approvingRequestId === request.id || decliningRequestId === request.id}
+                            disabled={
+                              approvingRequestId === request.id ||
+                              decliningRequestId === request.id
+                            }
                             className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
                           >
                             {approvingRequestId === request.id ? (
                               <>
                                 <span className="animate-spin text-sm">⏳</span>
-                                <span className="hidden sm:inline">Approving...</span>
+                                <span className="hidden sm:inline">
+                                  Approving...
+                                </span>
                               </>
                             ) : (
                               <>
                                 <CheckCircle className="w-4 h-4" />
-                                <span className="hidden sm:inline">Approve</span>
+                                <span className="hidden sm:inline">
+                                  Approve
+                                </span>
                               </>
                             )}
                           </button>

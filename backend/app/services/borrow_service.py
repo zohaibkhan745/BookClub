@@ -549,6 +549,72 @@ def get_books_borrowed_by_user(db: Session, user_id: str, limit: int = 50) -> Li
     return db.query(Book).filter(Book.id.in_(book_ids)).all()
 
 
+def get_active_borrow_count_for_user(db: Session, user_id: str) -> int:
+    """
+    Get the count of currently borrowed books by a user.
+    
+    This counts books with status=BORROWED (approved and active),
+    not REQUESTED (pending approval).
+    
+    Args:
+        db: Database session
+        user_id: ID of the user
+    
+    Returns:
+        Count of active borrows
+    """
+    return db.query(BorrowRecord).filter(
+        and_(
+            BorrowRecord.borrower_id == user_id,
+            BorrowRecord.returned_at.is_(None),
+            BorrowRecord.status == BorrowStatus.borrowed.value
+        )
+    ).count()
+
+
+def get_available_credits(db: Session, user_id: str) -> int:
+    """
+    Calculate available credits for borrowing.
+    
+    Available credits = Total credits - Currently borrowed books
+    A user needs at least 1 available credit to borrow a new book.
+    
+    Args:
+        db: Database session
+        user_id: ID of the user
+    
+    Returns:
+        Number of available credits (can be negative if in debt)
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return 0
+    
+    total_credits = user.credits or 0
+    active_borrows = get_active_borrow_count_for_user(db, user_id)
+    
+    return total_credits - active_borrows
+
+
+def can_user_borrow(db: Session, user_id: str) -> tuple[bool, str]:
+    """
+    Check if a user has enough credits to borrow a book.
+    
+    Args:
+        db: Database session
+        user_id: ID of the user
+    
+    Returns:
+        Tuple of (can_borrow: bool, message: str)
+    """
+    available = get_available_credits(db, user_id)
+    
+    if available >= 1:
+        return True, f"You have {available} credit(s) available."
+    else:
+        return False, f"Insufficient credits. You have {available} available credit(s). Return a book or upload a new one to earn credits."
+
+
 def get_book_borrow_history(db: Session, book_id, limit: int = 50) -> List[BorrowRecord]:
     """
     Get the borrow history for a specific book.

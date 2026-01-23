@@ -55,7 +55,7 @@ type FieldErrors = Record<string, string>;
 
 export function UploadBook() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshCredits } = useAuth();
 
   // Image state - now stores file objects with preview URLs
   const [imageStates, setImageStates] = useState<ImageState[]>([]);
@@ -309,6 +309,8 @@ export function UploadBook() {
       });
 
       setSubmitSuccess(true);
+      // Refresh credits (user earned +1 for uploading)
+      await refreshCredits();
       // Clean up preview URLs
       imageStates.forEach((img) => revokeImagePreview(img.previewUrl));
       // Navigate to home after brief success message

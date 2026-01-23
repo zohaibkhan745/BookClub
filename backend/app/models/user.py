@@ -5,7 +5,7 @@ Note: Authentication is handled by Supabase. This table stores additional
 user metadata and enables relationships with other tables (books, borrow_records).
 The user ID here maps to Supabase's auth.users.id.
 """
-from sqlalchemy import Column, String, DateTime, Index
+from sqlalchemy import Column, String, DateTime, Index, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -45,6 +45,10 @@ class User(Base):
     # Password hash - for future local auth support
     # Currently authentication is via Supabase
     password_hash = Column(String(255), nullable=True)
+    
+    # Credit system - users earn credits by uploading books
+    # Default is 1 credit to allow first borrow
+    credits = Column(Integer, default=1, nullable=False)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

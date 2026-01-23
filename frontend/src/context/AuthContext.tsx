@@ -8,17 +8,23 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import * as authService from "../services/authService";
-import { syncUser } from "../services/bookService";
+import { syncUser, getUserStats } from "../services/bookService";
+import type { CreditInfo, UserBadge } from "../types";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  credits: CreditInfo | null;
+  badge: UserBadge | null;
+  creditsLoading: boolean;
+  refreshCredits: () => Promise<void>;
   signIn: (
     email: string,
     password: string,
@@ -37,6 +43,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [credits, setCredits] = useState<CreditInfo | null>(null);
+  const [badge, setBadge] = useState<UserBadge | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(false);
+
+  // Fetch credits from API - memoized to prevent recreating on every render
+  const refreshCredits = useCallback(async () => {
+    if (!user) {
+      setCredits(null);
+      setBadge(null);
+      return;
+    }
+
+    setCreditsLoading(true);
+    try {
+      const stats = await getUserStats();
+      setCredits(stats.credits || null);
+      setBadge(stats.badge || null);
+    } catch (error) {
+      console.error("Failed to fetch credits:", error);
+    } finally {
+      setCreditsLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     // Get initial session
@@ -78,6 +107,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Fetch credits when user changes (login/logout)
+  useEffect(() => {
+    if (user) {
+      refreshCredits();
+    } else {
+      setCredits(null);
+      setBadge(null);
+    }
+  }, [user, refreshCredits]);
+
   const signIn = async (email: string, password: string) => {
     const result = await authService.signIn({ email, password });
     if (result.error) {
@@ -102,6 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.signOut();
     setUser(null);
     setSession(null);
+    setCredits(null);
+    setBadge(null);
   };
 
   return (
@@ -111,6 +152,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isLoading,
         isAuthenticated: !!user,
+        credits,
+        badge,
+        creditsLoading,
+        refreshCredits,
         signIn,
         signUp,
         signOut,

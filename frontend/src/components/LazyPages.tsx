@@ -91,6 +91,9 @@ export const LazyFAQPage = lazyLoad(() =>
 export const LazyContactPage = lazyLoad(() =>
   import("../pages/ContactPage").then((m) => ({ default: m.ContactPage })),
 );
+export const LazyLeaderboardPage = lazyLoad(() =>
+  import("../pages/LeaderboardPage").then((m) => ({ default: m.default })),
+);
 
 // Export PageLoader for use in App.tsx
 export { PageLoader };

@@ -20,6 +20,7 @@ import {
   LazyCommunityGuidelinesPage,
   LazyFAQPage,
   LazyContactPage,
+  LazyLeaderboardPage,
   PageLoader,
 } from "./components/LazyPages";
 
@@ -70,6 +71,7 @@ export default function App() {
               />
               <Route path="/faq" element={<LazyFAQPage />} />
               <Route path="/contact" element={<LazyContactPage />} />
+              <Route path="/leaderboard" element={<LazyLeaderboardPage />} />
             </Routes>
           </Suspense>
         </Router>

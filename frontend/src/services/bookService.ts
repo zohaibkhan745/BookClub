@@ -11,6 +11,7 @@ import type {
   UserStats,
   JoinClubData,
   JoinClubResponse,
+  LeaderboardEntry,
 } from '../types';
 import { apiGet, apiPost, apiPatch, apiDelete, createApiError } from './api';
 import { clientCache, CACHE_KEYS, CACHE_TTL } from './cache';
@@ -857,13 +858,22 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 
-/** GET /users/me/stats - Get current user's activity statistics */
+/** GET /users/me/stats - Get current user's activity statistics including credits */
 export async function getUserStats(): Promise<UserStats> {
   try {
     interface StatsData {
       books_listed: number;
       books_sold: number;
       books_borrowed: number;
+      credits?: {
+        total: number;
+        available: number;
+        frozen: number;
+      };
+      badge?: {
+        name: 'Novice' | 'Librarian' | 'Community Pillar';
+        color: 'gray' | 'blue' | 'gold';
+      };
     }
     
     interface GetStatsResponse {
@@ -877,9 +887,28 @@ export async function getUserStats(): Promise<UserStats> {
       booksListed: response.data.books_listed,
       booksSold: response.data.books_sold,
       booksBorrowed: response.data.books_borrowed,
+      credits: response.data.credits,
+      badge: response.data.badge,
     };
   } catch (error) {
     console.error('Get user stats error:', error);
+    throw error;
+  }
+}
+
+
+/** GET /users/leaderboard - Get top users by credits */
+export async function getLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
+  try {
+    interface LeaderboardResponse {
+      success: boolean;
+      data: LeaderboardEntry[];
+    }
+
+    const response = await apiGet<LeaderboardResponse>(`/users/leaderboard?limit=${limit}`);
+    return response.data;
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
     throw error;
   }
 }

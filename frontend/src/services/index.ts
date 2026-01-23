@@ -23,6 +23,7 @@ export {
   getCurrentUser as getCurrentLocalUser,
   getUserStats,
   updateUserProfile,
+  getLeaderboard,
   // Cache management
   invalidateBooksCache,
   // Legacy (deprecated)
