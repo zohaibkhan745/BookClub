@@ -1,15 +1,15 @@
-# Vercel serverless entry point
-# This file is required for Vercel to recognize the FastAPI app
-
+"""
+Vercel serverless entry point for FastAPI
+"""
 import sys
-import os
+from pathlib import Path
 
 # Add the backend directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
 
 # Import the FastAPI app
 from app.main import app
 
-# Vercel expects an "app" or "handler" variable
-# Export the FastAPI app directly - Vercel's Python runtime handles ASGI apps
-handler = app
+# Export for Vercel - this is the ASGI application
+# Vercel's Python runtime will use this directly
