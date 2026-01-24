@@ -1,22 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from app.db.database import engine, Base
-from app.cache import get_cache_stats
 import os
 
-# Import all models to ensure they're registered with Base.metadata
-from app.models import User, Book, BorrowRecord, ForumThread, ForumReply
+# Import cache stats
+from app.cache import get_cache_stats
+
+# Try to initialize database (may fail in serverless cold start)
+try:
+    from app.db.database import engine, Base
+    # Import all models to ensure they're registered with Base.metadata
+    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply
+    
+    # Create database tables (for development - use Alembic migrations in production)
+    # Note: This won't modify existing tables, only create new ones
+    Base.metadata.create_all(bind=engine)
+    db_initialized = True
+except Exception as e:
+    print(f"Warning: Database initialization failed: {e}")
+    db_initialized = False
 
 # Import API routers
 from app.api import books_new as books
 from app.api import borrow_new as borrow
 from app.api import users
 from app.api import forum
-
-# Create database tables (for development - use Alembic migrations in production)
-# Note: This won't modify existing tables, only create new ones
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Book Club API",
@@ -52,7 +60,12 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "book-club-api", "version": "2.0.0"}
+    return {
+        "status": "healthy", 
+        "service": "book-club-api", 
+        "version": "2.0.0",
+        "database": "connected" if db_initialized else "not_configured"
+    }
 
 
 @app.get("/cache/stats")
