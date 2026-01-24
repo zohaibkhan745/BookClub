@@ -1,6 +1,6 @@
 """
 Vercel serverless entry point for FastAPI
-Uses Mangum to adapt ASGI to AWS Lambda/Vercel
+Vercel has native ASGI support - just expose the app directly
 """
 import sys
 from pathlib import Path
@@ -9,11 +9,6 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-# Import the FastAPI app
+# Import and expose the FastAPI app
+# Vercel's Python runtime will handle ASGI automatically
 from app.main import app
-
-# Import Mangum adapter for serverless
-from mangum import Mangum
-
-# Create the handler for Vercel/AWS Lambda
-handler = Mangum(app, lifespan="off")
