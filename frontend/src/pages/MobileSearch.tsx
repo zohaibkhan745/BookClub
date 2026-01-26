@@ -60,7 +60,7 @@ export function MobileSearch() {
     { name: "Philosophy", slug: "philosophy", color: "bg-yellow-400" },
     { name: "Fiction", slug: "fiction", color: "bg-orange-400" },
     { name: "Romance", slug: "romance", color: "bg-rose-400" },
-    { name: "Mystery", slug: "mystery", color: "bg-purple-400" },
+    { name: "Non-Fiction", slug: "non-fiction", color: "bg-purple-400" },
     { name: "History", slug: "history", color: "bg-emerald-500" },
     { name: "Biography", slug: "biography", color: "bg-teal-500" },
     { name: "Science", slug: "science", color: "bg-cyan-500" },

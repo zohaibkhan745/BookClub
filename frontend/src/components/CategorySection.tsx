@@ -19,7 +19,7 @@ import fictionBg from "../assets/images/Fiction.webp";
 import historyBg from "../assets/images/History.webp";
 import biographyBg from "../assets/images/Biography.webp";
 import poetryBg from "../assets/images/Poetry.webp";
-import mysteryBg from "../assets/images/Mystery.webp";
+import nonFictionBg from "../assets/images/Mystery.webp";
 import romanceBg from "../assets/images/Romance.webp";
 import scienceBg from "../assets/images/Science.webp";
 import technologyBg from "../assets/images/Technology.webp";
@@ -87,11 +87,11 @@ export function CategorySection() {
     },
     {
       id: 7,
-      name: "Mystery",
-      slug: "mystery",
+      name: "Non-Fiction",
+      slug: "non-fiction",
       icon: Search,
       color: "from-slate-600 to-gray-800",
-      backgroundImage: mysteryBg,
+      backgroundImage: nonFictionBg,
     },
     {
       id: 8,

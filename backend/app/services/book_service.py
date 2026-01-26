@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.models.book import Book
 from app.schemas.book import BookCreate
 from app.cache import cache, invalidate_books_cache, invalidate_user_cache
@@ -44,9 +44,10 @@ def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
     if cached is not None:
         return cached
     
+    # Use exact case-insensitive match to avoid matching "Fiction" in "Non-Fiction"
     result = db.query(Book).filter(
         Book.is_available == True,
-        Book.category.ilike(f"%{genre}%")
+        func.lower(Book.category) == genre.lower()
     ).order_by(desc(Book.created_at)).limit(limit).all()
     cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
     return result

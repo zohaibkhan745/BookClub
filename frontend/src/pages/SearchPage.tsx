@@ -58,7 +58,7 @@ export function SearchPage() {
     { name: "Philosophy", slug: "philosophy", color: "#FFFBB1" },
     { name: "Fiction", slug: "fiction", color: "#E8D5B7" },
     { name: "Romance", slug: "romance", color: "#F5C6D0" },
-    { name: "Mystery", slug: "mystery", color: "#D4C5E0" },
+    { name: "Non-Fiction", slug: "non-fiction", color: "#D4C5E0" },
     { name: "History", slug: "history", color: "#C9D4C5" },
     { name: "Biography", slug: "biography", color: "#B8D4D4" },
     { name: "Science", slug: "science", color: "#C5D8E0" },

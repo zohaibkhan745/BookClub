@@ -15,7 +15,7 @@ export type BookCategory =
   | 'Technology'
   | 'Philosophy'
   | 'Romance'
-  | 'Mystery'
+  | 'Poetry'
   | 'Biography'
   | 'Science'
   | 'History';
@@ -28,7 +28,7 @@ export const BOOK_CATEGORIES: BookCategory[] = [
   'Technology',
   'Philosophy',
   'Romance',
-  'Mystery',
+  'Poetry',
   'Biography',
   'Science',
   'History',

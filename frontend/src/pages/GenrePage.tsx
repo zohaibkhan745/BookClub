@@ -16,7 +16,7 @@ import fictionBg from "../assets/images/Fiction.webp";
 import historyBg from "../assets/images/History.webp";
 import biographyBg from "../assets/images/Biography.webp";
 import poetryBg from "../assets/images/Poetry.webp";
-import mysteryBg from "../assets/images/Mystery.webp";
+import nonFictionBg from "../assets/images/Mystery.webp";
 import romanceBg from "../assets/images/Romance.webp";
 import scienceBg from "../assets/images/Science.webp";
 import technologyBg from "../assets/images/Technology.webp";
@@ -29,7 +29,7 @@ const genreBackgrounds: Record<string, string> = {
   history: historyBg,
   biography: biographyBg,
   poetry: poetryBg,
-  mystery: mysteryBg,
+  "non-fiction": nonFictionBg,
   romance: romanceBg,
   science: scienceBg,
   technology: technologyBg,
