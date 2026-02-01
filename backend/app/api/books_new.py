@@ -7,7 +7,7 @@ Refactored to:
 - Use is_active instead of is_available
 - Support both legacy and new response formats for backwards compatibility
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
@@ -48,12 +48,20 @@ async def delete_all_books(db: Session = Depends(get_db)):
 
 
 def book_to_preview(book) -> dict:
-    """Convert Book model to preview format."""
+    """
+    Convert Book model to preview format for listing pages.
+    
+    Uses thumbnail URL if available, falls back to full image.
+    This keeps listing pages fast by loading ~10-20KB thumbnails.
+    """
+    # Prefer thumbnail for listings, fallback to full image
+    image_url = book.cover_image_thumb_url or book.cover_image or ""
+    
     return {
         "id": str(book.id),
         "title": book.title,
         "author": book.author,
-        "image": book.cover_image or "",
+        "image": image_url,
     }
 
 
@@ -128,15 +136,37 @@ async def get_books(db: Session = Depends(get_db)):
 
 
 @router.get("/books/all")
-async def get_all_books_endpoint(db: Session = Depends(get_db)):
+async def get_all_books_endpoint(
+    cursor: int = Query(default=0, ge=0, description="Cursor for pagination (book ID to start after)"),
+    limit: int = Query(default=20, ge=1, le=50, description="Number of books to return (max 50)"),
+    db: Session = Depends(get_db)
+):
     """
-    GET /books/all - Fetch all books from the database.
+    GET /books/all - Fetch all books with cursor-based pagination.
+    
+    Query Parameters:
+    - cursor: ID of the last book from previous page (0 for first page)
+    - limit: Number of books to return (1-50, default 20)
+    
+    Response includes next_cursor for fetching the next page.
+    Cursor-based pagination provides consistent performance as catalog grows.
     """
     try:
-        books = book_service.get_all_books(db, limit=100)
+        books = book_service.get_all_books_paginated(db, cursor=cursor, limit=limit)
+        
+        # Determine if there are more results
+        has_next = len(books) > limit
+        result_books = books[:limit] if has_next else books
+        next_cursor = result_books[-1].id if has_next and result_books else None
+        
         return {
             "success": True,
-            "data": [book_to_preview(b) for b in books]
+            "data": [book_to_preview(b) for b in result_books],
+            "pagination": {
+                "next_cursor": next_cursor,
+                "has_next": has_next,
+                "limit": limit,
+            }
         }
     except Exception as e:
         raise HTTPException(

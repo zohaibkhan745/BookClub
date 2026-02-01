@@ -41,7 +41,8 @@ class Book(Base):
     listing_type = Column(String(20), nullable=False, default=ListingType.lend.value, index=True)  # Added index
     condition = Column(String(20), nullable=True, default=BookCondition.good.value)
     description = Column(Text, nullable=True)
-    cover_image = Column(Text, nullable=True)  # Changed to Text for base64 images
+    cover_image = Column(Text, nullable=True)  # Full-size image URL for detail pages
+    cover_image_thumb_url = Column(Text, nullable=True)  # Thumbnail URL (~250px) for listings
     price = Column(String(50), nullable=True)  # Only for sell listings
     whatsapp_number = Column(String(20), nullable=True)
     is_available = Column(Boolean, default=True, index=True)  # Added index

@@ -146,6 +146,7 @@ def create_book(
         condition=book_data.condition.value if book_data.condition else "good",
         description=book_data.description,
         cover_image=book_data.cover_image,
+        cover_image_thumb_url=book_data.cover_image_thumb_url,  # Thumbnail for listing pages
         price=book_data.price,
         whatsapp_number=book_data.whatsapp_number,
         is_available=True,

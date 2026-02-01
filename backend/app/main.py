@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from contextlib import asynccontextmanager
+import asyncio
 import os
 
-# Import cache stats
-from app.cache import get_cache_stats
+# Import cache stats and cleanup
+from app.cache import get_cache_stats, cache
 
 # Try to initialize database (may fail in serverless cold start)
 try:
@@ -26,10 +28,36 @@ from app.api import borrow_new as borrow
 from app.api import users
 from app.api import forum
 
+
+# Background task for periodic cache cleanup
+async def cache_cleanup_task():
+    """Periodically clean up expired cache entries to prevent memory bloat."""
+    while True:
+        await asyncio.sleep(300)  # Every 5 minutes
+        removed = cache.cleanup_expired()
+        if removed > 0:
+            print(f"Cache cleanup: removed {removed} expired entries")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan - startup and shutdown events."""
+    # Startup: Start background cache cleanup task
+    cleanup_task = asyncio.create_task(cache_cleanup_task())
+    yield
+    # Shutdown: Cancel cleanup task
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
+
 app = FastAPI(
     title="Book Club API",
     description="API for the Book Club community platform",
     version="2.0.0",  # Version bump for schema refactor
+    lifespan=lifespan,
 )
 
 # GZip compression for responses > 1KB (reduces bandwidth significantly)

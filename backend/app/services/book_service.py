@@ -1,9 +1,12 @@
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from app.models.book import Book
 from app.schemas.book import BookCreate
 from app.cache import cache, invalidate_books_cache, invalidate_user_cache
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # Cache TTL constants (in seconds)
 CACHE_TTL_SHORT = 60       # 1 minute - for list endpoints
@@ -21,6 +24,31 @@ def get_all_books(db: Session, limit: int = 50) -> list[Book]:
     
     result = db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(limit).all()
     cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
+    return result
+
+
+def get_all_books_paginated(db: Session, cursor: int = 0, limit: int = 20) -> list[Book]:
+    """
+    Fetch available books with cursor-based pagination.
+    
+    Cursor-based pagination provides consistent performance regardless of 
+    catalog size, unlike OFFSET-based pagination which slows down for 
+    large offsets.
+    
+    Args:
+        cursor: ID to start after (0 for first page)
+        limit: Number of books to fetch (fetches limit+1 to detect next page)
+    
+    Returns:
+        List of books. If len > limit, there are more pages.
+    """
+    query = db.query(Book).filter(Book.is_available == True)
+    
+    if cursor > 0:
+        query = query.filter(Book.id < cursor)
+    
+    # Fetch one extra to detect if there are more pages
+    result = query.order_by(desc(Book.id)).limit(limit + 1).all()
     return result
 
 

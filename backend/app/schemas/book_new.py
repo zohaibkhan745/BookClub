@@ -47,6 +47,7 @@ class BookCreate(BaseModel):
     condition: Optional[BookCondition] = BookCondition.good
     description: Optional[str] = None
     cover_image: Optional[str] = None
+    cover_image_thumb_url: Optional[str] = None  # Thumbnail URL for listing pages
     price: Optional[str] = None
     whatsapp_number: Optional[str] = None
     

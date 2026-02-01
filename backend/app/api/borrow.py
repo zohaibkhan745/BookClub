@@ -5,6 +5,7 @@ from typing import Optional
 from app.db.database import get_db
 from app.services import borrow_service, book_service
 from app.auth import get_current_user, AuthUser
+from app.cache import invalidate_user_cache
 
 router = APIRouter(prefix="/api/v1", tags=["borrow"])
 
@@ -67,6 +68,10 @@ async def create_borrow_request(
         borrower_phone=request.borrowerPhone,
         message=request.message
     )
+    
+    # Invalidate owner's library cache so pending count updates
+    if book.user_id:
+        invalidate_user_cache(book.user_id)
     
     return {
         "success": True,

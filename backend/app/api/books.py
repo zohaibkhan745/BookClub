@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.db.database import get_db
-from app.services import book_service
+from app.services import book_service, borrow_service
 from app.schemas.book import (
     BookCreate,
     BookPreview,
@@ -11,6 +11,7 @@ from app.schemas.book import (
     MarkBorrowedRequest,
 )
 from app.auth import get_current_user, AuthUser
+from app.cache import cache, invalidate_user_cache
 from datetime import datetime
 import os
 import re
@@ -49,13 +50,40 @@ async def delete_all_books(db: Session = Depends(get_db)):
 
 
 def book_to_preview(book) -> dict:
-    """Convert Book model to preview format."""
+    """
+    Convert Book model to preview format for listing pages.
+    
+    Uses thumbnail URL if available, falls back to full image.
+    """
+    # Prefer thumbnail for listings, fallback to full image
+    image_url = getattr(book, 'cover_image_thumb_url', None) or book.cover_image or ""
+    
     return {
         "id": book.id,
         "title": book.title,
         "author": book.author,
-        "image": book.cover_image or "",
+        "image": image_url,
         "is_available": book.is_available if hasattr(book, 'is_available') else True,
+    }
+
+
+def book_to_library_preview(book, pending_count: int = 0) -> dict:
+    """
+    Convert Book model to library preview format.
+    
+    Uses thumbnail URL for fast loading (~10-30KB instead of ~100KB-1MB).
+    Includes pending request count for uploaded books.
+    """
+    # Prefer thumbnail for listings, fallback to full image
+    image_url = getattr(book, 'cover_image_thumb_url', None) or book.cover_image or ""
+    
+    return {
+        "id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "image": image_url,
+        "is_available": book.is_available if hasattr(book, 'is_available') else True,
+        "pendingRequestCount": pending_count,
     }
 
 
@@ -192,6 +220,10 @@ async def create_book(
         book_data.listed_by = user.full_name or "Anonymous"
         
         book = book_service.create_book(db, book_data)
+        
+        # Invalidate user's library cache so new book appears immediately
+        invalidate_user_cache(user.id)
+        
         return {
             "success": True,
             "data": book_to_response(book)
@@ -334,24 +366,48 @@ async def get_user_library(
     GET /user/library - Fetch the current user's library.
     Returns books uploaded by the user and books borrowed by the user.
     Requires authentication.
+    
+    Performance optimizations:
+    - Uses thumbnails (~10-30KB) instead of full images (~100KB-1MB)
+    - In-memory caching (15 seconds TTL) for rapid subsequent loads
+    - Batch query for pending counts (eliminates N+1)
     """
     try:
         # Private cache - user-specific data
         response.headers["Cache-Control"] = f"private, max-age={CACHE_SHORT}"
         
+        # Check in-memory cache first (15 second TTL for fresh pending counts)
+        cache_key = f"user:{user.id}:library"
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+        
         # Get books uploaded by this user
         uploaded_books = book_service.get_books_by_user(db, user.id)
+        
+        # Get pending request counts for uploaded books (batch query for performance)
+        uploaded_book_ids = [b.id for b in uploaded_books]
+        pending_counts = borrow_service.get_pending_request_counts_for_books(db, uploaded_book_ids)
         
         # Get books borrowed by this user (using borrowed_by_user_id field)
         borrowed_books = book_service.get_books_borrowed_by_user(db, user.id)
         
-        return {
+        # Use library preview format with thumbnails for fast loading
+        result = {
             "success": True,
             "data": {
-                "uploaded": [book_to_response(b) for b in uploaded_books],
-                "borrowed": [book_to_response(b) for b in borrowed_books],
+                "uploaded": [
+                    book_to_library_preview(b, pending_counts.get(b.id, 0))
+                    for b in uploaded_books
+                ],
+                "borrowed": [book_to_library_preview(b) for b in borrowed_books],
             }
         }
+        
+        # Cache for 15 seconds (balance between freshness and performance)
+        cache.set(cache_key, result, ttl_seconds=15)
+        
+        return result
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
