@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.db.database import get_db
+from app.models.book import Book
 from app.services import book_service, borrow_service
 from app.schemas.book import (
     BookCreate,
@@ -26,6 +27,37 @@ router = APIRouter(prefix="/api/v1", tags=["books"])
 CACHE_SHORT = 60      # 1 minute - for list endpoints
 CACHE_MEDIUM = 300    # 5 minutes - for individual book details
 CACHE_NONE = 0        # No cache - for mutations
+
+
+@router.post("/books/backfill-slugs")
+async def backfill_slugs(db: Session = Depends(get_db)):
+    """
+    POST /books/backfill-slugs - Generate slugs for all books that don't have one.
+    Run this once after adding the slug column to populate existing books.
+    """
+    try:
+        # Get all books without slugs
+        books_without_slugs = db.query(Book).filter(Book.slug == None).all()
+        updated_count = 0
+        
+        for book in books_without_slugs:
+            slug = book_service.generate_slug(book.title, book.id)
+            book.slug = slug
+            updated_count += 1
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Generated slugs for {updated_count} books",
+            "updated_count": updated_count
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "BACKFILL_FAILED", "message": str(e)}
+        )
 
 
 @router.delete("/books/all")
@@ -59,8 +91,7 @@ def book_to_preview(book) -> dict:
     image_url = getattr(book, 'cover_image_thumb_url', None) or book.cover_image or ""
     
     return {
-        "id": book.id,
-        "title": book.title,
+        "id": book.id,        "slug": book.slug or str(book.id),  # Fallback to ID if no slug        "title": book.title,
         "author": book.author,
         "image": image_url,
         "is_available": book.is_available if hasattr(book, 'is_available') else True,
@@ -79,6 +110,7 @@ def book_to_library_preview(book, pending_count: int = 0) -> dict:
     
     return {
         "id": book.id,
+        "slug": book.slug or str(book.id),  # Fallback to ID if no slug
         "title": book.title,
         "author": book.author,
         "image": image_url,
@@ -91,6 +123,7 @@ def book_to_response(book) -> dict:
     """Convert Book model to full response format."""
     return {
         "id": book.id,
+        "slug": book.slug or str(book.id),  # Fallback to ID if no slug
         "title": book.title,
         "author": book.author,
         "genre": book.category,
@@ -161,16 +194,19 @@ async def get_books_by_genre(genre: str, response: Response, db: Session = Depen
 
 
 @router.get("/books/{book_id}")
-async def get_book(book_id: int, response: Response, db: Session = Depends(get_db)):
+async def get_book(book_id: str, response: Response, db: Session = Depends(get_db)):
     """
-    GET /books/{id} - Fetch a single book by ID.
+    GET /books/{identifier} - Fetch a single book by ID or slug.
+    
+    Supports both numeric IDs (e.g., /books/45) for backward compatibility
+    and slugs (e.g., /books/the-great-gatsby-45) for SEO-friendly URLs.
     """
-    book = book_service.get_book_by_id(db, book_id)
+    book = book_service.get_book_by_id_or_slug(db, book_id)
     
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found."}
+            detail={"code": "BOOK_NOT_FOUND", "message": f"Book not found."}
         )
     
     # Add cache headers - cache for 5 minutes (individual book details change less frequently)

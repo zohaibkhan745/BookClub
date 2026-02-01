@@ -35,7 +35,7 @@ export function MobileBookRow({
         books.map((book) => (
           <button
             key={book.id}
-            onClick={() => navigate(`/book/${book.id}`)}
+            onClick={() => navigate(`/book/${book.slug || book.id}`)}
             className="flex-none w-32 text-left active:scale-95 transition-transform"
           >
             <div className="relative rounded-xl overflow-hidden shadow-lg">

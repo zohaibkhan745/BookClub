@@ -1,4 +1,5 @@
 import logging
+import re
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from app.models.book import Book
@@ -13,6 +14,34 @@ CACHE_TTL_SHORT = 60       # 1 minute - for list endpoints
 CACHE_TTL_MEDIUM = 120     # 2 minutes - for sections
 CACHE_TTL_LONG = 300       # 5 minutes - for individual items
 CACHE_TTL_USER = 60        # 1 minute - for user-specific data
+
+
+def generate_slug(title: str, book_id: int = None) -> str:
+    """
+    Generate a URL-friendly slug from a book title.
+    
+    Examples:
+        "The Great Gatsby" -> "the-great-gatsby"
+        "Python 3.11: New Features!" -> "python-311-new-features"
+        
+    If book_id is provided, appends it for uniqueness: "the-great-gatsby-45"
+    """
+    # Convert to lowercase
+    slug = title.lower()
+    # Replace spaces and underscores with hyphens
+    slug = re.sub(r'[\s_]+', '-', slug)
+    # Remove any character that isn't alphanumeric or hyphen
+    slug = re.sub(r'[^a-z0-9\-]', '', slug)
+    # Remove multiple consecutive hyphens
+    slug = re.sub(r'-+', '-', slug)
+    # Remove leading/trailing hyphens
+    slug = slug.strip('-')
+    
+    # Append book ID for uniqueness if provided
+    if book_id is not None:
+        slug = f"{slug}-{book_id}"
+    
+    return slug or "book"
 
 
 def get_all_books(db: Session, limit: int = 50) -> list[Book]:
@@ -63,6 +92,37 @@ def get_book_by_id(db: Session, book_id: int) -> Optional[Book]:
     if result:
         cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
     return result
+
+
+def get_book_by_slug(db: Session, slug: str) -> Optional[Book]:
+    """Fetch a single book by slug with caching."""
+    cache_key = f"books:slug:{slug}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(Book.slug == slug).first()
+    if result:
+        cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
+    return result
+
+
+def get_book_by_id_or_slug(db: Session, identifier: str) -> Optional[Book]:
+    """
+    Fetch a book by either ID or slug.
+    
+    - If identifier is numeric, treat as ID
+    - Otherwise, treat as slug
+    
+    This allows backward compatibility with existing ID-based links
+    while supporting new slug-based URLs.
+    """
+    # Check if it's a numeric ID
+    if identifier.isdigit():
+        return get_book_by_id(db, int(identifier))
+    
+    # Otherwise, treat as slug
+    return get_book_by_slug(db, identifier)
 
 
 def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
@@ -133,6 +193,11 @@ def create_book(db: Session, book_data: BookCreate) -> Book:
         is_available=True,
     )
     db.add(db_book)
+    db.commit()
+    db.refresh(db_book)
+    
+    # Generate and save slug with ID for uniqueness (e.g., "the-great-gatsby-45")
+    db_book.slug = generate_slug(book_data.title, db_book.id)
     db.commit()
     db.refresh(db_book)
     

@@ -51,8 +51,8 @@ export function Home() {
   const navigate = useNavigate();
 
   const handleBookClick = useCallback(
-    (bookId: string) => {
-      navigate(`/book/${bookId}`);
+    (slug: string) => {
+      navigate(`/book/${slug}`);
     },
     [navigate],
   );
@@ -92,7 +92,7 @@ export function Home() {
                   <BookCard
                     key={book.id}
                     book={book}
-                    onClick={() => handleBookClick(book.id)}
+                    onClick={() => handleBookClick(book.slug || book.id)}
                   />
                 ))}
               </div>

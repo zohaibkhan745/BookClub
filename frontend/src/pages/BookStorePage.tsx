@@ -102,7 +102,7 @@ export function BookStorePage() {
         {books.map((book) => (
           <Link
             key={book.id}
-            to={`/book/${book.id}`}
+            to={`/book/${book.slug || book.id}`}
             className="flex-none w-32 md:w-40 group"
           >
             <div className="relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
@@ -184,7 +184,11 @@ export function BookStorePage() {
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {allBooks.map((book) => (
-                  <Link key={book.id} to={`/book/${book.id}`} className="group">
+                  <Link
+                    key={book.id}
+                    to={`/book/${book.slug || book.id}`}
+                    className="group"
+                  >
                     <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
                       <img
                         src={book.image}

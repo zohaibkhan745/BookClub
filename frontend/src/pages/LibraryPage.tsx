@@ -31,7 +31,7 @@ const LibraryBookCard = memo(function LibraryBookCard({
   showPendingBadge: boolean;
 }) {
   return (
-    <Link to={`/book/${book.id}`} className="group">
+    <Link to={`/book/${book.slug || book.id}`} className="group">
       <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
         <img
           src={book.image}

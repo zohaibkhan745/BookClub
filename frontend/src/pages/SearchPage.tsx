@@ -120,7 +120,11 @@ export function SearchPage() {
             {searchResults.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {searchResults.map((book) => (
-                  <Link key={book.id} to={`/book/${book.id}`} className="group">
+                  <Link
+                    key={book.id}
+                    to={`/book/${book.slug || book.id}`}
+                    className="group"
+                  >
                     <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
                       <img
                         src={book.image}
@@ -184,7 +188,7 @@ export function SearchPage() {
                   {trending.map((book) => (
                     <Link
                       key={book.id}
-                      to={`/book/${book.id}`}
+                      to={`/book/${book.slug || book.id}`}
                       className="flex-none w-32 group"
                     >
                       <div className="rounded-xl overflow-hidden shadow-lg">

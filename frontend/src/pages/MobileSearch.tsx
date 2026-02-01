@@ -111,7 +111,7 @@ export function MobileSearch() {
                 {searchResults.map((book) => (
                   <button
                     key={book.id}
-                    onClick={() => navigate(`/book/${book.id}`)}
+                    onClick={() => navigate(`/book/${book.slug || book.id}`)}
                     className="text-left active:scale-95 transition-transform"
                   >
                     <div className="rounded-xl overflow-hidden">

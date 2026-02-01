@@ -34,6 +34,7 @@ export const BOOK_CATEGORIES: BookCategory[] = [
 /** Minimal book data for list views and carousels */
 export interface BookPreview {
   id: string;  // Changed to string (UUID)
+  slug?: string;  // URL-friendly slug for SEO (e.g., "the-great-gatsby-45")
   title: string;
   author: string;
   image: string;

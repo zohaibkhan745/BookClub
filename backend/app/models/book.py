@@ -31,10 +31,13 @@ class Book(Base):
         Index('idx_books_listing_available', 'listing_type', 'is_available'),
         # Index for owner's books lookup - get_books_by_owner()
         Index('idx_books_owner_created', 'user_id', 'created_at'),
+        # Index for slug-based lookups
+        Index('idx_books_slug', 'slug'),
         {'extend_existing': True},  # Allow redefining if metadata already exists
     )
     
     id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(300), nullable=True, unique=True, index=True)  # URL-friendly slug: "the-great-gatsby-1"
     title = Column(String(255), nullable=False, index=True)
     author = Column(String(255), nullable=False, index=True)  # Added index
     category = Column(String(100), nullable=False, index=True)  # Added index

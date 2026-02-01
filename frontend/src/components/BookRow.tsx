@@ -33,8 +33,8 @@ export const BookRow = memo(function BookRow({ title, books, isLoading = false }
     }
   };
 
-  const handleBookClick = (bookId: number) => {
-    navigate(`/book/${bookId}`);
+  const handleBookClick = (slug: string) => {
+    navigate(`/book/${slug}`);
   };
 
   // Loading skeleton placeholders
@@ -76,7 +76,7 @@ export const BookRow = memo(function BookRow({ title, books, isLoading = false }
             books.map((book) => (
               <div
                 key={book.id}
-                onClick={() => handleBookClick(book.id)}
+                onClick={() => handleBookClick(book.slug || book.id)}
                 className="flex-none w-36 md:w-48 cursor-pointer transition-transform duration-300 hover:scale-110 hover:z-10"
               >
                 <div className="relative group/card">
