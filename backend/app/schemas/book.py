@@ -54,6 +54,7 @@ class BookPreview(BaseModel):
     title: str
     author: str
     image: str
+    cover_image_thumb_url: Optional[str] = None
     is_available: bool = True  # Whether book is available for borrowing
     
     class Config:
@@ -67,6 +68,7 @@ class BookResponse(BaseModel):
     author: str
     genre: str  # Maps from category
     image: str
+    cover_image_thumb_url: Optional[str] = None
     description: Optional[str] = ""
     year: str
     pages: int = 0

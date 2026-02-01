@@ -56,6 +56,7 @@ class Book(Base):
     condition = Column(String(20), nullable=True, default=BookCondition.good.value)
     description = Column(Text, nullable=True)
     cover_image = Column(Text, nullable=True)  # Base64 or URL
+    cover_image_thumb_url = Column(Text, nullable=True)  # Thumbnail URL (~250px) for listings
     price = Column(String(50), nullable=True)  # Only for sell listings
     
     # Contact info
