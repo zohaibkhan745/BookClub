@@ -1,3 +1,18 @@
+# --- Added for compatibility with paginated endpoint ---
+def get_all_books_paginated(db: Session, cursor: int = 0, limit: int = 20) -> list[Book]:
+    """
+    Fetch all books (including borrowed) with cursor-based pagination.
+    Args:
+        cursor: ID to start after (0 for first page)
+        limit: Number of books to fetch (fetches limit+1 to detect next page)
+    Returns:
+        List of books. If len > limit, there are more pages.
+    """
+    query = db.query(Book)
+    if cursor > 0:
+        query = query.filter(Book.id < cursor)
+    result = query.order_by(desc(Book.id)).limit(limit + 1).all()
+    return result
 """
 Book service for business logic related to books.
 
