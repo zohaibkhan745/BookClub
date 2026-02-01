@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { BookPreview } from "../types";
 
@@ -9,7 +9,8 @@ interface BookRowProps {
   isLoading?: boolean;
 }
 
-export function BookRow({ title, books, isLoading = false }: BookRowProps) {
+// Memoized to prevent re-renders when parent updates (e.g., scroll position)
+export const BookRow = memo(function BookRow({ title, books, isLoading = false }: BookRowProps) {
   const navigate = useNavigate();
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);

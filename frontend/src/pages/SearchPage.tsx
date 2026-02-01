@@ -119,7 +119,9 @@ export function SearchPage() {
                       <img
                         src={book.image}
                         alt={book.title}
-                        className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300 bg-gray-200 dark:bg-gray-700"
                       />
                     </div>
                     <h4 className="mt-2 text-black dark:text-white font-medium text-sm line-clamp-2">
@@ -183,7 +185,9 @@ export function SearchPage() {
                         <img
                           src={book.image}
                           alt={book.title}
-                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300 bg-gray-200 dark:bg-gray-700"
                         />
                       </div>
                       <h4 className="mt-2 text-black dark:text-white font-medium text-sm line-clamp-2">

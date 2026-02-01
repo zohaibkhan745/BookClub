@@ -88,6 +88,7 @@ export interface Book extends BookPreview {
 /** Form data for uploading a new book */
 export interface BookUploadFormData {
   images: string[];
+  thumbnails?: string[];  // Thumbnail URLs for listing pages
   title: string;
   author: string;
   category: BookCategory | '';

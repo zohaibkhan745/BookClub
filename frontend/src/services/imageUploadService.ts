@@ -16,8 +16,11 @@ const MAX_INPUT_FILE_SIZE = 20 * 1024 * 1024;
 /** Maximum OUTPUT file size in bytes (1MB) */
 const MAX_OUTPUT_FILE_SIZE = 1 * 1024 * 1024;
 
-/** Maximum width for resizing */
+/** Maximum width for resizing (original) */
 const MAX_WIDTH_PX = 1200;
+
+/** Maximum width for thumbnails (listing pages) */
+const THUMBNAIL_WIDTH_PX = 250;
 
 /** Supabase Storage bucket name */
 const BUCKET_NAME = 'book-images';
@@ -25,6 +28,8 @@ const BUCKET_NAME = 'book-images';
 export interface ImageUploadResult {
   url: string;
   path: string;
+  thumbnailUrl?: string;
+  thumbnailPath?: string;
 }
 
 export interface ImageUploadError {
@@ -122,58 +127,120 @@ export async function compressImage(file: File): Promise<CompressionResult> {
 }
 
 /**
- * Generates a unique file path for the image in Supabase Storage.
- * Format: books/{userId}/{timestamp}.webp
+ * Compresses an image file to thumbnail size (~250px width).
+ * Used for listing pages (Home, Browse, Search) for fast loading.
+ * 
+ * @param file - The input image file
+ * @returns Compressed thumbnail blob
  */
-function generateFilePath(userId: string): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  return `books/${userId}/${timestamp}-${random}.webp`;
+export async function compressThumbnail(file: File): Promise<Blob> {
+  // Validate input file
+  const validationError = validateInputFile(file);
+  if (validationError) {
+    throw new Error(validationError.message);
+  }
+
+  const options = {
+    maxSizeMB: 0.05, // 50KB max for thumbnails
+    maxWidthOrHeight: THUMBNAIL_WIDTH_PX,
+    useWebWorker: true,
+    fileType: 'image/webp' as const,
+    initialQuality: 0.8,
+    alwaysKeepResolution: false,
+  };
+
+  try {
+    const compressedBlob = await imageCompression(file, options);
+    return compressedBlob;
+  } catch (error) {
+    throw new Error('Failed to generate thumbnail.');
+  }
 }
 
 /**
- * Uploads a compressed image to Supabase Storage.
+ * Generates a unique file path for the image in Supabase Storage.
+ * Format: books/{userId}/{timestamp}.webp
+ */
+function generateFilePath(userId: string, prefix: string = 'books'): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `${prefix}/${userId}/${timestamp}-${random}.webp`;
+}
+
+/**
+ * Uploads a compressed image and its thumbnail to Supabase Storage.
+ * 
+ * Architecture decision: Generate thumbnails client-side to avoid server load.
+ * Both original (1200px) and thumbnail (250px) are uploaded in parallel.
  * 
  * @param file - The original image file (up to 20MB)
  * @param userId - The authenticated user's ID
- * @returns The public URL of the uploaded image
+ * @returns The public URLs of both the original and thumbnail images
  */
 export async function uploadBookImage(
   file: File,
   userId: string
 ): Promise<ImageUploadResult> {
-  // Compress image first
-  const { blob: compressedBlob } = await compressImage(file);
+  // Compress both original and thumbnail in parallel
+  const [originalResult, thumbnailBlob] = await Promise.all([
+    compressImage(file),
+    compressThumbnail(file),
+  ]);
 
-  // Generate unique file path
-  const filePath = generateFilePath(userId);
+  // Generate unique file paths
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  const baseName = `${timestamp}-${random}`;
+  const originalPath = `originals/${userId}/${baseName}.webp`;
+  const thumbnailPath = `thumbnails/${userId}/${baseName}.webp`;
 
-  // Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(filePath, compressedBlob, {
-      contentType: 'image/webp',
-      cacheControl: '3600',
-      upsert: false,
-    });
+  // Upload both images in parallel
+  const [originalUpload, thumbnailUpload] = await Promise.all([
+    supabase.storage
+      .from(BUCKET_NAME)
+      .upload(originalPath, originalResult.blob, {
+        contentType: 'image/webp',
+        cacheControl: '31536000', // 1 year cache for originals
+        upsert: false,
+      }),
+    supabase.storage
+      .from(BUCKET_NAME)
+      .upload(thumbnailPath, thumbnailBlob, {
+        contentType: 'image/webp',
+        cacheControl: '31536000', // 1 year cache for thumbnails
+        upsert: false,
+      }),
+  ]);
 
-  if (uploadError) {
-    console.error('Supabase upload error:', uploadError);
+  if (originalUpload.error) {
+    console.error('Failed to upload original:', originalUpload.error);
     throw new Error('Failed to upload image. Please try again.');
   }
 
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(filePath);
+  if (thumbnailUpload.error) {
+    console.error('Failed to upload thumbnail:', thumbnailUpload.error);
+    // Don't fail the whole upload, just log the error
+    // Thumbnail can be regenerated later via migration script
+  }
 
-  if (!urlData?.publicUrl) {
+  // Get public URLs
+  const { data: originalUrlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(originalPath);
+
+  const { data: thumbnailUrlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(thumbnailPath);
+
+  if (!originalUrlData?.publicUrl) {
     throw new Error('Failed to get image URL.');
   }
 
   return {
-    url: urlData.publicUrl,
-    path: filePath,
+    url: originalUrlData.publicUrl,
+    path: originalPath,
+    thumbnailUrl: thumbnailUrlData?.publicUrl,
+    thumbnailPath: thumbnailUpload.error ? undefined : thumbnailPath,
   };
 }
 

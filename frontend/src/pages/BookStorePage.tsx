@@ -109,7 +109,9 @@ export function BookStorePage() {
               <img
                 src={book.image}
                 alt={book.title}
-                className="w-full h-48 md:h-56 object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+                decoding="async"
+                className="w-full h-48 md:h-56 object-cover group-hover:scale-105 transition-transform duration-300 bg-gray-200 dark:bg-gray-700"
               />
             </div>
             <h4 className="mt-2 text-black dark:text-white font-medium text-sm line-clamp-2">
@@ -187,7 +189,9 @@ export function BookStorePage() {
                       <img
                         src={book.image}
                         alt={book.title}
-                        className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300 bg-gray-200 dark:bg-gray-700"
                       />
                     </div>
                     <div className="mt-2 px-1">

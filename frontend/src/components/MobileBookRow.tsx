@@ -42,7 +42,9 @@ export function MobileBookRow({
               <img
                 src={book.image}
                 alt={book.title}
-                className="w-full h-48 object-cover"
+                loading="lazy"
+                decoding="async"
+                className="w-full h-48 object-cover bg-gray-800"
               />
               {/* Gradient overlay on hover */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity" />

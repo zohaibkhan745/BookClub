@@ -118,7 +118,9 @@ export function MobileSearch() {
                       <img
                         src={book.image}
                         alt={book.title}
-                        className="w-full h-40 object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-40 object-cover bg-gray-800"
                       />
                     </div>
                     <h4 className="mt-2 text-white font-medium text-xs line-clamp-2">

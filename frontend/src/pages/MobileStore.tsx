@@ -92,6 +92,8 @@ export function MobileStore() {
                         <img
                           src={book.image}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                         />
                       </div>

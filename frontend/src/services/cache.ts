@@ -82,6 +82,8 @@ export const CACHE_KEYS = {
   BOOK_DETAIL: (id: number) => `books:detail:${id}`,
   GENRE_BOOKS: (genre: string) => `books:genre:${genre}`,
   LIBRARY_BOOKS: 'books:library',
+  LIBRARY_UPLOADED: 'library:uploaded',
+  LIBRARY_BORROWED: 'library:borrowed',
   STORE_BOOKS: 'books:store',
   SEARCH_RESULTS: (query: string) => `search:${query}`,
   USER_STATS: 'user:stats',
@@ -93,4 +95,5 @@ export const CACHE_TTL = {
   MEDIUM: 30000,   // 30 seconds - for book listings
   LONG: 60000,     // 1 minute - for single book details
   SEARCH: 10000,   // 10 seconds - for search results
+  LIBRARY: 20000,  // 20 seconds - for library (user-specific)
 } as const;

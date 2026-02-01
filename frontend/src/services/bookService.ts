@@ -198,11 +198,20 @@ export async function searchBooks(query: string, category?: string): Promise<Boo
 }
 
 /** GET /user/library - Fetches the current user's library (uploaded + borrowed books) */
-export async function getUserLibrary(): Promise<{
+export async function getUserLibrary(options?: { forceRefresh?: boolean }): Promise<{
   uploaded: BookPreview[];
   borrowed: BookPreview[];
 }> {
-  // Don't cache user library - it's personal data that changes
+  const cacheKey = CACHE_KEYS.LIBRARY_BOOKS;
+  
+  // Return cached data if available (stale-while-revalidate pattern)
+  if (!options?.forceRefresh) {
+    const cached = clientCache.get<{ uploaded: BookPreview[]; borrowed: BookPreview[] }>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+  
   interface LibraryBookData {
     id: number | string;
     title: string;
@@ -240,7 +249,12 @@ export async function getUserLibrary(): Promise<{
     isAvailable: book.is_available ?? true,
   }));
   
-  return { uploaded, borrowed };
+  const result = { uploaded, borrowed };
+  
+  // Cache for 20 seconds
+  clientCache.set(cacheKey, result, CACHE_TTL.LIBRARY || 20000);
+  
+  return result;
 }
 
 /** GET /books/:id - Fetches a book by ID with caching */
@@ -304,6 +318,7 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
     condition: formData.condition || 'good',  // Changed from null to 'good'
     description: formData.description?.trim() || null,
     cover_image: formData.images?.[0] || null,
+    cover_image_thumb_url: formData.thumbnails?.[0] || null,  // Thumbnail for listing pages
     price: formData.price?.trim() || null,  // Keep as string, not parseFloat!
     whatsapp_number: formData.whatsappNumber?.trim() || null,
   };

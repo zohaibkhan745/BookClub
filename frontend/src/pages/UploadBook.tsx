@@ -46,6 +46,8 @@ interface ImageState {
   previewUrl: string;
   uploadedUrl?: string;
   uploadedPath?: string;
+  thumbnailUrl?: string;
+  thumbnailPath?: string;
   isUploading?: boolean;
   error?: string;
 }
@@ -256,6 +258,7 @@ export function UploadBook() {
       // Step 1: Upload all images to Supabase Storage
       const uploadedUrls: string[] = [];
       const uploadedPaths: string[] = [];
+      const thumbnailUrls: string[] = [];
 
       for (let i = 0; i < imageStates.length; i++) {
         const imageState = imageStates[i];
@@ -265,6 +268,8 @@ export function UploadBook() {
           uploadedUrls.push(imageState.uploadedUrl);
           if (imageState.uploadedPath)
             uploadedPaths.push(imageState.uploadedPath);
+          if (imageState.thumbnailUrl)
+            thumbnailUrls.push(imageState.thumbnailUrl);
           continue;
         }
 
@@ -272,12 +277,19 @@ export function UploadBook() {
           const result = await uploadBookImage(imageState.file, user.id);
           uploadedUrls.push(result.url);
           uploadedPaths.push(result.path);
+          if (result.thumbnailUrl) thumbnailUrls.push(result.thumbnailUrl);
 
           // Update state with uploaded URL
           setImageStates((prev) =>
             prev.map((img, idx) =>
               idx === i
-                ? { ...img, uploadedUrl: result.url, uploadedPath: result.path }
+                ? {
+                    ...img,
+                    uploadedUrl: result.url,
+                    uploadedPath: result.path,
+                    thumbnailUrl: result.thumbnailUrl,
+                    thumbnailPath: result.thumbnailPath,
+                  }
                 : img,
             ),
           );
@@ -298,6 +310,7 @@ export function UploadBook() {
       // Step 2: Create book with the uploaded image URLs
       await createBook({
         images: uploadedUrls,
+        thumbnails: thumbnailUrls,
         title,
         author,
         category,

@@ -76,17 +76,43 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
-/** Makes a GET request to the API */
+// ============================================
+// Request Deduplication
+// ============================================
+// Prevents duplicate concurrent requests to the same endpoint
+const pendingRequests = new Map<string, Promise<unknown>>();
+
+/** Makes a GET request to the API with request deduplication */
 export async function apiGet<T>(endpoint: string): Promise<T> {
-  const authHeaders = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders,
-    },
+  // Check if there's already a pending request for this endpoint
+  const cacheKey = `GET:${endpoint}`;
+  const pendingRequest = pendingRequests.get(cacheKey);
+  if (pendingRequest) {
+    return pendingRequest as Promise<T>;
+  }
+
+  // Create the request promise
+  const requestPromise = (async () => {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+    });
+    return handleResponse<T>(response);
+  })();
+
+  // Store in pending requests map
+  pendingRequests.set(cacheKey, requestPromise);
+
+  // Clean up after request completes (success or failure)
+  requestPromise.finally(() => {
+    pendingRequests.delete(cacheKey);
   });
-  return handleResponse<T>(response);
+
+  return requestPromise;
 }
 
 /** Makes a POST request to the API */

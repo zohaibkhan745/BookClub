@@ -11,6 +11,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { memo } from "react";
 
 // Import category background images
 import philosophyBg from "../assets/images/Philosophy.webp";
@@ -33,7 +34,8 @@ interface Category {
   backgroundImage?: string;
 }
 
-export function CategorySection() {
+// Memoized to prevent re-renders - categories are static data
+export const CategorySection = memo(function CategorySection() {
   const navigate = useNavigate();
 
   const categories: Category[] = [
@@ -172,4 +174,4 @@ export function CategorySection() {
       </div>
     </div>
   );
-}
+});
