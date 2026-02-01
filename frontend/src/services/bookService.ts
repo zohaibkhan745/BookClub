@@ -295,12 +295,6 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
   if (!formData.category) {
     errors.push({ field: 'category', message: 'Category is required' });
   }
-  if (!formData.listingType) {
-    errors.push({ field: 'listingType', message: 'Listing type is required' });
-  }
-  if (formData.listingType === 'sell' && !formData.price?.trim()) {
-    errors.push({ field: 'price', message: 'Price is required for selling' });
-  }
   if (!formData.whatsappNumber?.trim()) {
     errors.push({ field: 'whatsappNumber', message: 'WhatsApp number is required' });
   }
@@ -314,12 +308,10 @@ export async function createBook(formData: BookUploadFormData): Promise<Book> {
     title: formData.title.trim(),
     author: formData.author.trim(),
     category: formData.category,
-    listing_type: formData.listingType,
-    condition: formData.condition || 'good',  // Changed from null to 'good'
+    listing_type: 'lend',  // Always lend - selling removed
     description: formData.description?.trim() || null,
     cover_image: formData.images?.[0] || null,
     cover_image_thumb_url: formData.thumbnails?.[0] || null,  // Thumbnail for listing pages
-    price: formData.price?.trim() || null,  // Keep as string, not parseFloat!
     whatsapp_number: formData.whatsappNumber?.trim() || null,
   };
 

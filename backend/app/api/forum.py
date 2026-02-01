@@ -13,8 +13,13 @@ from datetime import datetime
 from app.db.database import get_db
 from app.models import User, ForumThread, ForumReply
 from app.auth import get_current_user, AuthUser
+from app.cache import cache
 
 router = APIRouter(prefix="/api/v1/forum", tags=["forum"])
+
+# Cache TTL for forum (in seconds)
+CACHE_TTL_THREADS = 60  # 1 minute for thread list
+CACHE_TTL_THREAD_DETAIL = 30  # 30 seconds for thread detail
 
 
 # ============================================
@@ -92,6 +97,12 @@ async def get_threads(
     Returns threads with author info and reply counts,
     ordered by created_at descending (newest first).
     """
+    # Check cache first
+    cache_key = f"forum:threads:{limit}:{offset}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     # Query threads with author join and reply count
     threads_query = (
         db.query(
@@ -129,11 +140,16 @@ async def get_threads(
     # Get total count
     total = db.query(func.count(ForumThread.id)).scalar()
     
-    return {
+    response = {
         "success": True,
         "data": threads,
         "total": total
     }
+    
+    # Cache the response
+    cache.set(cache_key, response, CACHE_TTL_THREADS)
+    
+    return response
 
 
 @router.get("/threads/{thread_id}", response_model=dict)
@@ -146,6 +162,12 @@ async def get_thread_detail(
     
     Returns full thread content with author info and all replies.
     """
+    # Check cache first
+    cache_key = f"forum:thread:{thread_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     # Get thread with author
     thread = (
         db.query(ForumThread)
@@ -183,7 +205,7 @@ async def get_thread_detail(
             "created_at": reply.created_at.isoformat() if reply.created_at else None
         })
     
-    return {
+    response = {
         "success": True,
         "data": {
             "id": thread.id,
@@ -198,6 +220,11 @@ async def get_thread_detail(
             "created_at": thread.created_at.isoformat() if thread.created_at else None
         }
     }
+    
+    # Cache the response
+    cache.set(cache_key, response, CACHE_TTL_THREAD_DETAIL)
+    
+    return response
 
 
 @router.post("/threads", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -229,6 +256,9 @@ async def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+    
+    # Invalidate threads list cache
+    cache.invalidate_pattern("forum:threads:")
     
     return {
         "success": True,
@@ -275,6 +305,10 @@ async def delete_thread(
     
     db.delete(thread)
     db.commit()
+    
+    # Invalidate caches
+    cache.invalidate_pattern("forum:threads:")
+    cache.delete(f"forum:thread:{thread_id}")
     
     return {
         "success": True,
@@ -324,6 +358,10 @@ async def create_reply(
     db.add(new_reply)
     db.commit()
     db.refresh(new_reply)
+    
+    # Invalidate thread detail cache and threads list (reply count changed)
+    cache.delete(f"forum:thread:{thread_id}")
+    cache.invalidate_pattern("forum:threads:")
     
     return {
         "success": True,

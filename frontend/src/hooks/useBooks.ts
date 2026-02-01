@@ -49,6 +49,16 @@ interface GenreBooksResponse {
   data: BookPreview[];
 }
 
+interface AllBooksResponse {
+  success: boolean;
+  data: BookPreview[];
+  pagination?: {
+    next_cursor: number | null;
+    has_next: boolean;
+    limit: number;
+  };
+}
+
 // ============================================
 // SWR Fetcher
 // ============================================
@@ -138,6 +148,29 @@ export function useGenreBooks(genre: string | undefined) {
 
   return {
     books: data?.data || [],
+    isLoading,
+    error: error?.message || null,
+    refresh: () => mutate(),
+  };
+}
+
+/**
+ * Fetch all books for the homepage grid
+ */
+export function useAllBooks(limit: number = 50) {
+  const { data, error, isLoading, mutate } = useSWR<AllBooksResponse>(
+    `/books/all?limit=${limit}`,
+    fetcher,
+    {
+      ...swrConfig,
+      revalidateIfStale: true,
+      revalidateOnMount: true,
+    }
+  );
+
+  return {
+    books: data?.data || [],
+    pagination: data?.pagination,
     isLoading,
     error: error?.message || null,
     refresh: () => mutate(),

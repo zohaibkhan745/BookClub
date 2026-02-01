@@ -202,8 +202,6 @@ async def create_book(
         errors.append({"field": "author", "message": "Author is required"})
     if not book_data.category or not book_data.category.strip():
         errors.append({"field": "category", "message": "Category is required"})
-    if book_data.listing_type.value == "sell" and not book_data.price:
-        errors.append({"field": "price", "message": "Price is required for selling"})
     
     if errors:
         raise HTTPException(

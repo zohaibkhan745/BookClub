@@ -10,14 +10,14 @@ import {
   Trophy,
   MessageCircle,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { CreditBadge } from "./CreditBadge";
 
-export function Navbar() {
+export const Navbar = memo(function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
@@ -28,9 +28,9 @@ export function Navbar() {
   const profileRef = useRef<HTMLDivElement>(null);
   const mobileProfileRef = useRef<HTMLDivElement>(null);
 
-  const handleSignOutClick = () => {
+  const handleSignOutClick = useCallback(() => {
     setShowSignOutDialog(true);
-  };
+  }, []);
 
   const handleSignOutConfirm = async () => {
     setIsSigningOut(true);
@@ -51,9 +51,9 @@ export function Navbar() {
     }
   };
 
-  const handleSignOutCancel = () => {
+  const handleSignOutCancel = useCallback(() => {
     setShowSignOutDialog(false);
-  };
+  }, []);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -84,10 +84,13 @@ export function Navbar() {
     { id: "search", label: "Search", icon: Search, path: "/search" },
   ];
 
-  const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
-    return location.pathname.startsWith(path);
-  };
+  const isActive = useCallback(
+    (path: string) => {
+      if (path === "/") return location.pathname === "/";
+      return location.pathname.startsWith(path);
+    },
+    [location.pathname],
+  );
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[rgba(246,240,215,0.8)] dark:bg-[rgba(28,28,30,0.9)] backdrop-blur-md border-b border-[rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.1)]">
@@ -409,4 +412,4 @@ export function Navbar() {
       />
     </nav>
   );
-}
+});

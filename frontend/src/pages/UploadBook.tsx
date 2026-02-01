@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Upload,
   X,
@@ -6,6 +6,8 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
+  Camera,
+  ImagePlus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
@@ -19,26 +21,8 @@ import {
   compressImage,
   revokeImagePreview,
 } from "../services/imageUploadService";
-import type {
-  ListingType,
-  BookCategory,
-  BookCondition,
-  ApiError,
-} from "../types";
+import type { BookCategory, ApiError } from "../types";
 import { BOOK_CATEGORIES } from "../types";
-
-/** Available book conditions */
-const BOOK_CONDITIONS: {
-  value: BookCondition;
-  label: string;
-  emoji: string;
-}[] = [
-  { value: "new", label: "New", emoji: "✨" },
-  { value: "like-new", label: "Like New", emoji: "🌟" },
-  { value: "good", label: "Good", emoji: "👍" },
-  { value: "fair", label: "Fair", emoji: "📖" },
-  { value: "poor", label: "Poor", emoji: "📚" },
-];
 
 /** Image state with file, preview URL, and uploaded URL */
 interface ImageState {
@@ -59,6 +43,10 @@ export function UploadBook() {
   const navigate = useNavigate();
   const { user, isAuthenticated, refreshCredits } = useAuth();
 
+  // Refs for file inputs
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   // Image state - now stores file objects with preview URLs
   const [imageStates, setImageStates] = useState<ImageState[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -66,9 +54,7 @@ export function UploadBook() {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState<BookCategory | "">("");
-  const [listingType, setListingType] = useState<ListingType | "">("");
-  const [condition, setCondition] = useState<BookCondition | "">("good");
-  const [price, setPrice] = useState("");
+
   const [description, setDescription] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -78,6 +64,16 @@ export function UploadBook() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  /** Opens camera for photo capture */
+  const handleTakePhoto = () => {
+    cameraInputRef.current?.click();
+  };
+
+  /** Opens gallery for image selection */
+  const handleFromGallery = () => {
+    galleryInputRef.current?.click();
+  };
 
   /** Clears error for a specific field when user starts typing */
   const clearFieldError = (field: string) => {
@@ -314,9 +310,6 @@ export function UploadBook() {
         title,
         author,
         category,
-        listingType,
-        condition,
-        price,
         description,
         whatsappNumber: whatsappNumber ? `+92${whatsappNumber}` : "",
       });
@@ -449,38 +442,68 @@ export function UploadBook() {
 
               {/* Upload Area */}
               {imageStates.length < 3 && (
-                <div
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  className={`relative border-2 border-dashed rounded-xl p-8 text-center transition ${
-                    dragActive
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                      : "border-amber-300 dark:border-amber-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-                  }`}
-                >
+                <div className="space-y-3">
+                  {/* Hidden file inputs */}
                   <input
                     type="file"
-                    id="file-upload"
+                    ref={cameraInputRef}
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileInput}
+                    className="hidden"
+                  />
+                  <input
+                    type="file"
+                    ref={galleryInputRef}
                     multiple
                     accept="image/*"
                     onChange={handleFileInput}
                     className="hidden"
                   />
-                  <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                  <p className="text-gray-700 dark:text-gray-300 mb-2">
-                    Drag and drop your images here, or{" "}
-                    <label
-                      htmlFor="file-upload"
-                      className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+
+                  {/* Camera and Gallery Buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Take Photo Button */}
+                    <button
+                      type="button"
+                      onClick={handleTakePhoto}
+                      className="flex flex-col items-center justify-center px-4 py-6 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold cursor-pointer hover:from-red-600 hover:to-red-700 transition shadow-md hover:shadow-lg"
                     >
-                      browse
-                    </label>
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {imageStates.length}/3 images uploaded
-                  </p>
+                      <Camera className="w-8 h-8 mb-2" />
+                      <span>Take Photo</span>
+                    </button>
+
+                    {/* Choose from Gallery Button */}
+                    <button
+                      type="button"
+                      onClick={handleFromGallery}
+                      className="flex flex-col items-center justify-center px-4 py-6 rounded-xl bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold cursor-pointer hover:border-red-500 hover:bg-white dark:hover:bg-gray-800 transition shadow-md hover:shadow-lg"
+                    >
+                      <ImagePlus className="w-8 h-8 mb-2" />
+                      <span>From Gallery</span>
+                    </button>
+                  </div>
+
+                  {/* Drag and Drop Area */}
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    className={`relative border-2 border-dashed rounded-xl p-6 text-center transition ${
+                      dragActive
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                        : "border-amber-300 dark:border-amber-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
+                    }`}
+                  >
+                    <Upload className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Or drag and drop images here
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                      {imageStates.length}/3 images uploaded
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -615,131 +638,6 @@ export function UploadBook() {
                 ))}
               </div>
             </div>
-
-            {/* Type of Listing */}
-            <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                Type of Listing{" "}
-                <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Select exactly one option
-              </p>
-              {fieldErrors.listingType && (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {fieldErrors.listingType}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setListingType("lend");
-                    clearFieldError("listingType");
-                  }}
-                  className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
-                    listingType === "lend"
-                      ? "bg-gradient-to-r from-green-500 to-green-600 text-white scale-105 shadow-lg"
-                      : "bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-green-500"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2">📚</div>
-                    <div>Lend</div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setListingType("sell");
-                    clearFieldError("listingType");
-                  }}
-                  className={`px-6 py-6 rounded-xl font-semibold transition shadow-md ${
-                    listingType === "sell"
-                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white scale-105 shadow-lg"
-                      : "bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-orange-500"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2">💰</div>
-                    <div>Sell</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Book Condition */}
-            <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                Book Condition{" "}
-                <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                What's the physical condition of the book?
-              </p>
-              {fieldErrors.condition && (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {fieldErrors.condition}
-                </p>
-              )}
-              <div className="grid grid-cols-5 gap-2">
-                {BOOK_CONDITIONS.map((cond) => (
-                  <button
-                    key={cond.value}
-                    type="button"
-                    onClick={() => {
-                      setCondition(cond.value);
-                      clearFieldError("condition");
-                    }}
-                    className={`px-3 py-3 rounded-lg font-medium transition text-center ${
-                      condition === cond.value
-                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white scale-105 shadow-md"
-                        : "bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-amber-500"
-                    }`}
-                  >
-                    <div className="text-lg mb-1">{cond.emoji}</div>
-                    <div className="text-xs">{cond.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Price (Conditional) */}
-            {listingType === "sell" && (
-              <div className="space-y-3">
-                <label className="block text-black dark:text-white font-semibold">
-                  Price{" "}
-                  <span className="text-red-600 dark:text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 font-medium">
-                    PKR
-                  </span>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => {
-                      setPrice(e.target.value);
-                      clearFieldError("price");
-                    }}
-                    placeholder="0"
-                    className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
-                      fieldErrors.price
-                        ? "border-red-400 focus:border-red-500"
-                        : "border-amber-300 dark:border-gray-600 focus:border-orange-500"
-                    }`}
-                  />
-                </div>
-                {fieldErrors.price && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {fieldErrors.price}
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Description */}
             <div className="space-y-3">

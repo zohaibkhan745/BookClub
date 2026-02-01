@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { BookDetail } from "../components/BookDetail";
 import { Navbar } from "../components/Navbar";
@@ -6,47 +5,18 @@ import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorState } from "../components/ui/ErrorState";
-import { getBookById } from "../services";
-import type { Book, ApiError } from "../types";
+import { useBook } from "../hooks/useBooks";
+import type { Book } from "../types";
 
 export function BookDetailPage() {
   const { id } = useParams();
-  const [book, setBook] = useState<Book | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
-
-  const loadBook = async () => {
-    setIsLoading(true);
-    setError(null);
-    setNotFound(false);
-
-    try {
-      const bookData = await getBookById(Number(id));
-      setBook(bookData);
-    } catch (err) {
-      const apiError = err as ApiError;
-      if (apiError.code === "BOOK_NOT_FOUND") {
-        setNotFound(true);
-      } else {
-        setError(
-          apiError.message || "Failed to load book details. Please try again.",
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBook();
-  }, [id]);
+  const { book, isLoading, error, refresh } = useBook(id);
 
   if (isLoading) {
     return <LoadingSpinner message="Loading book details..." fullScreen />;
   }
 
-  if (notFound) {
+  if (error === "BOOK_NOT_FOUND" || (!isLoading && !book)) {
     return (
       <ErrorState
         title="Book not found"
@@ -57,7 +27,7 @@ export function BookDetailPage() {
   }
 
   if (error) {
-    return <ErrorState message={error} onRetry={loadBook} fullScreen />;
+    return <ErrorState message={error} onRetry={refresh} fullScreen />;
   }
 
   if (!book) {
@@ -72,7 +42,8 @@ export function BookDetailPage() {
 
   // Handle book update (e.g., when marked as borrowed)
   const handleBookUpdate = (updatedBook: Book) => {
-    setBook(updatedBook);
+    // SWR will automatically revalidate, but we can also trigger refresh
+    refresh();
   };
 
   return (

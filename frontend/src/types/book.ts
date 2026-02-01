@@ -1,9 +1,6 @@
 /** Listing type for book uploads */
 export type ListingType = 'lend' | 'borrow' | 'sell' | 'exchange';
 
-/** Book condition for uploads */
-export type BookCondition = 'new' | 'like-new' | 'good' | 'fair' | 'poor';
-
 /** Borrow status values */
 export type BorrowStatusValue = 'requested' | 'borrowed' | 'returned' | 'overdue' | 'cancelled';
 
@@ -92,9 +89,6 @@ export interface BookUploadFormData {
   title: string;
   author: string;
   category: BookCategory | '';
-  listingType: ListingType | '';
-  condition: BookCondition | '';
-  price: string;
   description: string;
   whatsappNumber: string;
 }

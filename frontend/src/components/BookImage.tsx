@@ -2,7 +2,7 @@
  * Optimized book cover image component with srcset for responsive loading.
  * Uses thumbnails for smaller viewports and full images for larger ones.
  */
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
 
 interface BookImageProps {
   /** Thumbnail URL (~250px width, ~10-30KB) */
@@ -37,6 +37,16 @@ export const BookImage = memo(function BookImage({
   const thumbnail = thumbnailUrl || fullUrl;
   const full = fullUrl || thumbnailUrl || "";
 
+  // Memoize srcSet and sizes to avoid recreating strings on every render
+  const srcSet = useMemo(
+    () => (thumbnail !== full ? `${thumbnail} 250w, ${full} 500w` : undefined),
+    [thumbnail, full],
+  );
+  const sizes = useMemo(
+    () => (thumbnail !== full ? "(max-width: 768px) 144px, 192px" : undefined),
+    [thumbnail, full],
+  );
+
   // If both failed, show placeholder
   if (hasError || (!thumbnail && !full)) {
     return (
@@ -69,12 +79,8 @@ export const BookImage = memo(function BookImage({
       )}
       <img
         src={thumbnail}
-        srcSet={
-          thumbnail !== full ? `${thumbnail} 250w, ${full} 500w` : undefined
-        }
-        sizes={
-          thumbnail !== full ? "(max-width: 768px) 144px, 192px" : undefined
-        }
+        srcSet={srcSet}
+        sizes={sizes}
         alt={alt}
         loading="lazy"
         decoding="async"

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from "react";
+import { memo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { CategorySection } from "../components/CategorySection";
@@ -6,8 +6,8 @@ import { Footer } from "../components/Footer";
 import { ErrorState } from "../components/ui/ErrorState";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { OptimizedImage } from "../components/ui/OptimizedImage";
-import { getAllBooks } from "../services";
-import type { BookPreview, ApiError } from "../types";
+import { useAllBooks } from "../hooks/useBooks";
+import type { BookPreview } from "../types";
 
 // Memoized book card component to prevent unnecessary re-renders
 const BookCard = memo(function BookCard({
@@ -47,31 +47,11 @@ const BookCard = memo(function BookCard({
 });
 
 export function Home() {
-  const [books, setBooks] = useState<BookPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { books, isLoading, error, refresh } = useAllBooks(50);
   const navigate = useNavigate();
 
-  const loadBooks = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const allBooks = await getAllBooks();
-      setBooks(allBooks);
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || "Failed to load books. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBooks();
-  }, [loadBooks]);
-
   const handleBookClick = useCallback(
-    (bookId: number) => {
+    (bookId: string) => {
       navigate(`/book/${bookId}`);
     },
     [navigate],
@@ -87,11 +67,7 @@ export function Home() {
 
       <div className="px-4 md:px-12 pb-12 md:pb-12 pb-24">
         {error ? (
-          <ErrorState
-            message={error}
-            onRetry={loadBooks}
-            showHomeLink={false}
-          />
+          <ErrorState message={error} onRetry={refresh} showHomeLink={false} />
         ) : (
           <div className="space-y-4">
             <h3 className="text-black dark:text-white text-xl md:text-2xl font-semibold">

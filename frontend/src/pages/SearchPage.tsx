@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { Navbar } from "../components/Navbar";
@@ -29,7 +29,7 @@ export function SearchPage() {
     loadTrending();
   }, []);
 
-  const handleSearch = async (searchQuery: string) => {
+  const handleSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       return;
@@ -45,12 +45,18 @@ export function SearchPage() {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
+
+  // Debounced search with proper cleanup
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSearch(query);
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [query, handleSearch]);
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
-    const timeoutId = setTimeout(() => handleSearch(value), 500);
-    return () => clearTimeout(timeoutId);
   };
 
   const categories = [

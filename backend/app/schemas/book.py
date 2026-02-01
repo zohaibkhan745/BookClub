@@ -33,7 +33,7 @@ class BookCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     author: str = Field(..., min_length=1, max_length=255)
     category: str = Field(..., min_length=1, max_length=100)
-    listing_type: ListingType
+    listing_type: ListingType = ListingType.lend  # Default to lend
     condition: Optional[BookCondition] = BookCondition.good
     description: Optional[str] = None
     cover_image: Optional[str] = None

@@ -14,7 +14,7 @@ Handles:
 """
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, desc, update, exists
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 import uuid
 import logging
@@ -121,6 +121,60 @@ def get_borrow_status(db: Session, book_id) -> dict:
         "due_at": active_borrow.due_at,
         "current_borrow": active_borrow
     }
+
+
+def get_borrow_statuses_batch(db: Session, book_ids: List[int]) -> dict:
+    """
+    Get borrow status for multiple books in a single query.
+    
+    This is much more efficient than calling get_borrow_status for each book
+    individually (avoids N+1 query problem).
+    
+    Args:
+        db: Database session
+        book_ids: List of book IDs to check
+    
+    Returns:
+        dict mapping book_id -> borrow_status dict
+    """
+    if not book_ids:
+        return {}
+    
+    # Single query to get all active borrows for the given books
+    active_borrows = db.query(BorrowRecord).filter(
+        and_(
+            BorrowRecord.book_id.in_(book_ids),
+            BorrowRecord.returned_at.is_(None),
+            BorrowRecord.status == BorrowStatus.borrowed.value
+        )
+    ).options(joinedload(BorrowRecord.borrower)).all()
+    
+    # Build a map of book_id -> borrow_record
+    borrow_map = {borrow.book_id: borrow for borrow in active_borrows}
+    
+    # Build result dict for all requested books
+    result = {}
+    for book_id in book_ids:
+        active_borrow = borrow_map.get(book_id)
+        if active_borrow:
+            borrower_name = None
+            if active_borrow.borrower:
+                borrower_name = active_borrow.borrower.full_name
+            result[book_id] = {
+                "is_borrowed": True,
+                "borrower_name": borrower_name,
+                "borrower_id": active_borrow.borrower_id,
+                "due_at": active_borrow.due_at,
+            }
+        else:
+            result[book_id] = {
+                "is_borrowed": False,
+                "borrower_name": None,
+                "borrower_id": None,
+                "due_at": None,
+            }
+    
+    return result
 
 
 def borrow_book(
