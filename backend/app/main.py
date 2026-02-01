@@ -68,11 +68,14 @@ cors_origins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://book-club.social",
+    "https://www.book-club.social",
+    "https://book-club-giki.vercel.app",
 ]
 
 # Add production frontend URL from environment if set
 frontend_url = os.getenv("FRONTEND_URL")
-if frontend_url:
+if frontend_url and frontend_url not in cors_origins:
     cors_origins.append(frontend_url)
 
 # CORS middleware for frontend
