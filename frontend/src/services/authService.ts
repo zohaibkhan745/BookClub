@@ -7,6 +7,30 @@
 import { supabase } from '../lib/supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 
+/**
+ * Get the appropriate redirect URL for OAuth based on the current environment.
+ */
+function getOAuthRedirectUrl(): string {
+  const hostname = window.location.hostname;
+  
+  // Local development
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${window.location.origin}/`;
+  }
+  
+  // Production domains
+  if (hostname.includes('book-club.social')) {
+    return 'https://book-club.social/';
+  }
+  
+  if (hostname.includes('vercel.app')) {
+    return 'https://book-club-giki.vercel.app/';
+  }
+  
+  // Fallback to current origin
+  return `${window.location.origin}/`;
+}
+
 export interface AuthResult {
   user: User | null;
   session: Session | null;
@@ -163,6 +187,31 @@ export async function signIn({ email, password }: AuthCredentials): Promise<Auth
     error,
     formattedError: error ? formatAuthError(error) : undefined,
   };
+}
+
+/**
+ * Sign in with Google OAuth.
+ * 
+ * This initiates the OAuth flow by redirecting the user to Google's sign-in page.
+ * After successful authentication, the user is redirected back to the app.
+ * The session is automatically handled by Supabase's onAuthStateChange listener.
+ * 
+ * Note: Ensure Google OAuth is configured in your Supabase project dashboard:
+ * Authentication > Providers > Google
+ */
+export async function signInWithGoogle(): Promise<{ error: AuthError | null }> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: getOAuthRedirectUrl(),
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  });
+
+  return { error };
 }
 
 /**

@@ -34,6 +34,7 @@ interface AuthContextType {
     password: string,
     fullName: string,
   ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -135,6 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null, needsConfirmation: false };
   };
 
+  const signInWithGoogle = async () => {
+    const result = await authService.signInWithGoogle();
+    if (result.error) {
+      return { error: result.error.message };
+    }
+    return { error: null };
+  };
+
   const signOut = async () => {
     await authService.signOut();
     setUser(null);
@@ -156,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshCredits,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
       }}
     >
