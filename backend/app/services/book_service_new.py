@@ -1,3 +1,30 @@
+"""
+Book service for business logic related to books.
+
+Refactored to:
+- Use new Book model with owner_id/owner_full_name
+- Remove is_borrowed handling (now in borrow_service)
+- Use is_active instead of is_available
+- Added caching for better performance
+"""
+from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy import desc, func
+from typing import Optional, List
+from datetime import datetime
+import uuid
+import logging
+
+from app.models import Book, BorrowRecord
+from app.schemas import BookCreate, BookUpdate
+from app.cache import cache, invalidate_books_cache, invalidate_user_cache
+
+logger = logging.getLogger(__name__)
+
+# Cache TTL constants (in seconds)
+CACHE_TTL_SHORT = 60      # 1 minute for frequently changing data
+CACHE_TTL_MEDIUM = 120    # 2 minutes for section data
+CACHE_TTL_LONG = 300      # 5 minutes for individual book details
+
 # --- Added for compatibility with paginated endpoint ---
 def get_all_books_paginated(db: Session, cursor: int = 0, limit: int = 20) -> list[Book]:
     """
