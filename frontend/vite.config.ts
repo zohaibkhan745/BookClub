@@ -15,6 +15,10 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      // Ensure modulepreload works in all browsers (helps with large chunks like Supabase)
+      modulePreload: {
+        polyfill: true,
+      },
       // Code splitting for better caching
       rollupOptions: {
         output: {

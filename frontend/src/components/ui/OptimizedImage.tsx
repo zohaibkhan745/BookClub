@@ -99,6 +99,8 @@ export function OptimizedImage({
         <img
           src={imageSrc}
           alt={alt}
+          width={200}
+          height={300}
           onLoad={handleLoad}
           onError={handleError}
           className={`

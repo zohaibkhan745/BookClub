@@ -1,15 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Book Club</title>
 
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Book Club</title>
-    </head>
+    <!-- Preconnect to backend API and Supabase to save 100-300ms per connection -->
+    <link rel="dns-prefetch" href="https://book-club-backend.vercel.app" />
+    <link rel="dns-prefetch" href="https://vsijaktyuirjyntnhqzv.supabase.co" />
+    <link
+      rel="preconnect"
+      href="https://book-club-backend.vercel.app"
+      crossorigin
+    />
+    <link
+      rel="preconnect"
+      href="https://vsijaktyuirjyntnhqzv.supabase.co"
+      crossorigin
+    />
+  </head>
 
-    <body>
-      <div id="root"></div>
-      <script type="module" src="/src/main.tsx"></script>
-    </body>
-  </html>
-  
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

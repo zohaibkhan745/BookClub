@@ -13,7 +13,7 @@ import {
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import * as authService from "../services/authService";
-import { syncUser, getUserStats } from "../services/bookService";
+import { syncUser, getUserStats } from "../services/userSyncService";
 import type { CreditInfo, UserBadge } from "../types";
 
 interface AuthContextType {
