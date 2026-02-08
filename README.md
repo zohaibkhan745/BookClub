@@ -45,14 +45,6 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-5. **(Optional) Seed the database with sample data:**
-
-```bash
-python -m app.db.seed
-```
-
----
-
 ## 2. Frontend Setup (React + Vite)
 
 1. **Install dependencies:**
