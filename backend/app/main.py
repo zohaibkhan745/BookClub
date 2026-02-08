@@ -23,8 +23,8 @@ except Exception as e:
     db_initialized = False
 
 # Import API routers
-from app.api import books_new as books
-from app.api import borrow_new as borrow
+from app.api import books
+from app.api import borrow
 from app.api import users
 from app.api import forum
 

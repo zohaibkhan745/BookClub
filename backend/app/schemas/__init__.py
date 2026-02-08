@@ -7,7 +7,7 @@ from app.schemas.user import (
     UserPublic,
     AuthResponse,
 )
-from app.schemas.book_new import (
+from app.schemas.book import (
     BookCreate,
     BookUpdate,
     BookPreview,

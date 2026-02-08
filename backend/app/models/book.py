@@ -1,4 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Enum, Index
+"""
+Book model representing a book listing.
+
+Borrow status is determined by the BorrowRecord table.
+A book is "borrowed" if there's a BorrowRecord with returned_at IS NULL.
+"""
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Index, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
 import enum
@@ -9,6 +16,7 @@ class ListingType(str, enum.Enum):
     lend = "lend"
     borrow = "borrow"
     sell = "sell"
+    exchange = "exchange"
 
 
 class BookCondition(str, enum.Enum):
@@ -21,45 +29,89 @@ class BookCondition(str, enum.Enum):
 
 
 class Book(Base):
-    """Book model representing a book listing."""
+    """
+    Book model representing a book listing.
+    
+    Key Design Changes:
+    - Removed: is_borrowed, borrowed_by_user_id, borrowed_by_name
+      (borrow status determined via BorrowRecord table)
+    - Uses existing column names for database compatibility
+    """
     
     __tablename__ = "books"
-    __table_args__ = (
-        # Composite indexes for common query patterns
-        Index('idx_books_available_created', 'is_available', 'created_at'),
-        Index('idx_books_category_available', 'category', 'is_available'),
-        Index('idx_books_listing_available', 'listing_type', 'is_available'),
-        # Index for owner's books lookup - get_books_by_owner()
-        Index('idx_books_owner_created', 'user_id', 'created_at'),
-        # Index for slug-based lookups
-        Index('idx_books_slug', 'slug'),
-        {'extend_existing': True},  # Allow redefining if metadata already exists
-    )
     
+    # Primary key - Integer (existing schema)
     id = Column(Integer, primary_key=True, index=True)
-    slug = Column(String(300), nullable=True, unique=True, index=True)  # URL-friendly slug: "the-great-gatsby-1"
+    
+    # Book metadata
     title = Column(String(255), nullable=False, index=True)
-    author = Column(String(255), nullable=False, index=True)  # Added index
-    category = Column(String(100), nullable=False, index=True)  # Added index
-    listing_type = Column(String(20), nullable=False, default=ListingType.lend.value, index=True)  # Added index
+    author = Column(String(255), nullable=False, index=True)
+    category = Column(String(100), nullable=False, index=True)
+    
+    # Listing details
+    listing_type = Column(String(20), nullable=False, default=ListingType.lend.value)
     condition = Column(String(20), nullable=True, default=BookCondition.good.value)
     description = Column(Text, nullable=True)
-    cover_image = Column(Text, nullable=True)  # Full-size image URL for detail pages
+    cover_image = Column(Text, nullable=True)  # Base64 or URL
     cover_image_thumb_url = Column(Text, nullable=True)  # Thumbnail URL (~250px) for listings
     price = Column(String(50), nullable=True)  # Only for sell listings
+    
+    # Contact info
     whatsapp_number = Column(String(20), nullable=True)
-    is_available = Column(Boolean, default=True, index=True)  # Added index
     
-    # Book ownership fields - IMPORTANT: These are set by the backend from the authenticated user,
-    # never from frontend input. This ensures data integrity and prevents spoofing.
-    user_id = Column(String(36), nullable=True, index=True)  # Supabase user UUID
-    listed_by = Column(String(255), nullable=True)  # User's full name for public display (email is never stored here)
+    # Availability - book is hidden but not deleted
+    is_available = Column(Boolean, default=True, index=True)
     
-    # Borrowing fields - Track who has borrowed this book
-    # These are set by the backend when the uploader marks the book as borrowed
-    is_borrowed = Column(Boolean, default=False)  # Whether the book is currently borrowed
-    borrowed_by_user_id = Column(String(36), nullable=True, index=True)  # Borrower's Supabase user UUID
-    borrowed_by_name = Column(String(255), nullable=True)  # Borrower's full name for display
+    # Owner info (using existing column names)
+    user_id = Column(String(36), nullable=True, index=True)  # Owner's Supabase UUID
+    listed_by = Column(String(255), nullable=True)  # Owner's full name for display
     
+    # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    owner = relationship("User", back_populates="books", foreign_keys=[user_id], primaryjoin="Book.user_id==User.id")
+    borrow_records = relationship("BorrowRecord", back_populates="book", cascade="all, delete-orphan")
+    
+    # Property aliases for new naming convention
+    @property
+    def owner_id(self) -> str:
+        """Alias for user_id."""
+        return self.user_id
+    
+    @property
+    def owner_full_name(self) -> str:
+        """Alias for listed_by."""
+        return self.listed_by
+    
+    @property
+    def is_active(self) -> bool:
+        """Alias for is_available."""
+        return self.is_available
+    
+    def __repr__(self):
+        return f"<Book(id={self.id}, title={self.title}, author={self.author})>"
+    
+    @property
+    def is_currently_borrowed(self) -> bool:
+        """
+        Check if the book is currently borrowed.
+        A book is borrowed if there's a BorrowRecord with returned_at IS NULL.
+        
+        Note: This property requires the borrow_records relationship to be loaded.
+        For bulk queries, use a joined query instead.
+        """
+        return any(br.returned_at is None for br in self.borrow_records)
+    
+    @property
+    def current_borrower(self):
+        """
+        Get the current borrower if the book is borrowed.
+        Returns the BorrowRecord with returned_at IS NULL, or None.
+        """
+        for br in self.borrow_records:
+            if br.returned_at is None:
+                return br
+        return None
+

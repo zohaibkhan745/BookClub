@@ -1,63 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+"""
+Books API endpoints.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.db.database import get_db
-from app.models.book import Book
-from app.services import book_service, borrow_service
-from app.schemas.book import (
-    BookCreate,
-    BookPreview,
-    BookResponse,
-    BookSectionsResponse,
-    MarkBorrowedRequest,
-)
-from app.auth import get_current_user, AuthUser
-from app.cache import cache, invalidate_user_cache
 from datetime import datetime
-import os
-import re
-import httpx
-import logging
 
-logger = logging.getLogger(__name__)
+from app.db.database import get_db
+from app.services import book_service, borrow_service, user_service
+from app.schemas import BookCreate, BookUpdate
+from app.auth import get_current_user, get_optional_user, AuthUser
 
 router = APIRouter(prefix="/api/v1", tags=["books"])
-
-# Cache durations in seconds
-CACHE_SHORT = 60      # 1 minute - for list endpoints
-CACHE_MEDIUM = 300    # 5 minutes - for individual book details
-CACHE_NONE = 0        # No cache - for mutations
-
-
-@router.post("/books/backfill-slugs")
-async def backfill_slugs(db: Session = Depends(get_db)):
-    """
-    POST /books/backfill-slugs - Generate slugs for all books that don't have one.
-    Run this once after adding the slug column to populate existing books.
-    """
-    try:
-        # Get all books without slugs
-        books_without_slugs = db.query(Book).filter(Book.slug == None).all()
-        updated_count = 0
-        
-        for book in books_without_slugs:
-            slug = book_service.generate_slug(book.title, book.id)
-            book.slug = slug
-            updated_count += 1
-        
-        db.commit()
-        
-        return {
-            "success": True,
-            "message": f"Generated slugs for {updated_count} books",
-            "updated_count": updated_count
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "BACKFILL_FAILED", "message": str(e)}
-        )
 
 
 @router.delete("/books/all")
@@ -67,11 +21,17 @@ async def delete_all_books(db: Session = Depends(get_db)):
     WARNING: This is a destructive operation for development use only.
     """
     try:
+        # Count before
+        result = db.execute(text("SELECT COUNT(*) FROM books"))
+        count_before = result.fetchone()[0]
+        
+        # Delete
         db.execute(text("DELETE FROM books"))
         db.commit()
+        
         return {
             "success": True,
-            "message": "All books deleted successfully"
+            "message": f"Deleted {count_before} books successfully"
         }
     except Exception as e:
         db.rollback()
@@ -86,44 +46,30 @@ def book_to_preview(book) -> dict:
     Convert Book model to preview format for listing pages.
     
     Uses thumbnail URL if available, falls back to full image.
+    This keeps listing pages fast by loading ~10-20KB thumbnails.
     """
     # Prefer thumbnail for listings, fallback to full image
-    image_url = getattr(book, 'cover_image_thumb_url', None) or book.cover_image or ""
+    image_url = book.cover_image_thumb_url or book.cover_image or ""
     
     return {
-        "id": book.id,        "slug": book.slug or str(book.id),  # Fallback to ID if no slug        "title": book.title,
-        "author": book.author,
-        "image": image_url,
-        "is_available": book.is_available if hasattr(book, 'is_available') else True,
-    }
-
-
-def book_to_library_preview(book, pending_count: int = 0) -> dict:
-    """
-    Convert Book model to library preview format.
-    
-    Uses thumbnail URL for fast loading (~10-30KB instead of ~100KB-1MB).
-    Includes pending request count for uploaded books.
-    """
-    # Prefer thumbnail for listings, fallback to full image
-    image_url = getattr(book, 'cover_image_thumb_url', None) or book.cover_image or ""
-    
-    return {
-        "id": book.id,
-        "slug": book.slug or str(book.id),  # Fallback to ID if no slug
+        "id": str(book.id),
         "title": book.title,
         "author": book.author,
         "image": image_url,
-        "is_available": book.is_available if hasattr(book, 'is_available') else True,
-        "pendingRequestCount": pending_count,
     }
 
 
-def book_to_response(book) -> dict:
-    """Convert Book model to full response format."""
+def book_to_response(book, db: Session) -> dict:
+    """
+    Convert Book model to full response format.
+    
+    Borrow status is computed from borrow_records table.
+    """
+    # Get borrow status from borrow_records
+    borrow_status = borrow_service.get_borrow_status(db, str(book.id))
+    
     return {
-        "id": book.id,
-        "slug": book.slug or str(book.id),  # Fallback to ID if no slug
+        "id": str(book.id),
         "title": book.title,
         "author": book.author,
         "genre": book.category,
@@ -133,29 +79,40 @@ def book_to_response(book) -> dict:
         "pages": 0,
         "language": "English",
         "rating": 5,
-        "whatsappNumber": book.whatsapp_number or "",
         "listingType": book.listing_type or "lend",
+        "condition": book.condition or "good",
         "price": book.price or "",
-        # Public attribution using full name - email is never exposed
-        "listedBy": book.listed_by or None,
-        # Ownership info for conditional UI rendering (e.g., showing "Mark as borrowed" button)
-        "uploadedByUserId": book.user_id,
-        # Borrowing status
-        "isBorrowed": book.is_borrowed or False,
-        "borrowedByName": book.borrowed_by_name,
-        "borrowedByUserId": book.borrowed_by_user_id,
+        "whatsappNumber": book.whatsapp_number or "",
+        
+        # Owner info (new naming)
+        "ownerId": book.owner_id,
+        "ownerFullName": book.owner_full_name,
+        
+        # Legacy compatibility
+        "listedBy": book.owner_full_name,
+        "uploadedByUserId": book.owner_id,
+        
+        # Borrow status (computed from borrow_records)
+        "borrowStatus": {
+            "isBorrowed": borrow_status["is_borrowed"],
+            "borrowerName": borrow_status["borrower_name"],
+            "borrowerId": borrow_status["borrower_id"],
+            "dueAt": borrow_status["due_at"].isoformat() if borrow_status["due_at"] else None,
+        },
+        
+        # Legacy fields for backwards compatibility
+        "isBorrowed": borrow_status["is_borrowed"],
+        "borrowedByName": borrow_status["borrower_name"],
+        "borrowedByUserId": borrow_status["borrower_id"],
     }
 
 
 @router.get("/books")
-async def get_books(response: Response, db: Session = Depends(get_db)):
+async def get_books(db: Session = Depends(get_db)):
     """
     GET /books - Fetch all books organized by homepage sections.
     """
     try:
-        # Add cache headers - cache for 60 seconds
-        response.headers["Cache-Control"] = f"public, max-age={CACHE_SHORT}, stale-while-revalidate=30"
-        
         sections = book_service.get_books_by_section(db)
         return {
             "success": True,
@@ -172,15 +129,52 @@ async def get_books(response: Response, db: Session = Depends(get_db)):
         )
 
 
+@router.get("/books/all")
+async def get_all_books_endpoint(
+    cursor: int = Query(default=0, ge=0, description="Cursor for pagination (book ID to start after)"),
+    limit: int = Query(default=20, ge=1, le=50, description="Number of books to return (max 50)"),
+    db: Session = Depends(get_db)
+):
+    """
+    GET /books/all - Fetch all books with cursor-based pagination.
+    
+    Query Parameters:
+    - cursor: ID of the last book from previous page (0 for first page)
+    - limit: Number of books to return (1-50, default 20)
+    
+    Response includes next_cursor for fetching the next page.
+    Cursor-based pagination provides consistent performance as catalog grows.
+    """
+    try:
+        books = book_service.get_all_books_paginated(db, cursor=cursor, limit=limit)
+        
+        # Determine if there are more results
+        has_next = len(books) > limit
+        result_books = books[:limit] if has_next else books
+        next_cursor = result_books[-1].id if has_next and result_books else None
+        
+        return {
+            "success": True,
+            "data": [book_to_preview(b) for b in result_books],
+            "pagination": {
+                "next_cursor": next_cursor,
+                "has_next": has_next,
+                "limit": limit,
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "FETCH_FAILED", "message": str(e)}
+        )
+
+
 @router.get("/books/genre/{genre}")
-async def get_books_by_genre(genre: str, response: Response, db: Session = Depends(get_db)):
+async def get_books_by_genre(genre: str, db: Session = Depends(get_db)):
     """
     GET /books/genre/{genre} - Fetch all books by genre/category.
     """
     try:
-        # Add cache headers - cache for 60 seconds
-        response.headers["Cache-Control"] = f"public, max-age={CACHE_SHORT}, stale-while-revalidate=30"
-        
         books = book_service.get_books_by_genre(db, genre)
         return {
             "success": True,
@@ -193,28 +187,44 @@ async def get_books_by_genre(genre: str, response: Response, db: Session = Depen
         )
 
 
+@router.get("/books/search")
+async def search_books(
+    q: str = "",
+    category: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    GET /books/search?q=query&category=Fiction - Search books.
+    """
+    try:
+        books = book_service.search_books(db, q, category)
+        return {
+            "success": True,
+            "data": [book_to_preview(b) for b in books]
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "SEARCH_FAILED", "message": str(e)}
+        )
+
+
 @router.get("/books/{book_id}")
-async def get_book(book_id: str, response: Response, db: Session = Depends(get_db)):
+async def get_book(book_id: str, db: Session = Depends(get_db)):
     """
-    GET /books/{identifier} - Fetch a single book by ID or slug.
-    
-    Supports both numeric IDs (e.g., /books/45) for backward compatibility
-    and slugs (e.g., /books/the-great-gatsby-45) for SEO-friendly URLs.
+    GET /books/{id} - Fetch a single book by ID.
     """
-    book = book_service.get_book_by_id_or_slug(db, book_id)
+    book = book_service.get_book_by_id(db, book_id)
     
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "BOOK_NOT_FOUND", "message": f"Book not found."}
+            detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found."}
         )
-    
-    # Add cache headers - cache for 5 minutes (individual book details change less frequently)
-    response.headers["Cache-Control"] = f"public, max-age={CACHE_MEDIUM}, stale-while-revalidate=60"
     
     return {
         "success": True,
-        "data": book_to_response(book)
+        "data": book_to_response(book, db)
     }
 
 
@@ -238,6 +248,8 @@ async def create_book(
         errors.append({"field": "author", "message": "Author is required"})
     if not book_data.category or not book_data.category.strip():
         errors.append({"field": "category", "message": "Category is required"})
+    if book_data.listing_type and book_data.listing_type.value == "sell" and not book_data.price:
+        errors.append({"field": "price", "message": "Price is required for selling"})
     
     if errors:
         raise HTTPException(
@@ -246,22 +258,70 @@ async def create_book(
         )
     
     try:
-        # SECURITY: Ownership fields are derived from the authenticated user context,
-        # NEVER from frontend input. This prevents users from spoofing attribution.
-        # The full_name comes from Supabase user_metadata set during signup.
-        # Email is deliberately NOT stored in book records to keep it private.
-        book_data.user_id = user.id
-        book_data.listed_by = user.full_name or "Anonymous"
+        # Ensure user exists in local DB
+        db_user = user_service.get_user_by_id(db, user.id)
+        if not db_user:
+            db_user = user_service.sync_supabase_user(
+                db,
+                supabase_id=user.id,
+                email=user.email or "",
+                full_name=user.full_name or "Anonymous"
+            )
         
-        book = book_service.create_book(db, book_data)
+        # Create book with ownership from authenticated user
+        book = book_service.create_book(
+            db,
+            book_data,
+            owner_id=user.id,
+            owner_full_name=user.full_name or "Anonymous"
+        )
         
-        # Invalidate user's library cache so new book appears immediately
-        invalidate_user_cache(user.id)
+        # Award credit for uploading a book
+        db_user.credits += 1
+        db.commit()
+        db.refresh(db_user)
         
         return {
             "success": True,
-            "data": book_to_response(book)
+            "data": book_to_response(book, db)
         }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "SERVER_ERROR", "message": str(e)}
+        )
+
+
+@router.put("/books/{book_id}")
+async def update_book(
+    book_id: str,
+    book_data: BookUpdate,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    PUT /books/{id} - Update a book listing.
+    Only the book owner can update.
+    """
+    try:
+        book = book_service.update_book(db, book_id, book_data, user.id)
+        
+        if not book:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "BOOK_NOT_FOUND", "message": "Book not found"}
+            )
+        
+        return {
+            "success": True,
+            "data": book_to_response(book, db)
+        }
+    
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_AUTHORIZED", "message": str(e)}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -271,256 +331,192 @@ async def create_book(
 
 @router.delete("/books/{book_id}")
 async def delete_book(
-    book_id: int,
+    book_id: str,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user)
 ):
     """
-    DELETE /books/{book_id} - Delete a book listing.
+    DELETE /books/{id} - Delete a book listing with credit clawback.
     
-    AUTHORIZATION RULES (enforced on backend - cannot be bypassed):
-    1. User must be authenticated (JWT required)
-    2. User must be the uploader/owner of the book (book.user_id === current_user.id)
+    Anti-Cheat Credit System:
+    - User loses 1 credit when deleting a book (clawback)
     
-    This endpoint also cleans up the cover image from Supabase Storage
-    if the book has one stored there.
-    
-    Returns:
-    - 200: Book deleted successfully
-    - 401: Not authenticated
-    - 403: Forbidden - user is not the book owner
-    - 404: Book not found
+    Validation Rules (must pass before deletion):
+    1. Book exists and user is the owner
+    2. Book is not currently borrowed (status = BORROWED)
+    3. Collateral bankruptcy check: User must have enough credits after deletion
+       to cover their active loans (books they are currently borrowing)
     """
-    # Step 1: Fetch the book from database
-    book = book_service.get_book_by_id(db, book_id)
+    try:
+        # Get the book first
+        book = book_service.get_book_by_id(db, book_id)
+        
+        if not book:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "BOOK_NOT_FOUND", "message": "Book not found"}
+            )
+        
+        # Verify ownership
+        if book.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "NOT_AUTHORIZED", "message": "Only the book owner can delete this book"}
+            )
+        
+        # =====================================================
+        # CHECK 1: Is the book currently in use (borrowed)?
+        # =====================================================
+        # A book cannot be deleted if someone is currently borrowing it.
+        # This prevents deleting a book that is physically with someone else.
+        if borrow_service.is_book_borrowed(db, book_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "BOOK_IN_USE",
+                    "message": "Cannot delete this book. It is currently borrowed by someone. "
+                               "Wait for them to return it first."
+                }
+            )
+        
+        # =====================================================
+        # CHECK 2: Collateral Bankruptcy Check
+        # =====================================================
+        # The user's credit acts as "collateral" for books they borrow.
+        # Deleting a book removes 1 credit. We must ensure the user
+        # still has enough credits to cover their active loans.
+        #
+        # MATH:
+        # - Current Credits: Total credits the user has
+        # - Future Balance = Current Credits - 1 (after clawback)
+        # - Active Loans: Number of books user is currently borrowing
+        #
+        # Rule: Future Balance >= Active Loans
+        # If Future Balance < Active Loans => BLOCK deletion
+        #
+        # Example:
+        # - User has 2 credits, borrowing 2 books
+        # - If they delete a book: Future Balance = 2 - 1 = 1
+        # - 1 < 2 (active loans) => BLOCKED
+        # - They must return 1 book first before deleting their own book.
+        
+        db_user = user_service.get_user_by_id(db, user.id)
+        if not db_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"}
+            )
+        
+        current_credits = db_user.credits or 1  # Default to 1 if None
+        future_balance = current_credits - 1
+        active_loans = borrow_service.get_active_borrow_count_for_user(db, user.id)
+        
+        if future_balance < active_loans:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "COLLATERAL_BANKRUPTCY",
+                    "message": f"Cannot delete this book. You have {active_loans} borrowed book(s) "
+                               f"but would only have {future_balance} credit(s) left. "
+                               f"Return a borrowed book first, then you can delete this one."
+                }
+            )
+        
+        # =====================================================
+        # Deletion and Credit Clawback
+        # =====================================================
+        # All checks passed - proceed with deletion
+        
+        # Store book info for logging
+        book_id_int = book.id
+        book_title = book.title
+        
+        # Delete the book
+        db.delete(book)
+        
+        # Clawback 1 credit from the user
+        db_user.credits = max(0, current_credits - 1)  # Don't go below 0
+        
+        # Commit both operations atomically
+        db.commit()
+        
+        # Invalidate caches
+        from app.services.book_service import invalidate_books_cache, invalidate_user_cache
+        from app.cache import cache
+        invalidate_books_cache()
+        cache.delete(f"books:id:{book_id_int}")
+        invalidate_user_cache(user.id)
+        
+        return {
+            "success": True,
+            "message": "Book deleted",
+            "creditsDeducted": 1,
+            "newCreditBalance": db_user.credits
+        }
     
-    if not book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found"}
-        )
-    
-    # Step 2: AUTHORIZATION CHECK - Critical security enforcement
-    # Only the book owner (uploader) can delete their own book
-    # This check prevents unauthorized deletion via direct API calls
-    if book.user_id != user.id:
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except PermissionError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "NOT_AUTHORIZED", "message": "You can only delete books you uploaded"}
+            detail={"code": "NOT_AUTHORIZED", "message": str(e)}
         )
-    
-    # Step 3: Delete cover image from Supabase Storage (if exists)
-    # Only attempt deletion if the cover_image is a Supabase Storage URL
-    cover_image = book.cover_image
-    if cover_image and "supabase.co/storage/v1/object" in cover_image:
-        try:
-            await delete_image_from_storage(cover_image)
-        except Exception as e:
-            # Log the error but don't fail the deletion
-            # The book should still be deleted even if image cleanup fails
-            logger.warning(f"Failed to delete image from storage for book {book_id}: {e}")
-    
-    # Step 4: Delete the book from database
-    logger.info(f"Attempting to delete book {book_id} ('{book.title}') by user {user.id}")
-    deleted = book_service.delete_book(db, book_id, user_id=user.id)
-    
-    if not deleted:
-        logger.error(f"Failed to delete book {book_id} from database")
+    except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "DELETE_FAILED", "message": "Failed to delete book"}
+            detail={"code": "SERVER_ERROR", "message": str(e)}
         )
-    
-    logger.info(f"Successfully deleted book {book_id} ('{book.title}')")
-    return {
-        "success": True,
-        "message": f"Book '{book.title}' has been deleted successfully"
-    }
-
-
-async def delete_image_from_storage(image_url: str) -> bool:
-    """
-    Delete an image from Supabase Storage bucket.
-    
-    Args:
-        image_url: Full public URL of the image in Supabase Storage
-        
-    Returns:
-        True if deletion successful, False otherwise
-        
-    The URL format is: 
-    https://{project}.supabase.co/storage/v1/object/public/book-images/{path}
-    We need to extract the path and call the Storage API to delete.
-    """
-    # Extract the file path from the URL
-    # URL: https://xxx.supabase.co/storage/v1/object/public/book-images/migrated/books/18.jpg
-    # Path: migrated/books/18.jpg
-    match = re.search(r'/storage/v1/object/public/book-images/(.+)$', image_url)
-    if not match:
-        logger.warning(f"Could not extract path from image URL: {image_url}")
-        return False
-    
-    file_path = match.group(1)
-    
-    # Get Supabase credentials from environment
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-    
-    if not supabase_url or not supabase_key:
-        logger.warning("Supabase credentials not configured for storage deletion")
-        return False
-    
-    # Call Supabase Storage API to delete the file
-    delete_url = f"{supabase_url}/storage/v1/object/book-images/{file_path}"
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.delete(
-            delete_url,
-            headers={
-                "Authorization": f"Bearer {supabase_key}",
-                "apikey": supabase_key,
-            }
-        )
-        
-        if response.status_code in [200, 204]:
-            logger.info(f"Successfully deleted image from storage: {file_path}")
-            return True
-        else:
-            logger.warning(f"Failed to delete image {file_path}: {response.status_code} - {response.text}")
-            return False
 
 
 @router.get("/user/library")
 async def get_user_library(
-    response: Response,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user)
 ):
     """
     GET /user/library - Fetch the current user's library.
     Returns books uploaded by the user and books borrowed by the user.
-    Requires authentication.
-    
-    Performance optimizations:
-    - Uses thumbnails (~10-30KB) instead of full images (~100KB-1MB)
-    - In-memory caching (15 seconds TTL) for rapid subsequent loads
-    - Batch query for pending counts (eliminates N+1)
+    Includes pending request counts for uploaded books.
     """
     try:
-        # Private cache - user-specific data
-        response.headers["Cache-Control"] = f"private, max-age={CACHE_SHORT}"
-        
-        # Check in-memory cache first (15 second TTL for fresh pending counts)
-        cache_key = f"user:{user.id}:library"
-        cached_result = cache.get(cache_key)
-        if cached_result is not None:
-            return cached_result
+        # Ensure user exists in local DB
+        db_user = user_service.get_user_by_id(db, user.id)
+        if not db_user:
+            db_user = user_service.sync_supabase_user(
+                db,
+                supabase_id=user.id,
+                email=user.email or "",
+                full_name=user.full_name or "User"
+            )
         
         # Get books uploaded by this user
-        uploaded_books = book_service.get_books_by_user(db, user.id)
+        uploaded_books = book_service.get_books_by_owner(db, user.id)
         
-        # Get pending request counts for uploaded books (batch query for performance)
+        # Get pending request counts for uploaded books
         uploaded_book_ids = [b.id for b in uploaded_books]
         pending_counts = borrow_service.get_pending_request_counts_for_books(db, uploaded_book_ids)
         
-        # Get books borrowed by this user (using borrowed_by_user_id field)
-        borrowed_books = book_service.get_books_borrowed_by_user(db, user.id)
+        # Get books borrowed by this user
+        borrowed_books = borrow_service.get_books_borrowed_by_user(db, user.id)
         
-        # Use library preview format with thumbnails for fast loading
-        result = {
+        # Build response with pending counts
+        uploaded_response = []
+        for book in uploaded_books:
+            book_data = book_to_response(book, db)
+            book_data["pendingRequestCount"] = pending_counts.get(book.id, 0)
+            uploaded_response.append(book_data)
+        
+        return {
             "success": True,
             "data": {
-                "uploaded": [
-                    book_to_library_preview(b, pending_counts.get(b.id, 0))
-                    for b in uploaded_books
-                ],
-                "borrowed": [book_to_library_preview(b) for b in borrowed_books],
+                "uploaded": uploaded_response,
+                "borrowed": [book_to_response(b, db) for b in borrowed_books],
             }
         }
-        
-        # Cache for 15 seconds (balance between freshness and performance)
-        cache.set(cache_key, result, ttl_seconds=15)
-        
-        return result
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": "FETCH_FAILED", "message": str(e)}
         )
-
-
-@router.post("/books/{book_id}/mark-borrowed")
-async def mark_book_as_borrowed(
-    book_id: int,
-    request: MarkBorrowedRequest,
-    db: Session = Depends(get_db),
-    user: AuthUser = Depends(get_current_user)
-):
-    """
-    POST /books/{id}/mark-borrowed - Mark a book as borrowed.
-    
-    Authorization Rules (enforced on backend):
-    - User must be authenticated
-    - User must be the uploader of the book (book.user_id === currentUser.id)
-    - Book must not already be borrowed (is_borrowed === false)
-    - Borrower name must match a registered user
-    
-    This endpoint cannot be bypassed via direct API calls.
-    """
-    # Validate borrower name is not empty
-    borrower_name = request.borrower_full_name.strip()
-    if not borrower_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "VALIDATION_ERROR", "message": "Borrower name is required"}
-        )
-    
-    # Fetch the book
-    book = book_service.get_book_by_id(db, book_id)
-    if not book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found"}
-        )
-    
-    # AUTHORIZATION: Verify current user is the uploader
-    # This is the critical security check - only the book owner can mark it as borrowed
-    if book.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "NOT_AUTHORIZED", "message": "Only the book uploader can mark it as borrowed"}
-        )
-    
-    # Check if book is already borrowed
-    if book.is_borrowed:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "ALREADY_BORROWED", "message": "This book is already borrowed"}
-        )
-    
-    # Search for the borrower in the users database
-    # Since we use Supabase for auth, we need to search by full_name in existing books
-    # or use Supabase admin API. For now, search users who have uploaded books.
-    borrower = book_service.find_user_by_full_name(db, borrower_name)
-    
-    if not borrower:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "BORROWER_NOT_FOUND", 
-                "message": "This person is not registered. The borrower must have an account."
-            }
-        )
-    
-    # Mark the book as borrowed
-    updated_book = book_service.mark_book_as_borrowed(
-        db=db,
-        book_id=book_id,
-        borrowed_by_user_id=borrower["user_id"],
-        borrowed_by_name=borrower["full_name"]
-    )
-    
-    return {
-        "success": True,
-        "data": book_to_response(updated_book)
-    }

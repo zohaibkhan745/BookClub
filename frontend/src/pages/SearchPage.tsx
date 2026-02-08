@@ -74,20 +74,10 @@ export function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      {/* Desktop Navbar */}
-      <div className="hidden md:block">
-        <Navbar />
-      </div>
-
-      {/* Header with Search */}
-      <header className="md:hidden sticky top-0 z-40 bg-[#F6F0D7]/90 dark:bg-black/90 backdrop-blur-xl px-4 pt-12 pb-4 border-b border-black/10 dark:border-white/10">
-        <h1 className="text-3xl font-bold text-black dark:text-white mb-4">
-          Search
-        </h1>
-      </header>
+      <Navbar />
 
       {/* Main Content */}
-      <main className="pt-4 md:pt-24 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
+      <main className="pt-20 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
         {/* Search Input */}
         <div className="relative mb-6">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

@@ -153,20 +153,10 @@ export function LibraryPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-        {/* Desktop Navbar */}
-        <div className="hidden md:block">
-          <Navbar />
-        </div>
-
-        {/* Mobile Header */}
-        <header className="md:hidden sticky top-0 z-40 bg-[#F6F0D7]/90 dark:bg-black/90 backdrop-blur-xl px-4 pt-12 pb-4 border-b border-black/10 dark:border-white/10">
-          <h1 className="text-3xl font-bold text-black dark:text-white">
-            Library
-          </h1>
-        </header>
+        <Navbar />
 
         {/* Sign In Required Message */}
-        <main className="pt-4 md:pt-24 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
+        <main className="pt-20 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-6">
               <LogIn className="w-10 h-10 text-red-500" />
@@ -201,20 +191,10 @@ export function LibraryPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      {/* Desktop Navbar */}
-      <div className="hidden md:block">
-        <Navbar />
-      </div>
-
-      {/* Mobile Header */}
-      <header className="md:hidden sticky top-0 z-40 bg-[#F6F0D7]/90 dark:bg-black/90 backdrop-blur-xl px-4 pt-12 pb-4 border-b border-black/10 dark:border-white/10">
-        <h1 className="text-3xl font-bold text-black dark:text-white">
-          Library
-        </h1>
-      </header>
+      <Navbar />
 
       {/* Main Content */}
-      <main className="pt-4 md:pt-24 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
+      <main className="pt-20 px-4 md:px-12 pb-24 md:pb-12 max-w-7xl mx-auto">
         {/* Tabs */}
         <div className="flex space-x-2 mb-6">
           <button

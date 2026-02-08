@@ -54,9 +54,6 @@ export const LazyGenrePage = lazyLoad(() =>
 export const LazyLibraryPage = lazyLoad(() =>
   import("../pages/LibraryPage").then((m) => ({ default: m.LibraryPage })),
 );
-export const LazyBookStorePage = lazyLoad(() =>
-  import("../pages/BookStorePage").then((m) => ({ default: m.BookStorePage })),
-);
 export const LazySearchPage = lazyLoad(() =>
   import("../pages/SearchPage").then((m) => ({ default: m.SearchPage })),
 );

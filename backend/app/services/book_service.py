@@ -1,142 +1,95 @@
-import logging
-import re
-from sqlalchemy.orm import Session
+"""
+Book service for business logic related to books.
+"""
+from sqlalchemy.orm import Session, joinedload, load_only
 from sqlalchemy import desc, func
-from app.models.book import Book
-from app.schemas.book import BookCreate
+from typing import Optional, List
+from datetime import datetime
+import uuid
+import logging
+
+from app.models import Book, BorrowRecord
+from app.schemas import BookCreate, BookUpdate
 from app.cache import cache, invalidate_books_cache, invalidate_user_cache
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Cache TTL constants (in seconds)
-CACHE_TTL_SHORT = 60       # 1 minute - for list endpoints
-CACHE_TTL_MEDIUM = 120     # 2 minutes - for sections
-CACHE_TTL_LONG = 300       # 5 minutes - for individual items
-CACHE_TTL_USER = 60        # 1 minute - for user-specific data
+CACHE_TTL_SHORT = 60      # 1 minute for frequently changing data
+CACHE_TTL_MEDIUM = 120    # 2 minutes for section data
+CACHE_TTL_LONG = 300      # 5 minutes for individual book details
 
-
-def generate_slug(title: str, book_id: int = None) -> str:
+# --- Added for compatibility with paginated endpoint ---
+def get_all_books_paginated(db: Session, cursor: int = 0, limit: int = 20) -> list[Book]:
     """
-    Generate a URL-friendly slug from a book title.
-    
-    Examples:
-        "The Great Gatsby" -> "the-great-gatsby"
-        "Python 3.11: New Features!" -> "python-311-new-features"
-        
-    If book_id is provided, appends it for uniqueness: "the-great-gatsby-45"
+    Fetch all books (including borrowed) with cursor-based pagination.
+    Args:
+        cursor: ID to start after (0 for first page)
+        limit: Number of books to fetch (fetches limit+1 to detect next page)
+    Returns:
+        List of books. If len > limit, there are more pages.
     """
-    # Convert to lowercase
-    slug = title.lower()
-    # Replace spaces and underscores with hyphens
-    slug = re.sub(r'[\s_]+', '-', slug)
-    # Remove any character that isn't alphanumeric or hyphen
-    slug = re.sub(r'[^a-z0-9\-]', '', slug)
-    # Remove multiple consecutive hyphens
-    slug = re.sub(r'-+', '-', slug)
-    # Remove leading/trailing hyphens
-    slug = slug.strip('-')
-    
-    # Append book ID for uniqueness if provided
-    if book_id is not None:
-        slug = f"{slug}-{book_id}"
-    
-    return slug or "book"
+    query = db.query(Book)
+    if cursor > 0:
+        query = query.filter(Book.id < cursor)
+    result = query.order_by(desc(Book.id)).limit(limit + 1).all()
+    return result
 
 
-def get_all_books(db: Session, limit: int = 50) -> list[Book]:
-    """Fetch all available books with caching."""
+def get_all_books(db: Session, limit: int = 50) -> List[Book]:
+    """Fetch all books with caching (including borrowed ones).
+    
+    Optimizations:
+    - Uses index on created_at
+    - Limits results early to reduce memory usage
+    """
     cache_key = f"books:all:{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     
-    result = db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(limit).all()
+    # Show all books, including borrowed ones (is_available=False)
+    result = db.query(Book).order_by(desc(Book.created_at)).limit(limit).all()
+    
     cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
     return result
 
 
-def get_all_books_paginated(db: Session, cursor: int = 0, limit: int = 20) -> list[Book]:
-    """
-    Fetch available books with cursor-based pagination.
+def get_book_by_id(db: Session, book_id) -> Optional[Book]:
+    """Fetch a single book by ID with caching (accepts string or int)."""
+    try:
+        book_id_int = int(book_id)
+    except (ValueError, TypeError):
+        return None
     
-    Cursor-based pagination provides consistent performance regardless of 
-    catalog size, unlike OFFSET-based pagination which slows down for 
-    large offsets.
-    
-    Args:
-        cursor: ID to start after (0 for first page)
-        limit: Number of books to fetch (fetches limit+1 to detect next page)
-    
-    Returns:
-        List of books. If len > limit, there are more pages.
-    """
-    query = db.query(Book).filter(Book.is_available == True)
-    
-    if cursor > 0:
-        query = query.filter(Book.id < cursor)
-    
-    # Fetch one extra to detect if there are more pages
-    result = query.order_by(desc(Book.id)).limit(limit + 1).all()
-    return result
-
-
-def get_book_by_id(db: Session, book_id: int) -> Optional[Book]:
-    """Fetch a single book by ID with caching."""
-    cache_key = f"books:id:{book_id}"
+    cache_key = f"books:id:{book_id_int}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     
-    result = db.query(Book).filter(Book.id == book_id).first()
+    result = db.query(Book).filter(Book.id == book_id_int).first()
     if result:
         cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
     return result
 
 
-def get_book_by_slug(db: Session, slug: str) -> Optional[Book]:
-    """Fetch a single book by slug with caching."""
-    cache_key = f"books:slug:{slug}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
+    """Fetch all books by genre/category with caching (including borrowed).
     
-    result = db.query(Book).filter(Book.slug == slug).first()
-    if result:
-        cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
-    return result
-
-
-def get_book_by_id_or_slug(db: Session, identifier: str) -> Optional[Book]:
+    Optimizations:
+    - Uses index on category
+    - Case-insensitive match with ilike for flexibility
     """
-    Fetch a book by either ID or slug.
-    
-    - If identifier is numeric, treat as ID
-    - Otherwise, treat as slug
-    
-    This allows backward compatibility with existing ID-based links
-    while supporting new slug-based URLs.
-    """
-    # Check if it's a numeric ID
-    if identifier.isdigit():
-        return get_book_by_id(db, int(identifier))
-    
-    # Otherwise, treat as slug
-    return get_book_by_slug(db, identifier)
-
-
-def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
-    """Fetch all available books by genre/category with caching."""
     cache_key = f"genre:{genre.lower()}:{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     
-    # Use exact case-insensitive match to avoid matching "Fiction" in "Non-Fiction"
+    # Show all books in genre, including borrowed ones
     result = db.query(Book).filter(
-        Book.is_available == True,
-        func.lower(Book.category) == genre.lower()
+        Book.category.ilike(f"%{genre}%")
     ).order_by(desc(Book.created_at)).limit(limit).all()
+    
     cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
     return result
 
@@ -144,6 +97,7 @@ def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> list[Book]:
 def get_books_by_section(db: Session, limit: int = 10) -> dict:
     """
     Get books organized by homepage sections with caching.
+    Shows all books including borrowed ones.
     - trending: Most recent books
     - newArrivals: Latest additions
     - popular: Random selection (simulated popularity)
@@ -153,7 +107,8 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
     if cached is not None:
         return cached
     
-    all_books = db.query(Book).filter(Book.is_available == True).order_by(desc(Book.created_at)).limit(30).all()
+    # Show all books, including borrowed ones
+    all_books = db.query(Book).order_by(desc(Book.created_at)).limit(30).all()
     
     # Split books into sections
     trending = all_books[:limit] if len(all_books) >= limit else all_books
@@ -165,203 +120,207 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
         "newArrivals": new_arrivals,
         "popular": popular,
     }
+    
     cache.set(cache_key, result, ttl_seconds=CACHE_TTL_MEDIUM)
     return result
 
 
-def create_book(db: Session, book_data: BookCreate) -> Book:
+def create_book(
+    db: Session,
+    book_data: BookCreate,
+    owner_id: str,
+    owner_full_name: str
+) -> Book:
     """
     Create a new book listing.
     
-    Security Note: uploaded_by_user_id and uploaded_by_full_name must be set
-    by the API layer from the authenticated user context. These fields are
-    never accepted from client input to prevent spoofing.
+    Args:
+        db: Database session
+        book_data: Book creation data
+        owner_id: ID of the owner (from authenticated user)
+        owner_full_name: Full name of the owner (from authenticated user)
+    
+    Security Note:
+        owner_id and owner_full_name must be set by the API layer from
+        the authenticated user context. These are never accepted from
+        client input to prevent spoofing.
+    
+    Returns:
+        Created Book instance
     """
     db_book = Book(
         title=book_data.title,
         author=book_data.author,
         category=book_data.category,
-        listing_type=book_data.listing_type.value,
+        listing_type=book_data.listing_type.value if book_data.listing_type else "lend",
         condition=book_data.condition.value if book_data.condition else "good",
         description=book_data.description,
         cover_image=book_data.cover_image,
+        cover_image_thumb_url=book_data.cover_image_thumb_url,  # Thumbnail for listing pages
         price=book_data.price,
         whatsapp_number=book_data.whatsapp_number,
-        # Ownership derived from authenticated user - never from frontend
-        listed_by=book_data.listed_by,
-        user_id=book_data.user_id,
         is_available=True,
+        # Ownership derived from authenticated user - never from frontend
+        user_id=owner_id,
+        listed_by=owner_full_name,
     )
+    
     db.add(db_book)
     db.commit()
     db.refresh(db_book)
     
-    # Generate and save slug with ID for uniqueness (e.g., "the-great-gatsby-45")
-    db_book.slug = generate_slug(book_data.title, db_book.id)
-    db.commit()
-    db.refresh(db_book)
-    
-    # Invalidate cache after creating a book
-    invalidate_books_cache()
-    
     return db_book
 
 
-def update_book_availability(db: Session, book_id: int, is_available: bool) -> Optional[Book]:
-    """Update book availability status."""
-    book = get_book_by_id(db, book_id)
-    if book:
-        book.is_available = is_available
-        db.commit()
-        db.refresh(book)
-        
-        # Invalidate caches after updating
-        invalidate_books_cache()
-        cache.delete(f"books:id:{book_id}")
-        
-    return book
-
-
-def get_books_by_user(db: Session, user_id: str, limit: int = 50) -> list[Book]:
-    """Fetch all books uploaded by a specific user with caching."""
-    cache_key = f"user:{user_id}:books:{limit}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
-    
-    result = db.query(Book).filter(
-        Book.user_id == user_id
-    ).order_by(desc(Book.created_at)).limit(limit).all()
-    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_USER)
-    return result
-
-
-def get_books_borrowed_by_user(db: Session, user_id: str, limit: int = 50) -> list[Book]:
-    """
-    Fetch all books borrowed by a specific user with caching.
-    Uses the borrowed_by_user_id field to identify borrowed books.
-    """
-    cache_key = f"user:{user_id}:borrowed:{limit}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
-    
-    result = db.query(Book).filter(
-        Book.borrowed_by_user_id == user_id,
-        Book.is_borrowed == True
-    ).order_by(desc(Book.created_at)).limit(limit).all()
-    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_USER)
-    return result
-
-
-def find_user_by_full_name(db: Session, full_name: str) -> Optional[dict]:
-    """
-    Find a registered user by their full name.
-    
-    Since users are managed by Supabase, we search for users who have
-    uploaded books (their full name is stored in listed_by).
-    
-    Returns dict with user_id and full_name if found, None otherwise.
-    """
-    # Search for a book uploaded by someone with this name
-    # This identifies registered users who have uploaded at least one book
-    book = db.query(Book).filter(
-        Book.listed_by.ilike(full_name)  # Case-insensitive match
-    ).first()
-    
-    if book and book.user_id and book.listed_by:
-        return {
-            "user_id": book.user_id,
-            "full_name": book.listed_by
-        }
-    
-    return None
-
-
-def mark_book_as_borrowed(
-    db: Session, 
-    book_id: int, 
-    borrowed_by_user_id: str, 
-    borrowed_by_name: str
+def update_book(
+    db: Session,
+    book_id: str,
+    book_data: BookUpdate,
+    user_id: str
 ) -> Optional[Book]:
     """
-    Mark a book as borrowed by a specific user.
+    Update a book listing.
     
-    Business Rules (enforced in API layer):
-    - Only the book uploader can call this
-    - Book must not already be borrowed
-    - Borrower must be a registered user
+    Args:
+        db: Database session
+        book_id: ID of the book to update
+        book_data: Update data
+        user_id: ID of the user making the update
     
-    This function only handles the database mutation.
+    Returns:
+        Updated Book instance or None if not found/unauthorized
     """
     book = get_book_by_id(db, book_id)
-    if book:
-        book.is_borrowed = True
-        book.borrowed_by_user_id = borrowed_by_user_id
-        book.borrowed_by_name = borrowed_by_name
-        db.commit()
-        db.refresh(book)
-        
-        # Invalidate caches after marking as borrowed
-        invalidate_books_cache()
-        cache.delete(f"books:id:{book_id}")
-        
+    
+    if not book:
+        return None
+    
+    # Verify ownership
+    if book.user_id != user_id:
+        raise PermissionError("Only the book owner can update this book")
+    
+    # Update fields if provided
+    update_data = book_data.model_dump(exclude_unset=True)
+    
+    for field, value in update_data.items():
+        if hasattr(book, field):
+            # Handle enum values
+            if hasattr(value, 'value'):
+                value = value.value
+            setattr(book, field, value)
+    
+    db.commit()
+    db.refresh(book)
+    
     return book
 
 
-def delete_book(db: Session, book_id: int, user_id: str = None) -> bool:
+def soft_delete_book(db: Session, book_id: str, user_id: str) -> bool:
     """
     Delete a book from the database.
     
-    Business Rules (enforced in API layer):
-    - Only the book uploader (owner) can delete their own book
-    - Book must exist
+    Args:
+        db: Database session
+        book_id: ID of the book to delete
+        user_id: ID of the user making the request
     
-    This function only handles the database mutation.
-    Returns True if deletion was successful, False otherwise.
+    Returns:
+        True if deleted, False if not found/unauthorized
     """
-    logger.info(f"[delete_book] Called with book_id={book_id}, user_id={user_id}")
+    book = get_book_by_id(db, book_id)
     
-    # Query the book fresh from database (bypass cache)
-    book = db.query(Book).filter(Book.id == book_id).first()
-    logger.info(f"[delete_book] Query result: book={'found' if book else 'NOT FOUND'}")
+    if not book:
+        return False
     
+    # Verify ownership
+    if book.user_id != user_id:
+        raise PermissionError("Only the book owner can delete this book")
+    
+    # Store owner_id for cache invalidation
+    owner_id = book.user_id
+    book_id_int = book.id
+    
+    # Actually delete the book from database
+    db.delete(book)
+    db.commit()
+    
+    # Invalidate caches
+    invalidate_books_cache()
+    cache.delete(f"books:id:{book_id_int}")
+    if owner_id:
+        invalidate_user_cache(owner_id)
+    
+    logger.info(f"Deleted book {book_id_int} and invalidated caches")
+    return True
+
+
+def get_books_by_owner(db: Session, owner_id: str, limit: int = 50) -> List[Book]:
+    """Fetch all books uploaded by a specific user with caching."""
+    cache_key = f"user:{owner_id}:books:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = db.query(Book).filter(
+        Book.user_id == owner_id
+    ).order_by(desc(Book.created_at)).limit(limit).all()
+    
+    cache.set(cache_key, result, ttl_seconds=CACHE_TTL_SHORT)
+    return result
+
+
+def search_books(
+    db: Session,
+    query: str,
+    category: Optional[str] = None,
+    limit: int = 50
+) -> List[Book]:
+    """
+    Search books by title or author.
+    
+    Args:
+        db: Database session
+        query: Search query
+        category: Optional category filter
+        limit: Maximum results
+    
+    Returns:
+        List of matching books
+    """
+    q = db.query(Book)
+    
+    if query:
+        search_term = f"%{query}%"
+        q = q.filter(
+            (Book.title.ilike(search_term)) |
+            (Book.author.ilike(search_term))
+        )
+    
+    if category:
+        q = q.filter(Book.category.ilike(f"%{category}%"))
+    
+    return q.order_by(desc(Book.created_at)).limit(limit).all()
+
+
+# ============================================
+# Legacy Functions for Backwards Compatibility
+# ============================================
+
+def get_books_by_user(db: Session, user_id: str, limit: int = 50) -> List[Book]:
+    """
+    Alias for get_books_by_owner.
+    Kept for backwards compatibility.
+    """
+    return get_books_by_owner(db, user_id, limit)
+
+
+def update_book_availability(db: Session, book_id: str, available: bool) -> Optional[Book]:
+    """
+    Update book availability.
+    """
+    book = get_book_by_id(db, book_id)
     if book:
-        # Store user_id before deletion for cache invalidation
-        owner_id = user_id or book.user_id
-        book_title = book.title  # Store for logging
-        
-        logger.info(f"[delete_book] About to delete book {book_id} ('{book_title}')")
-        
-        try:
-            db.delete(book)
-            logger.info(f"[delete_book] db.delete() called, now committing...")
-            db.commit()
-            logger.info(f"[delete_book] COMMIT SUCCESSFUL for book {book_id}")
-            
-            # Verify deletion
-            verify = db.query(Book).filter(Book.id == book_id).first()
-            if verify:
-                logger.error(f"[delete_book] VERIFICATION FAILED: Book {book_id} still exists after commit!")
-                return False
-            else:
-                logger.info(f"[delete_book] VERIFIED: Book {book_id} no longer exists in database")
-            
-        except Exception as e:
-            logger.error(f"[delete_book] EXCEPTION during delete: {type(e).__name__}: {e}")
-            db.rollback()
-            return False
-        
-        # Invalidate all related caches
-        invalidate_books_cache()
-        cache.delete(f"books:id:{book_id}")
-        
-        # Invalidate user-specific library cache so deleted book disappears immediately
-        if owner_id:
-            invalidate_user_cache(owner_id)
-        
-        logger.info(f"[delete_book] Returning True - deletion complete")
-        return True
-    
-    logger.warning(f"[delete_book] Book {book_id} not found in database for deletion")
-    return False
+        book.is_available = available
+        db.commit()
+        db.refresh(book)
+    return book
