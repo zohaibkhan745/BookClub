@@ -2,6 +2,7 @@
 Books API endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
@@ -114,14 +115,17 @@ async def get_books(db: Session = Depends(get_db)):
     """
     try:
         sections = book_service.get_books_by_section(db)
-        return {
-            "success": True,
-            "data": {
-                "trending": [book_to_preview(b) for b in sections["trending"]],
-                "newArrivals": [book_to_preview(b) for b in sections["newArrivals"]],
-                "popular": [book_to_preview(b) for b in sections["popular"]],
-            }
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "data": {
+                    "trending": [book_to_preview(b) for b in sections["trending"]],
+                    "newArrivals": [book_to_preview(b) for b in sections["newArrivals"]],
+                    "popular": [book_to_preview(b) for b in sections["popular"]],
+                }
+            },
+            headers={"Cache-Control": "public, max-age=30, stale-while-revalidate=60"}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -153,15 +157,18 @@ async def get_all_books_endpoint(
         result_books = books[:limit] if has_next else books
         next_cursor = result_books[-1].id if has_next and result_books else None
         
-        return {
-            "success": True,
-            "data": [book_to_preview(b) for b in result_books],
-            "pagination": {
-                "next_cursor": next_cursor,
-                "has_next": has_next,
-                "limit": limit,
-            }
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "data": [book_to_preview(b) for b in result_books],
+                "pagination": {
+                    "next_cursor": next_cursor,
+                    "has_next": has_next,
+                    "limit": limit,
+                }
+            },
+            headers={"Cache-Control": "public, max-age=30, stale-while-revalidate=60"}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -176,10 +183,13 @@ async def get_books_by_genre(genre: str, db: Session = Depends(get_db)):
     """
     try:
         books = book_service.get_books_by_genre(db, genre)
-        return {
-            "success": True,
-            "data": [book_to_preview(b) for b in books]
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "data": [book_to_preview(b) for b in books]
+            },
+            headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=120"}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -198,10 +208,13 @@ async def search_books(
     """
     try:
         books = book_service.search_books(db, q, category)
-        return {
-            "success": True,
-            "data": [book_to_preview(b) for b in books]
-        }
+        return JSONResponse(
+            content={
+                "success": True,
+                "data": [book_to_preview(b) for b in books]
+            },
+            headers={"Cache-Control": "public, max-age=10, stale-while-revalidate=30"}
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

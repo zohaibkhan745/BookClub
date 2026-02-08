@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Navbar } from "../components/Navbar";
@@ -6,7 +5,7 @@ import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorState } from "../components/ui/ErrorState";
-import { getBooksByGenre } from "../services";
+import { useGenreBooks } from "../hooks/useBooks";
 import type { BookPreview, ApiError } from "../types";
 
 // Import category background images
@@ -38,30 +37,9 @@ const genreBackgrounds: Record<string, string> = {
 export function GenrePage() {
   const { genre } = useParams();
   const navigate = useNavigate();
-  const [books, setBooks] = useState<BookPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadBooks = async () => {
-    if (!genre) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const booksData = await getBooksByGenre(genre);
-      setBooks(booksData);
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || "Failed to load books. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBooks();
-  }, [genre]);
+  // SWR handles caching, dedup, and background revalidation automatically
+  const { books, isLoading, error, refresh: loadBooks } = useGenreBooks(genre);
 
   // Format genre name for display (e.g., "science-fiction" -> "Science Fiction")
   const formatGenreName = (genreSlug: string) => {

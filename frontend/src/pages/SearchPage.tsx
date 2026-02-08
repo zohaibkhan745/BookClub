@@ -1,33 +1,38 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { MobileBottomNav } from "../components/MobileBottomNav";
-import { getAllBookSections, searchBooks } from "../services";
+import { useBookSections } from "../hooks/useBooks";
+import { searchBooks } from "../services";
 import type { BookPreview } from "../types";
 
 export function SearchPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [trending, setTrending] = useState<BookPreview[]>([]);
   const [searchResults, setSearchResults] = useState<BookPreview[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadTrending = async () => {
-      try {
-        const sections = await getAllBookSections();
-        setTrending(sections.trending);
-      } catch (err) {
-        console.error("Failed to load trending:", err);
-      } finally {
-        setIsLoading(false);
+  // SWR handles caching, dedup, and background revalidation automatically
+  const { sections, isLoading } = useBookSections();
+  // Combine all section books into a single featured list, deduped by id
+  const allFeatured = (() => {
+    if (!sections) return [];
+    const seen = new Set<string>();
+    const result: BookPreview[] = [];
+    for (const book of [
+      ...(sections.trending || []),
+      ...(sections.newArrivals || []),
+      ...(sections.popular || []),
+    ]) {
+      if (!seen.has(book.id)) {
+        seen.add(book.id);
+        result.push(book);
       }
-    };
-    loadTrending();
-  }, []);
+    }
+    return result;
+  })();
 
   const handleSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -163,23 +168,23 @@ export function SearchPage() {
             {/* Featured */}
             <section>
               <h2 className="text-lg font-semibold text-black dark:text-white mb-3">
-                Featured
+                All Books
               </h2>
               {isLoading ? (
-                <div className="flex space-x-3 overflow-x-auto">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex-none w-32">
-                      <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i}>
+                      <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {trending.map((book) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {allFeatured.map((book) => (
                     <Link
                       key={book.id}
                       to={`/book/${book.slug || book.id}`}
-                      className="flex-none w-32 group"
+                      className="group"
                     >
                       <div className="rounded-xl overflow-hidden shadow-lg">
                         <img
@@ -187,12 +192,13 @@ export function SearchPage() {
                           alt={book.title}
                           loading="lazy"
                           decoding="async"
-                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300 bg-gray-200 dark:bg-gray-700"
+                          className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300 bg-gray-200 dark:bg-gray-700"
                         />
                       </div>
                       <h4 className="mt-2 text-black dark:text-white font-medium text-sm line-clamp-2">
                         {book.title}
                       </h4>
+                      <p className="text-gray-500 text-xs">{book.author}</p>
                     </Link>
                   ))}
                 </div>

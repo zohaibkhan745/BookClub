@@ -2,6 +2,7 @@
  * SWR-based hooks for book data fetching with automatic caching,
  * deduplication, and background revalidation.
  */
+import { useCallback } from 'react';
 import useSWR from 'swr';
 import useSWRImmutable from 'swr/immutable';
 import { apiGet } from '../services/api';
@@ -73,9 +74,9 @@ const fetcher = <T>(url: string) => apiGet<T>(url);
  * Fetch homepage book sections (trending, new arrivals, popular)
  * Uses SWR for automatic caching and background revalidation
  */
-export function useBookSections(limit: number = 10) {
+export function useBookSections() {
   const { data, error, isLoading, mutate } = useSWR<BookSectionsResponse>(
-    `/books/sections?limit=${limit}`,
+    '/books',
     fetcher,
     {
       ...swrConfig,
@@ -155,7 +156,7 @@ export function useGenreBooks(genre: string | undefined) {
 }
 
 /**
- * Fetch all books for the homepage grid
+ * Fetch all books for the homepage grid with load-more support
  */
 export function useAllBooks(limit: number = 50) {
   const { data, error, isLoading, mutate } = useSWR<AllBooksResponse>(
@@ -168,12 +169,33 @@ export function useAllBooks(limit: number = 50) {
     }
   );
 
+  /**
+   * Append additional books from a "load more" fetch to the existing data
+   */
+  const appendBooks = useCallback(
+    (newBooks: BookPreview[], newPagination: AllBooksResponse['pagination']) => {
+      mutate(
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            data: [...current.data, ...newBooks],
+            pagination: newPagination,
+          };
+        },
+        { revalidate: false }
+      );
+    },
+    [mutate]
+  );
+
   return {
     books: data?.data || [],
     pagination: data?.pagination,
     isLoading,
     error: error?.message || null,
     refresh: () => mutate(),
+    appendBooks,
   };
 }
 

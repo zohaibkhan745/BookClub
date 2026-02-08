@@ -9,6 +9,8 @@ interface OptimizedImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   lazy?: boolean;
   /** Blur placeholder while loading */
   blur?: boolean;
+  /** Fetch priority hint for above-the-fold images */
+  fetchPriority?: "high" | "low" | "auto";
 }
 
 /**
@@ -28,6 +30,7 @@ export function OptimizedImage({
   placeholderColor = "#e5e7eb",
   lazy = true,
   blur = false,
+  fetchPriority,
   className = "",
   style,
   ...props
@@ -106,6 +109,7 @@ export function OptimizedImage({
           `}
           loading={lazy ? "lazy" : "eager"}
           decoding="async"
+          fetchPriority={fetchPriority}
           {...props}
         />
       )}

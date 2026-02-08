@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { CategorySection } from "../components/CategorySection";
@@ -7,16 +7,21 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { OptimizedImage } from "../components/ui/OptimizedImage";
 import { useAllBooks } from "../hooks/useBooks";
+import { apiGet } from "../services/api";
 import type { BookPreview } from "../types";
 
 // Memoized book card component to prevent unnecessary re-renders
 const BookCard = memo(function BookCard({
   book,
   onClick,
+  index,
 }: {
   book: BookPreview;
   onClick: () => void;
+  index: number;
 }) {
+  // First 6 images are above the fold — load eagerly with high priority
+  const isAboveFold = index < 6;
   return (
     <div onClick={onClick} className="cursor-pointer group">
       <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
@@ -25,6 +30,8 @@ const BookCard = memo(function BookCard({
           alt={book.title}
           className="w-full aspect-[2/3]"
           placeholderColor="#d1d5db"
+          lazy={!isAboveFold}
+          fetchPriority={isAboveFold ? "high" : undefined}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
@@ -47,8 +54,10 @@ const BookCard = memo(function BookCard({
 });
 
 export function Home() {
-  const { books, isLoading, error, refresh } = useAllBooks(50);
+  const { books, pagination, isLoading, error, refresh, appendBooks } =
+    useAllBooks(50);
   const navigate = useNavigate();
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const handleBookClick = useCallback(
     (slug: string) => {
@@ -56,6 +65,29 @@ export function Home() {
     },
     [navigate],
   );
+
+  const handleLoadMore = useCallback(async () => {
+    if (!pagination?.next_cursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const res = await apiGet<{
+        success: boolean;
+        data: BookPreview[];
+        pagination: {
+          next_cursor: number | null;
+          has_next: boolean;
+          limit: number;
+        };
+      }>(`/books/all?cursor=${pagination.next_cursor}&limit=50`);
+      if (res?.data) {
+        appendBooks(res.data, res.pagination);
+      }
+    } catch (err) {
+      console.error("Failed to load more books:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [pagination, isLoadingMore, appendBooks]);
 
   return (
     <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
@@ -87,15 +119,29 @@ export function Home() {
                 No books available yet.
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {books.map((book) => (
-                  <BookCard
-                    key={book.id}
-                    book={book}
-                    onClick={() => handleBookClick(book.slug || book.id)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {books.map((book, index) => (
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      index={index}
+                      onClick={() => handleBookClick(book.slug || book.id)}
+                    />
+                  ))}
+                </div>
+                {pagination?.has_next && (
+                  <div className="flex justify-center mt-8">
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className="px-8 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors duration-200 shadow-md"
+                    >
+                      {isLoadingMore ? "Loading..." : "Load More Books"}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

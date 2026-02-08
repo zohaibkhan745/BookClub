@@ -16,6 +16,11 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { CreditBadge } from "./CreditBadge";
+import {
+  LazyLibraryPage,
+  LazySearchPage,
+  LazyCommunityPage,
+} from "./LazyPages";
 
 export const Navbar = memo(function Navbar() {
   const navigate = useNavigate();
@@ -92,6 +97,18 @@ export const Navbar = memo(function Navbar() {
     [location.pathname],
   );
 
+  // Preload route chunks on hover for instant navigation
+  const preloadMap: Record<string, { preload?: () => void }> = {
+    "/library": LazyLibraryPage as unknown as { preload: () => void },
+    "/search": LazySearchPage as unknown as { preload: () => void },
+    "/community": LazyCommunityPage as unknown as { preload: () => void },
+  };
+
+  const handlePreload = useCallback((path: string) => {
+    const component = preloadMap[path];
+    if (component?.preload) component.preload();
+  }, []);
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[rgba(246,240,215,0.8)] dark:bg-[rgba(28,28,30,0.9)] backdrop-blur-md border-b border-[rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.1)]">
       <div className="px-4 md:px-12 py-4 flex items-center justify-between">
@@ -113,6 +130,7 @@ export const Navbar = memo(function Navbar() {
               <button
                 key={item.id}
                 onClick={() => navigate(item.path)}
+                onMouseEnter={() => handlePreload(item.path)}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all ${
                   active
                     ? "bg-red-500 text-white"

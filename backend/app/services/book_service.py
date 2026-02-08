@@ -94,7 +94,7 @@ def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
     return result
 
 
-def get_books_by_section(db: Session, limit: int = 10) -> dict:
+def get_books_by_section(db: Session, limit: int = 20) -> dict:
     """
     Get books organized by homepage sections with caching.
     Shows all books including borrowed ones.
@@ -107,13 +107,14 @@ def get_books_by_section(db: Session, limit: int = 10) -> dict:
     if cached is not None:
         return cached
     
-    # Show all books, including borrowed ones
-    all_books = db.query(Book).order_by(desc(Book.created_at)).limit(30).all()
+    # Fetch all books so every book appears in at least one section
+    all_books = db.query(Book).order_by(desc(Book.created_at)).all()
     
-    # Split books into sections
-    trending = all_books[:limit] if len(all_books) >= limit else all_books
-    new_arrivals = all_books[limit:limit*2] if len(all_books) >= limit*2 else all_books[:limit]
-    popular = all_books[limit*2:limit*3] if len(all_books) >= limit*3 else all_books[:limit]
+    # Split books into sections — each section gets up to `limit` books
+    # If fewer books than 3*limit, overlap sections so all books still show
+    trending = all_books[:limit]
+    new_arrivals = all_books[limit:limit*2] if len(all_books) > limit else all_books
+    popular = all_books[limit*2:limit*3] if len(all_books) > limit*2 else all_books
     
     result = {
         "trending": trending,
