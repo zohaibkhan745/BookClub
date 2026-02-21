@@ -27,6 +27,10 @@ from app.schemas.borrow import (
     BookBorrowStatus,
     BorrowStatus,
 )
+from app.schemas.subscriber import (
+    SubscribeRequest,
+    SubscribeResponse,
+)
 
 __all__ = [
     # User schemas
@@ -54,4 +58,7 @@ __all__ = [
     "BorrowRecordPreview",
     "BookBorrowStatus",
     "BorrowStatus",
+    # Subscriber schemas
+    "SubscribeRequest",
+    "SubscribeResponse",
 ]

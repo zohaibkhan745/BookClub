@@ -12,7 +12,7 @@ from app.cache import get_cache_stats, cache
 try:
     from app.db.database import engine, Base
     # Import all models to ensure they're registered with Base.metadata
-    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply
+    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply, Subscriber
     
     # Create database tables (for development - use Alembic migrations in production)
     # Note: This won't modify existing tables, only create new ones
@@ -27,6 +27,7 @@ from app.api import books
 from app.api import borrow
 from app.api import users
 from app.api import forum
+from app.api import subscribers
 
 
 # Background task for periodic cache cleanup
@@ -113,3 +114,4 @@ app.include_router(books.router)
 app.include_router(borrow.router)
 app.include_router(users.router)
 app.include_router(forum.router)
+app.include_router(subscribers.router)

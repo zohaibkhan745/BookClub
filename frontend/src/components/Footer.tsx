@@ -1,7 +1,41 @@
-import { BookOpen, Heart, Mail } from "lucide-react";
+import { BookOpen, Heart, Mail, Loader2, Check } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { apiPost } from "../services/api";
 
 export function Footer() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setStatus("loading");
+    try {
+      const res = await apiPost<{ message: string; email: string }>(
+        "/subscribers/subscribe",
+        { email: email.trim() }
+      );
+      setStatus("success");
+      setMessage(res.message);
+      setEmail("");
+      // Reset after 5 seconds
+      setTimeout(() => {
+        setStatus("idle");
+        setMessage("");
+      }, 5000);
+    } catch {
+      setStatus("error");
+      setMessage("Something went wrong. Please try again.");
+      setTimeout(() => {
+        setStatus("idle");
+        setMessage("");
+      }, 4000);
+    }
+  };
+
   return (
     <footer className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-[#1c1c1e] dark:to-[#2c2c2e] border-t border-amber-200/50 dark:border-white/10 transition-colors duration-300">
       {/* Inspirational Quote Section */}
@@ -94,16 +128,37 @@ export function Footer() {
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Get notified when new books are uploaded and features go live.
             </p>
-            <div className="flex space-x-2">
-              <input
-                type="email"
-                placeholder="Your email"
-                className="flex-1 px-3 py-2 rounded-lg bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-amber-300 dark:border-white/20 focus:outline-none focus:border-red-500 text-sm text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
-              />
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
-                <Mail className="w-4 h-4" />
-              </button>
-            </div>
+            <form onSubmit={handleSubscribe} className="space-y-2">
+              <div className="flex space-x-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Your email"
+                  required
+                  disabled={status === "loading"}
+                  className="flex-1 px-3 py-2 rounded-lg bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-amber-300 dark:border-white/20 focus:outline-none focus:border-red-500 text-sm text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={status === "loading" || status === "success"}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {status === "loading" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : status === "success" ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {message && (
+                <p className={`text-xs ${status === "success" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  {message}
+                </p>
+              )}
+            </form>
           </div>
         </div>
       </div>
