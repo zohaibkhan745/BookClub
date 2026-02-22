@@ -5,7 +5,9 @@ import { apiPost } from "../services/api";
 
 export function Footer() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
 
   const handleSubscribe = async (e: React.FormEvent) => {
@@ -16,7 +18,7 @@ export function Footer() {
     try {
       const res = await apiPost<{ message: string; email: string }>(
         "/subscribers/subscribe",
-        { email: email.trim() }
+        { email: email.trim() },
       );
       setStatus("success");
       setMessage(res.message);
@@ -154,7 +156,9 @@ export function Footer() {
                 </button>
               </div>
               {message && (
-                <p className={`text-xs ${status === "success" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                <p
+                  className={`text-xs ${status === "success" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                >
                   {message}
                 </p>
               )}
@@ -171,18 +175,18 @@ export function Footer() {
             readers.
           </p>
           <div className="flex space-x-6">
-            <a
-              href="#"
+            <Link
+              to="/privacy-policy"
               className="hover:text-red-600 dark:hover:text-red-400 transition"
             >
               Privacy Policy
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/terms-of-service"
               className="hover:text-red-600 dark:hover:text-red-400 transition"
             >
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </div>

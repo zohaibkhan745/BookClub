@@ -24,6 +24,8 @@ import {
   LazyLeaderboardPage,
   LazyCommunityPage,
   LazyThreadDetailPage,
+  LazyPrivacyPolicyPage,
+  LazyTermsOfServicePage,
   PageLoader,
 } from "./components/LazyPages";
 
@@ -80,6 +82,14 @@ export default function App() {
                 <Route
                   path="/community/:id"
                   element={<LazyThreadDetailPage />}
+                />
+                <Route
+                  path="/privacy-policy"
+                  element={<LazyPrivacyPolicyPage />}
+                />
+                <Route
+                  path="/terms-of-service"
+                  element={<LazyTermsOfServicePage />}
                 />
               </Routes>
             </Suspense>

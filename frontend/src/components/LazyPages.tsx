@@ -99,6 +99,16 @@ export const LazyThreadDetailPage = lazyLoad(() =>
     default: m.ThreadDetailPage,
   })),
 );
+export const LazyPrivacyPolicyPage = lazyLoad(() =>
+  import("../pages/PrivacyPolicyPage").then((m) => ({
+    default: m.PrivacyPolicyPage,
+  })),
+);
+export const LazyTermsOfServicePage = lazyLoad(() =>
+  import("../pages/TermsOfServicePage").then((m) => ({
+    default: m.TermsOfServicePage,
+  })),
+);
 
 // Export PageLoader for use in App.tsx
 export { PageLoader };
