@@ -1,116 +1,196 @@
-# Book Club
+# 📚 Book Club
 
-A full-stack web app for sharing and borrowing books, built with FastAPI (backend) and React + Vite (frontend).
+A full-stack community platform for book lovers — discover books, share your collection, borrow from others, and discuss reads in a community forum.
 
----
-
-## Prerequisites
-
-- Node.js (v18+ recommended)
-- Python 3.10+
-- PostgreSQL database (Supabase recommended)
+Built with **FastAPI** (backend) and **React + Vite + TypeScript** (frontend), backed by **PostgreSQL via Supabase**.
 
 ---
 
-## 1. Backend Setup (FastAPI)
+## ✨ Features
 
-1. **Create and activate a virtual environment:**
+- **Book Library** — Browse, search, and filter books by genre; view detailed book pages.
+- **Upload & Share** — List your own books and make them available for the community to borrow.
+- **Borrowing System** — Request to borrow books and track active borrow records.
+- **Community Forum** — Create threads, reply to discussions, and engage with other readers.
+- **User Profiles & Leaderboard** — Public profiles, reading stats, and a community leaderboard.
+- **Authentication** — Secure JWT-based sign-up, login, and session management via Supabase.
+- **Search** — Full-text search across books and community content.
+- **Newsletter Subscribers** — Email subscription for community updates.
+- **Response Caching** — In-memory cache with periodic cleanup for fast API responses.
+- **Interactive API Docs** — Auto-generated Swagger UI and ReDoc documentation.
+
+---
+
+## 🛠 Tech Stack
+
+| Layer      | Technology                                                    |
+| ---------- | ------------------------------------------------------------- |
+| Frontend   | React 18, Vite, TypeScript, Tailwind CSS, React Router, SWR   |
+| Backend    | FastAPI, SQLAlchemy, Alembic, Pydantic, Passlib, python-jose  |
+| Database   | PostgreSQL (Supabase)                                         |
+| Storage    | Supabase Storage (book cover images)                          |
+| Auth       | Supabase JWT / python-jose                                    |
+| Deployment | Vercel (frontend) · Render / Railway (backend)                |
+
+---
+
+## 📁 Project Structure
+
+```
+BookClub/
+├── backend/                # FastAPI application
+│   ├── app/
+│   │   ├── api/            # Route handlers (books, borrow, users, forum, subscribers)
+│   │   ├── auth/           # JWT authentication helpers
+│   │   ├── db/             # SQLAlchemy engine & session
+│   │   ├── models/         # ORM models
+│   │   ├── schemas/        # Pydantic request/response schemas
+│   │   ├── services/       # Business logic layer
+│   │   ├── cache.py        # In-memory response cache
+│   │   ├── config.py       # Settings (env vars)
+│   │   └── main.py         # App entry point, middleware, routers
+│   ├── alembic/            # Database migrations
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/               # React + Vite application
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── context/        # React context providers
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── pages/          # Page-level components
+│   │   ├── services/       # API client functions
+│   │   └── types/          # TypeScript type definitions
+│   ├── package.json
+│   └── .env.example
+└── README.md
+```
+
+---
+
+## ⚙️ Prerequisites
+
+- **Node.js** v18 or higher
+- **Python** 3.10 or higher
+- **PostgreSQL** database (a free [Supabase](https://supabase.com) project works great)
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/zohaibkhan745/BookClub.git
+cd BookClub
+```
+
+### 2. Backend Setup (FastAPI)
 
 ```bash
 cd backend
+
+# Create and activate a virtual environment
 python -m venv venv
-venv\Scripts\activate  # On Windows
-# or
-source venv/bin/activate  # On macOS/Linux
-```
+source venv/bin/activate        # macOS / Linux
+# venv\Scripts\activate         # Windows
 
-2. **Install dependencies:**
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-3. **Configure environment variables:**
-
-- Copy `.env.example` to `.env` and fill in your Supabase/Postgres credentials.
-
-```bash
+# Configure environment variables
 cp .env.example .env
-# Edit .env with your database and Supabase info
+# Edit .env with your Supabase / PostgreSQL credentials
 ```
 
-4. **Run the backend server:**
+**Required environment variables** (see `backend/.env.example`):
+
+| Variable              | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `DATABASE_URL`        | PostgreSQL connection string                |
+| `SUPABASE_URL`        | Your Supabase project URL                   |
+| `SUPABASE_JWT_SECRET` | JWT secret from Supabase project settings   |
+| `ENV`                 | `development` or `production`               |
 
 ```bash
+# Run database migrations
+alembic upgrade head
+
+# Start the development server
 uvicorn app.main:app --reload --port 8000
 ```
 
-## 2. Frontend Setup (React + Vite)
-
-1. **Install dependencies:**
+### 3. Frontend Setup (React + Vite)
 
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
-```
 
-2. **Start the development server:**
-
-```bash
+# Start the development server
 npm run dev
 ```
 
-- The app will be available at http://localhost:5173
+The frontend will be available at **http://localhost:5173**.  
+The backend API runs at **http://localhost:8000**.
 
 ---
 
-## 3. Usage
+## 📜 Available Scripts
 
-- Open http://localhost:5173 in your browser for the frontend.
-- The backend runs at http://localhost:8000
-- Make sure both servers are running for full functionality.
+### Frontend (`frontend/`)
 
----
+| Script          | Description                          |
+| --------------- | ------------------------------------ |
+| `npm run dev`   | Start the Vite development server    |
+| `npm run build` | Build for production                 |
 
-## 4. API Docs
+### Backend (`backend/`)
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
----
-
-## 5. Project Structure
-
-```
-Book Club/
-├── backend/      # FastAPI backend
-│   ├── app/
-│   ├── requirements.txt
-│   └── ...
-├── frontend/     # React + Vite frontend
-│   ├── src/
-│   ├── package.json
-│   └── ...
-└── README.md     # This file
-```
+| Command                                      | Description                          |
+| -------------------------------------------- | ------------------------------------ |
+| `uvicorn app.main:app --reload --port 8000`  | Start the FastAPI development server |
+| `alembic upgrade head`                       | Apply all pending migrations         |
+| `alembic revision --autogenerate -m "<msg>"` | Generate a new migration             |
 
 ---
 
-## 6. Environment Variables
+## 📖 API Documentation
 
-- See `backend/.env.example` for required backend variables.
-- Frontend does not require special env vars for local dev.
+Once the backend is running, interactive API docs are available at:
 
----
-
-## 7. Deployment
-
-- Deploy backend (FastAPI) to services like Render, Railway, or Azure.
-- Deploy frontend (Vite) to Vercel, Netlify, or similar.
-- Set environment variables/secrets as needed for production.
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **Health check**: http://localhost:8000/health
 
 ---
 
-## 8. License
+## 🌐 Deployment
 
-MIT
+| Service    | Recommended Platform              |
+| ---------- | --------------------------------- |
+| Frontend   | Vercel, Netlify                   |
+| Backend    | Render, Railway, Azure App Service|
+| Database   | Supabase (managed PostgreSQL)     |
+
+Set all required environment variables in your hosting provider's dashboard before deploying.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Make your changes and commit: `git commit -m "feat: add your feature"`
+4. Push to your fork: `git push origin feature/your-feature-name`
+5. Open a Pull Request against the `main` branch.
+
+Please keep code style consistent with the existing codebase and ensure both frontend and backend still run correctly before submitting.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
