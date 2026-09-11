@@ -10,16 +10,19 @@ from datetime import datetime
 from app.db.database import get_db
 from app.services import book_service, borrow_service, user_service
 from app.schemas import BookCreate, BookUpdate
-from app.auth import get_current_user, get_optional_user, AuthUser
+from app.auth import get_current_user, get_optional_user, AuthUser, require_admin_access
 
 router = APIRouter(prefix="/api/v1", tags=["books"])
 
 
 @router.delete("/books/all")
-async def delete_all_books(db: Session = Depends(get_db)):
+async def delete_all_books(
+    db: Session = Depends(get_db),
+    _admin: bool = Depends(require_admin_access)
+):
     """
     DELETE /books/all - Delete all books from database.
-    WARNING: This is a destructive operation for development use only.
+    RESTRICTED: Development only with ADMIN_SECRET_KEY. Strictly blocked in production.
     """
     try:
         # Count before
@@ -60,14 +63,23 @@ def book_to_preview(book) -> dict:
     }
 
 
-def book_to_response(book, db: Session) -> dict:
+def book_to_response(book, db: Session = None, borrow_status: dict = None) -> dict:
     """
     Convert Book model to full response format.
     
     Borrow status is computed from borrow_records table.
+    Can accept precomputed borrow_status to avoid N+1 queries in batch operations.
     """
-    # Get borrow status from borrow_records
-    borrow_status = borrow_service.get_borrow_status(db, str(book.id))
+    if borrow_status is None:
+        if db is not None:
+            borrow_status = borrow_service.get_borrow_status(db, str(book.id))
+        else:
+            borrow_status = {
+                "is_borrowed": False,
+                "borrower_name": None,
+                "borrower_id": None,
+                "due_at": None,
+            }
     
     return {
         "id": str(book.id),
@@ -514,18 +526,35 @@ async def get_user_library(
         # Get books borrowed by this user
         borrowed_books = borrow_service.get_books_borrowed_by_user(db, user.id)
         
-        # Build response with pending counts
+        # Collect all book IDs for batch status fetching (avoids N+1 queries)
+        all_book_ids = list({b.id for b in uploaded_books + borrowed_books})
+        borrow_statuses = borrow_service.get_borrow_statuses_batch(db, all_book_ids) if all_book_ids else {}
+        
+        default_status = {
+            "is_borrowed": False,
+            "borrower_name": None,
+            "borrower_id": None,
+            "due_at": None,
+        }
+        
+        # Build response with pending counts and precomputed borrow statuses
         uploaded_response = []
         for book in uploaded_books:
-            book_data = book_to_response(book, db)
+            b_status = borrow_statuses.get(book.id, default_status)
+            book_data = book_to_response(book, db, borrow_status=b_status)
             book_data["pendingRequestCount"] = pending_counts.get(book.id, 0)
             uploaded_response.append(book_data)
+        
+        borrowed_response = [
+            book_to_response(b, db, borrow_status=borrow_statuses.get(b.id, default_status))
+            for b in borrowed_books
+        ]
         
         return {
             "success": True,
             "data": {
                 "uploaded": uploaded_response,
-                "borrowed": [book_to_response(b, db) for b in borrowed_books],
+                "borrowed": borrowed_response,
             }
         }
     except Exception as e:

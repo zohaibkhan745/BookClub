@@ -1,7 +1,7 @@
 """
 Book schemas for API request/response validation.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -46,8 +46,8 @@ class BookCreate(BaseModel):
     price: Optional[str] = None
     whatsapp_number: Optional[str] = None
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "title": "The Great Gatsby",
                 "author": "F. Scott Fitzgerald",
@@ -59,6 +59,7 @@ class BookCreate(BaseModel):
                 "whatsapp_number": "+1234567890"
             }
         }
+    )
 
 
 class BookUpdate(BaseModel):
@@ -85,8 +86,7 @@ class BookOwnerInfo(BaseModel):
     username: str
     full_name: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BorrowStatusInfo(BaseModel):
@@ -108,8 +108,7 @@ class BookPreview(BaseModel):
     image: str
     is_available: bool = True  # Whether book is available for borrowing
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookResponse(BaseModel):
@@ -152,8 +151,7 @@ class BookResponse(BaseModel):
     # For frontend conditional rendering
     uploaded_by_user_id: Optional[str] = None  # Alias for owner_id
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookSectionsResponse(BaseModel):

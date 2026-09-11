@@ -1,7 +1,7 @@
 """
 User schemas for API request/response validation.
 """
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -17,8 +17,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "username": "johndoe",
                 "full_name": "John Doe",
@@ -26,6 +26,7 @@ class UserCreate(BaseModel):
                 "password": "securepassword123"
             }
         }
+    )
 
 
 class UserLogin(BaseModel):
@@ -33,13 +34,14 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "john@example.com",
                 "password": "securepassword123"
             }
         }
+    )
 
 
 class UserUpdate(BaseModel):
@@ -60,8 +62,7 @@ class UserResponse(BaseModel):
     email: str
     created_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserPublic(BaseModel):
@@ -70,8 +71,7 @@ class UserPublic(BaseModel):
     username: str
     full_name: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AuthResponse(BaseModel):
@@ -80,8 +80,8 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "user": {
                     "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -94,3 +94,4 @@ class AuthResponse(BaseModel):
                 "token_type": "bearer"
             }
         }
+    )

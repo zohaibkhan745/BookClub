@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from typing import Optional
 
@@ -16,9 +16,21 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""  # For JWKS endpoint access
     supabase_service_key: str = ""  # For server-side Storage uploads (optional)
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Cloudflare R2 Storage settings
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = "books-images"
+    r2_public_domain: str = ""  # e.g., https://pub-xxxx.r2.dev or https://cdn.yourdomain.com
+    
+    # Admin security key for sensitive/maintenance tasks
+    admin_secret_key: str = ""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 @lru_cache()

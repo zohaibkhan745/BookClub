@@ -15,7 +15,7 @@ Handles:
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, desc, update, exists
 from typing import Optional, List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import logging
 
@@ -208,8 +208,8 @@ def borrow_book(
     except (ValueError, TypeError):
         raise ValueError("Invalid book ID")
     
-    # Verify book exists
-    book = db.query(Book).filter(Book.id == book_id_int).first()
+    # Verify book exists and lock it for update to prevent race conditions
+    book = db.query(Book).filter(Book.id == book_id_int).with_for_update().first()
     if not book:
         raise ValueError("Book not found")
     
@@ -231,7 +231,7 @@ def borrow_book(
         id=str(uuid.uuid4()),
         book_id=book_id_int,
         borrower_id=borrower_id,
-        borrowed_at=datetime.utcnow(),
+        borrowed_at=datetime.now(timezone.utc),
         due_at=due_at,
         status=BorrowStatus.borrowed.value,
     )
@@ -273,8 +273,8 @@ def request_to_borrow(
     except (ValueError, TypeError):
         raise ValueError("Invalid book ID")
     
-    # Verify book exists
-    book = db.query(Book).filter(Book.id == book_id_int).first()
+    # Verify book exists and lock it for update to prevent race conditions
+    book = db.query(Book).filter(Book.id == book_id_int).with_for_update().first()
     if not book:
         raise ValueError("Book not found")
     
@@ -307,7 +307,7 @@ def request_to_borrow(
         id=str(uuid.uuid4()),
         book_id=book_id_int,
         borrower_id=borrower_id,
-        borrowed_at=datetime.utcnow(),  # Request timestamp
+        borrowed_at=datetime.now(timezone.utc),  # Request timestamp
         status=BorrowStatus.requested.value,
     )
     
@@ -399,10 +399,10 @@ def approve_borrow_request(
     Raises:
         ValueError: If request not found, not pending, or user not authorized
     """
-    # Get the borrow request
+    # Get the borrow request and lock it for update
     borrow_record = db.query(BorrowRecord).filter(
         BorrowRecord.id == request_id
-    ).options(joinedload(BorrowRecord.book), joinedload(BorrowRecord.borrower)).first()
+    ).with_for_update().options(joinedload(BorrowRecord.book), joinedload(BorrowRecord.borrower)).first()
     
     if not borrow_record:
         raise ValueError("Borrow request not found")
@@ -420,7 +420,7 @@ def approve_borrow_request(
     
     # Update the approved request
     borrow_record.status = BorrowStatus.borrowed.value
-    borrow_record.borrowed_at = datetime.utcnow()
+    borrow_record.borrowed_at = datetime.now(timezone.utc)
     if due_at:
         borrow_record.due_at = due_at
     
@@ -465,7 +465,7 @@ def cancel_borrow_request(
     """
     borrow_record = db.query(BorrowRecord).filter(
         BorrowRecord.id == request_id
-    ).options(joinedload(BorrowRecord.book)).first()
+    ).with_for_update().options(joinedload(BorrowRecord.book)).first()
     
     if not borrow_record:
         raise ValueError("Borrow request not found")
@@ -507,17 +507,17 @@ def return_book(db: Session, book_id, user_id: str) -> BorrowRecord:
     Raises:
         ValueError: If book isn't borrowed or user can't return it
     """
-    # Get the active borrow
-    active_borrow = get_active_borrow_for_book(db, book_id)
-    if not active_borrow:
-        raise ValueError("Book is not currently borrowed")
-    
-    # Get the book to check ownership
+    # Get the book to check ownership and lock it for update
     try:
         book_id_int = int(book_id)
     except (ValueError, TypeError):
         raise ValueError("Invalid book ID")
-    book = db.query(Book).filter(Book.id == book_id_int).first()
+    book = db.query(Book).filter(Book.id == book_id_int).with_for_update().first()
+    
+    # Get the active borrow (now safe since book is locked)
+    active_borrow = get_active_borrow_for_book(db, book_id)
+    if not active_borrow:
+        raise ValueError("Book is not currently borrowed")
     
     # Verify user can return the book (borrower or owner)
     can_return = (
@@ -529,7 +529,7 @@ def return_book(db: Session, book_id, user_id: str) -> BorrowRecord:
         raise ValueError("Only the borrower or book owner can return this book")
     
     # Update the borrow record
-    active_borrow.returned_at = datetime.utcnow()
+    active_borrow.returned_at = datetime.now(timezone.utc)
     active_borrow.status = BorrowStatus.returned.value
     
     # Mark book as available again
@@ -703,7 +703,7 @@ def update_overdue_status(db: Session) -> int:
     Returns:
         Number of records updated
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     # Bulk update using UPDATE statement - much faster than load-modify-save
     result = db.execute(

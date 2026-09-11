@@ -28,6 +28,7 @@ from app.api import borrow
 from app.api import users
 from app.api import forum
 from app.api import subscribers
+from app.api import storage
 
 
 # Background task for periodic cache cleanup
@@ -64,6 +65,19 @@ app = FastAPI(
 # GZip compression for responses > 1KB (reduces bandwidth significantly)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    """Add defensive HTTP security headers to protect against common web attacks."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
 # CORS origins - includes localhost for dev and production domains
 cors_origins = [
     "http://localhost:5173",
@@ -87,6 +101,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+async def root():
+    """Root endpoint welcoming visitors and providing documentation links."""
+    return {
+        "message": "Welcome to the Book Club API",
+        "version": "2.0.0",
+        "status": "online",
+        "documentation": "/docs",
+        "health": "/health"
+    }
 
 
 @app.get("/health")
@@ -115,3 +141,4 @@ app.include_router(borrow.router)
 app.include_router(users.router)
 app.include_router(forum.router)
 app.include_router(subscribers.router)
+app.include_router(storage.router)

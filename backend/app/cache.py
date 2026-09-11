@@ -9,72 +9,110 @@ import hashlib
 import json
 import logging
 
+import threading
+from collections import OrderedDict
+
 logger = logging.getLogger(__name__)
+
+# Default maximum number of cached items to prevent memory exhaustion (DoS mitigation)
+DEFAULT_MAX_CACHE_ENTRIES = 2000
 
 
 class SimpleCache:
-    """Thread-safe simple in-memory cache with TTL support."""
+    """Thread-safe bounded in-memory cache with LRU eviction and TTL support."""
     
-    def __init__(self):
-        self._cache: dict[str, tuple[Any, datetime]] = {}
+    def __init__(self, max_entries: int = DEFAULT_MAX_CACHE_ENTRIES):
+        self._cache: OrderedDict[str, tuple[Any, datetime]] = OrderedDict()
         self._default_ttl = timedelta(seconds=60)
+        self._max_entries = max_entries
+        self._lock = threading.Lock()
         self._hits = 0
         self._misses = 0
+        self._evictions = 0
     
     def get(self, key: str) -> Optional[Any]:
-        """Get value from cache if not expired."""
-        if key in self._cache:
-            value, expiry = self._cache[key]
-            if datetime.now() < expiry:
-                self._hits += 1
-                return value
-            else:
-                # Clean up expired entry
-                del self._cache[key]
-        self._misses += 1
-        return None
+        """Get value from cache if not expired, moving accessed key to end (LRU)."""
+        with self._lock:
+            if key in self._cache:
+                value, expiry = self._cache[key]
+                if datetime.now() < expiry:
+                    self._hits += 1
+                    # Move to end to mark as recently used
+                    self._cache.move_to_end(key)
+                    return value
+                else:
+                    # Clean up expired entry
+                    del self._cache[key]
+            self._misses += 1
+            return None
     
     def set(self, key: str, value: Any, ttl_seconds: int = 60) -> None:
-        """Set value in cache with TTL."""
+        """Set value in cache with TTL, enforcing maximum size via LRU eviction."""
         expiry = datetime.now() + timedelta(seconds=ttl_seconds)
-        self._cache[key] = (value, expiry)
+        with self._lock:
+            if key in self._cache:
+                self._cache[key] = (value, expiry)
+                self._cache.move_to_end(key)
+                return
+
+            # Check if cache is full - first purge expired items
+            if len(self._cache) >= self._max_entries:
+                self._purge_expired_locked()
+
+            # If still at capacity, evict least recently used (first item)
+            while len(self._cache) >= self._max_entries:
+                self._cache.popitem(last=False)
+                self._evictions += 1
+
+            self._cache[key] = (value, expiry)
     
     def delete(self, key: str) -> None:
         """Delete a specific key from cache."""
-        if key in self._cache:
-            del self._cache[key]
+        with self._lock:
+            self._cache.pop(key, None)
     
     def invalidate_pattern(self, pattern: str) -> int:
         """Invalidate all keys matching a pattern (prefix match). Returns count invalidated."""
-        keys_to_delete = [k for k in self._cache.keys() if k.startswith(pattern)]
-        for key in keys_to_delete:
-            del self._cache[key]
-        return len(keys_to_delete)
+        with self._lock:
+            keys_to_delete = [k for k in self._cache.keys() if k.startswith(pattern)]
+            for key in keys_to_delete:
+                del self._cache[key]
+            return len(keys_to_delete)
     
     def clear(self) -> None:
         """Clear all cached data."""
-        self._cache.clear()
-        self._hits = 0
-        self._misses = 0
+        with self._lock:
+            self._cache.clear()
+            self._hits = 0
+            self._misses = 0
+            self._evictions = 0
     
-    def cleanup_expired(self) -> int:
-        """Remove all expired entries. Returns count of removed entries."""
+    def _purge_expired_locked(self) -> int:
+        """Internal helper to purge expired entries while lock is held."""
         now = datetime.now()
         expired_keys = [k for k, (_, expiry) in self._cache.items() if now >= expiry]
         for key in expired_keys:
             del self._cache[key]
         return len(expired_keys)
+
+    def cleanup_expired(self) -> int:
+        """Remove all expired entries. Returns count of removed entries."""
+        with self._lock:
+            return self._purge_expired_locked()
     
     def stats(self) -> dict:
         """Get cache statistics."""
-        total = self._hits + self._misses
-        hit_rate = (self._hits / total * 100) if total > 0 else 0
-        return {
-            "hits": self._hits,
-            "misses": self._misses,
-            "hit_rate": f"{hit_rate:.1f}%",
-            "entries": len(self._cache),
-        }
+        with self._lock:
+            total = self._hits + self._misses
+            hit_rate = (self._hits / total * 100) if total > 0 else 0
+            return {
+                "hits": self._hits,
+                "misses": self._misses,
+                "evictions": self._evictions,
+                "hit_rate": f"{hit_rate:.1f}%",
+                "entries": len(self._cache),
+                "max_entries": self._max_entries,
+            }
 
 
 # Global cache instance

@@ -3,10 +3,10 @@ Forum API endpoints for community discussions.
 
 Provides CRUD operations for forum threads and replies.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
@@ -51,8 +51,7 @@ class ReplyResponse(BaseModel):
     author: AuthorInfo
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ThreadListItem(BaseModel):
@@ -64,8 +63,7 @@ class ThreadListItem(BaseModel):
     reply_count: int
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ThreadDetailResponse(BaseModel):
@@ -77,8 +75,7 @@ class ThreadDetailResponse(BaseModel):
     replies: List[ReplyResponse]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================
@@ -88,8 +85,8 @@ class ThreadDetailResponse(BaseModel):
 @router.get("/threads", response_model=dict)
 async def get_threads(
     db: Session = Depends(get_db),
-    limit: int = 50,
-    offset: int = 0
+    limit: int = Query(default=50, ge=1, le=100, description="Items per page (max 100)"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination")
 ):
     """
     GET /forum/threads - Get all forum threads.
@@ -404,8 +401,13 @@ async def delete_reply(
             detail="You can only delete your own replies"
         )
     
+    thread_id = reply.thread_id
     db.delete(reply)
     db.commit()
+    
+    # Invalidate thread detail cache and threads list (reply count changed)
+    cache.delete(f"forum:thread:{thread_id}")
+    cache.invalidate_pattern("forum:threads:")
     
     return {
         "success": True,

@@ -1,7 +1,7 @@
 """
 BorrowRecord schemas for API request/response validation.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -29,13 +29,14 @@ class BorrowBookRequest(BaseModel):
     book_id: str = Field(..., description="ID of the book to borrow")
     due_at: Optional[datetime] = Field(None, description="Optional due date for return")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "book_id": "123e4567-e89b-12d3-a456-426614174000",
                 "due_at": "2026-02-18T23:59:59Z"
             }
         }
+    )
 
 
 class OwnerBorrowRequest(BaseModel):
@@ -47,26 +48,28 @@ class OwnerBorrowRequest(BaseModel):
     borrower_username: str = Field(..., min_length=1, description="Username of the borrower")
     due_at: Optional[datetime] = Field(None, description="Optional due date for return")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "book_id": "123e4567-e89b-12d3-a456-426614174000",
                 "borrower_username": "janedoe",
                 "due_at": "2026-02-18T23:59:59Z"
             }
         }
+    )
 
 
 class ReturnBookRequest(BaseModel):
     """Schema for returning a borrowed book."""
     book_id: str = Field(..., description="ID of the book to return")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "book_id": "123e4567-e89b-12d3-a456-426614174000"
             }
         }
+    )
 
 
 # ============================================
@@ -79,8 +82,7 @@ class BorrowerInfo(BaseModel):
     username: str
     full_name: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BorrowRecordResponse(BaseModel):
@@ -94,8 +96,7 @@ class BorrowRecordResponse(BaseModel):
     returned_at: Optional[datetime] = None
     status: BorrowStatus
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BorrowRecordPreview(BaseModel):
@@ -107,8 +108,7 @@ class BorrowRecordPreview(BaseModel):
     due_at: Optional[datetime] = None
     status: BorrowStatus
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookBorrowStatus(BaseModel):

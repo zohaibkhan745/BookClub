@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from jose import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.db.database import get_db
@@ -23,17 +23,20 @@ from app.schemas import (
     AuthResponse,
 )
 from app.models import User, Book, BorrowRecord
-from app.auth import get_current_user, AuthUser
+from app.auth import get_current_user, AuthUser, require_admin_access
 from app.config import get_settings
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
 @router.delete("/all")
-async def delete_all_users(db: Session = Depends(get_db)):
+async def delete_all_users(
+    db: Session = Depends(get_db),
+    _admin: bool = Depends(require_admin_access)
+):
     """
     DELETE /users/all - Delete all users from local database.
-    WARNING: Development only. Does NOT delete Supabase auth users.
+    RESTRICTED: Development only with ADMIN_SECRET_KEY. Strictly blocked in production.
     """
     try:
         result = db.execute(text("SELECT COUNT(*) FROM users"))
@@ -205,6 +208,16 @@ async def get_leaderboard(
     # Get top users by credits
     top_users = db.query(User).order_by(User.credits.desc().nullslast()).limit(limit).all()
     
+    # Pre-fetch book counts for all top users in a single query (avoids N+1)
+    user_ids = [u.id for u in top_users]
+    book_counts = {}
+    if user_ids:
+        counts = db.query(
+            Book.user_id,
+            func.count(Book.id)
+        ).filter(Book.user_id.in_(user_ids)).group_by(Book.user_id).all()
+        book_counts = {uid: count for uid, count in counts}
+    
     leaderboard = []
     for rank, user in enumerate(top_users, 1):
         user_credits = user.credits or 1  # Default to 1 if None
@@ -220,10 +233,8 @@ async def get_leaderboard(
             badge = "Novice"
             badge_color = "gray"
         
-        # Count books uploaded
-        books_uploaded = db.query(func.count(Book.id)).filter(
-            Book.user_id == user.id
-        ).scalar() or 0
+        # Look up precomputed count
+        books_uploaded = book_counts.get(user.id, 0)
         
         leaderboard.append({
             "rank": rank,
@@ -245,7 +256,10 @@ async def get_leaderboard(
 
 
 @router.post("/sync-credits", response_model=dict)
-async def sync_all_user_credits(db: Session = Depends(get_db)):
+async def sync_all_user_credits(
+    db: Session = Depends(get_db),
+    _admin: bool = Depends(require_admin_access)
+):
     """
     POST /users/sync-credits - Sync credits for all users based on uploaded books.
     
@@ -342,13 +356,13 @@ def create_access_token(user_id: str, email: str) -> str:
     """
     settings = get_settings()
     
-    expire = datetime.utcnow() + timedelta(hours=24)
+    expire = datetime.now(timezone.utc) + timedelta(hours=24)
     
     payload = {
         "sub": user_id,
         "email": email,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
     }
     
     # Use Supabase JWT secret for consistency
@@ -434,34 +448,6 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         }
     }
 
-
-@router.get("/me", response_model=dict)
-async def get_current_user_profile(
-    db: Session = Depends(get_db),
-    user: AuthUser = Depends(get_current_user)
-):
-    """
-    GET /users/me - Get the current authenticated user's profile.
-    
-    This works with both Supabase and local auth.
-    If the user doesn't exist in local DB, sync from Supabase data.
-    """
-    # Try to get user from local DB
-    db_user = user_service.get_user_by_id(db, user.id)
-    
-    if not db_user:
-        # User exists in Supabase but not local DB - sync
-        db_user = user_service.sync_supabase_user(
-            db,
-            supabase_id=user.id,
-            email=user.email or "",
-            full_name=user.full_name or "User"
-        )
-    
-    return {
-        "success": True,
-        "data": UserResponse.model_validate(db_user).model_dump()
-    }
 
 
 @router.put("/me", response_model=dict)
