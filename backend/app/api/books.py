@@ -119,6 +119,9 @@ def book_to_response(book, db: Session = None, borrow_status: dict = None) -> di
         "isBorrowed": borrow_status["is_borrowed"],
         "borrowedByName": borrow_status["borrower_name"],
         "borrowedByUserId": borrow_status["borrower_id"],
+
+        # Public Community Reading Journey (Borrow history)
+        "readingJourney": borrow_service.get_public_book_journey(db, book.id) if db is not None else [],
     }
 
 

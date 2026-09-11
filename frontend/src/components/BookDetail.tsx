@@ -23,6 +23,7 @@ import {
   cancelBorrowRequest,
 } from "../services";
 import { OptimizedImage } from "./ui/OptimizedImage";
+import { BookJourneyTimeline } from "./BookJourneyTimeline";
 import type { Book, ApiError, BorrowRecord } from "../types";
 
 interface BookDetailProps {
@@ -528,6 +529,14 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
             )}
           </div>
         </div>
+
+        {/* Community Reading Journey Timeline */}
+        <BookJourneyTimeline
+          journey={book.readingJourney}
+          isBorrowed={isBorrowed}
+          borrowerName={borrowerName}
+          dueAt={borrowStatus?.dueAt || book.borrowStatus?.dueAt}
+        />
       </div>
 
       {/* Borrow Requests Modal - For book owner to see and approve requesters */}

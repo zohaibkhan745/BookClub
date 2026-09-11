@@ -1,6 +1,7 @@
 export type {
   Book,
   BookPreview,
+  BookJourneyRecord,
   BookCategory,
   BookUploadFormData,
   BorrowStatus,

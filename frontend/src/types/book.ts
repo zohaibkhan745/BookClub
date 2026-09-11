@@ -81,6 +81,20 @@ export interface Book extends BookPreview {
   isBorrowed?: boolean;
   borrowedByName?: string | null;
   borrowedByUserId?: string | null;
+
+  // Community reading journey (public borrow history)
+  readingJourney?: BookJourneyRecord[];
+}
+
+/** Public community reading journey record */
+export interface BookJourneyRecord {
+  id: string;
+  borrowerName: string;
+  borrowedAt: string;
+  returnedAt?: string | null;
+  dueAt?: string | null;
+  status: 'borrowed' | 'returned' | 'overdue';
+  durationDays?: number | null;
 }
 
 /** Form data for uploading a new book */

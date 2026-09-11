@@ -30,9 +30,11 @@ CACHE_TTL_BORROW = 30  # 30 seconds
 
 
 def invalidate_borrow_cache(book_id):
-    """Invalidate borrow status cache for a book."""
+    """Invalidate borrow status and public journey cache for a book."""
     try:
-        cache.delete(f"borrow:status:{int(book_id)}")
+        bid = int(book_id)
+        cache.delete(f"borrow:status:{bid}")
+        cache.delete(f"borrow:journey:{bid}")
     except Exception:
         pass
 
@@ -722,6 +724,61 @@ def get_book_borrow_history(db: Session, book_id, limit: int = 50) -> List[Borro
     ).options(
         joinedload(BorrowRecord.borrower)
     ).order_by(desc(BorrowRecord.borrowed_at)).limit(limit).all()
+
+
+def get_public_book_journey(db: Session, book_id, limit: int = 20) -> list[dict]:
+    """
+    Get the sanitized public borrowing journey for a book.
+    Returns confirmed borrows, returns, and overdue states with privacy protections.
+    Excludes private drafts (requested, cancelled) and contact info (phone/email).
+    """
+    try:
+        book_id_int = int(book_id)
+    except (ValueError, TypeError):
+        return []
+
+    cache_key = f"borrow:journey:{book_id_int}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    records = db.query(BorrowRecord).filter(
+        and_(
+            BorrowRecord.book_id == book_id_int,
+            BorrowRecord.status.in_([
+                BorrowStatus.borrowed.value,
+                BorrowStatus.returned.value,
+                BorrowStatus.overdue.value,
+            ])
+        )
+    ).options(
+        joinedload(BorrowRecord.borrower)
+    ).order_by(desc(BorrowRecord.borrowed_at)).limit(limit).all()
+
+    journey = []
+    for r in records:
+        # Calculate duration in days if returned
+        duration_days = None
+        if r.returned_at and r.borrowed_at:
+            delta = r.returned_at - r.borrowed_at
+            duration_days = max(1, delta.days)
+
+        borrower_name = "Community Member"
+        if r.borrower:
+            borrower_name = r.borrower.full_name or r.borrower.username or "Community Member"
+
+        journey.append({
+            "id": str(r.id),
+            "borrowerName": borrower_name,
+            "borrowedAt": r.borrowed_at.isoformat() if r.borrowed_at else None,
+            "returnedAt": r.returned_at.isoformat() if r.returned_at else None,
+            "dueAt": r.due_at.isoformat() if r.due_at else None,
+            "status": r.status,
+            "durationDays": duration_days,
+        })
+
+    cache.set(cache_key, journey, ttl_seconds=60)
+    return journey
 
 
 def update_overdue_status(db: Session) -> int:

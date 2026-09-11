@@ -3,8 +3,11 @@ from fastapi.testclient import TestClient
 from app.models.book import Book
 from app.models.user import User
 from app.models.borrow_record import BorrowRecord, BorrowStatus
+from app.cache import cache
+from app.services.borrow_service import invalidate_borrow_cache
 
 def setup_book_data(db_session, mock_user_auth):
+    cache.clear()
     db_session.query(BorrowRecord).delete()
     db_session.query(Book).delete()
     db_session.query(User).delete()
@@ -163,4 +166,50 @@ def test_slug_generation_and_collision(client, db_session, mock_user_auth):
     get_res_id = client.get(f"/api/v1/books/{book2_id}")
     assert get_res_id.status_code == 200
     assert get_res_id.json()["data"]["slug"] == "clean-code-2"
+
+
+def test_reading_journey_timeline_and_privacy(client, db_session, mock_user_auth):
+    from datetime import datetime, timedelta, timezone
+    b1, _ = setup_book_data(db_session, mock_user_auth)
+    
+    # 1. Past returned borrow
+    borrow_returned = BorrowRecord(
+        id="hist-1",
+        book_id=b1.id,
+        borrower_id=mock_user_auth["id"],
+        status=BorrowStatus.returned.value,
+        borrowed_at=datetime.now(timezone.utc) - timedelta(days=14),
+        returned_at=datetime.now(timezone.utc)
+    )
+    
+    # 2. Cancelled draft request (should be excluded from public journey)
+    borrow_cancelled = BorrowRecord(
+        id="hist-2",
+        book_id=b1.id,
+        borrower_id=mock_user_auth["id"],
+        status=BorrowStatus.cancelled.value,
+        borrowed_at=datetime.now(timezone.utc) - timedelta(days=20)
+    )
+    
+    db_session.add_all([borrow_returned, borrow_cancelled])
+    db_session.commit()
+    
+    res = client.get(f"/api/v1/books/{b1.id}")
+    assert res.status_code == 200
+    data = res.json()["data"]
+    
+    journey = data.get("readingJourney", [])
+    # Only the returned record should appear; cancelled draft must be excluded
+    assert len(journey) == 1
+    item = journey[0]
+    assert item["status"] == "returned"
+    assert item["borrowerName"] == mock_user_auth["full_name"]
+    assert item["durationDays"] is not None
+    assert item["durationDays"] >= 13
+    
+    # Privacy verification: no email or phone leaked in journey
+    assert "email" not in item
+    assert "whatsappNumber" not in item
+    assert "phone" not in item
+
 
