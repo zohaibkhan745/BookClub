@@ -29,6 +29,14 @@ logger = logging.getLogger(__name__)
 CACHE_TTL_BORROW = 30  # 30 seconds
 
 
+def invalidate_borrow_cache(book_id):
+    """Invalidate borrow status cache for a book."""
+    try:
+        cache.delete(f"borrow:status:{int(book_id)}")
+    except Exception:
+        pass
+
+
 def get_active_borrow_for_book(db: Session, book_id) -> Optional[BorrowRecord]:
     """
     Get the current active borrow record for a book.
@@ -89,7 +97,7 @@ def is_book_borrowed(db: Session, book_id) -> bool:
 
 def get_borrow_status(db: Session, book_id) -> dict:
     """
-    Get the full borrow status for a book.
+    Get the full borrow status for a book with caching.
     
     Returns:
         dict with:
@@ -99,9 +107,9 @@ def get_borrow_status(db: Session, book_id) -> dict:
         - due_at: datetime or None
         - current_borrow: BorrowRecord or None
     """
-    active_borrow = get_active_borrow_for_book(db, book_id)
-    
-    if not active_borrow:
+    try:
+        book_id_int = int(book_id)
+    except (ValueError, TypeError):
         return {
             "is_borrowed": False,
             "borrower_name": None,
@@ -109,18 +117,38 @@ def get_borrow_status(db: Session, book_id) -> dict:
             "due_at": None,
             "current_borrow": None
         }
+
+    cache_key = f"borrow:status:{book_id_int}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    active_borrow = get_active_borrow_for_book(db, book_id_int)
+    
+    if not active_borrow:
+        res = {
+            "is_borrowed": False,
+            "borrower_name": None,
+            "borrower_id": None,
+            "due_at": None,
+            "current_borrow": None
+        }
+        cache.set(cache_key, res, ttl_seconds=CACHE_TTL_BORROW)
+        return res
     
     borrower_name = None
     if active_borrow.borrower:
         borrower_name = active_borrow.borrower.full_name
     
-    return {
+    res = {
         "is_borrowed": True,
         "borrower_name": borrower_name,
         "borrower_id": active_borrow.borrower_id,
         "due_at": active_borrow.due_at,
         "current_borrow": active_borrow
     }
+    cache.set(cache_key, res, ttl_seconds=CACHE_TTL_BORROW)
+    return res
 
 
 def get_borrow_statuses_batch(db: Session, book_ids: List[int]) -> dict:
@@ -242,6 +270,7 @@ def borrow_book(
     db.add(borrow_record)
     db.commit()
     db.refresh(borrow_record)
+    invalidate_borrow_cache(book_id_int)
     
     return borrow_record
 
@@ -441,6 +470,7 @@ def approve_borrow_request(
     
     db.commit()
     db.refresh(borrow_record)
+    invalidate_borrow_cache(book.id)
     
     return borrow_record
 
@@ -538,6 +568,7 @@ def return_book(db: Session, book_id, user_id: str) -> BorrowRecord:
     
     db.commit()
     db.refresh(active_borrow)
+    invalidate_borrow_cache(book_id_int)
     
     return active_borrow
 

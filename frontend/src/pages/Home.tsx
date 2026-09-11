@@ -6,7 +6,8 @@ import { Footer } from "../components/Footer";
 import { ErrorState } from "../components/ui/ErrorState";
 import { MobileBottomNav } from "../components/MobileBottomNav";
 import { OptimizedImage } from "../components/ui/OptimizedImage";
-import { useAllBooks } from "../hooks/useBooks";
+import { useAllBooks, preloadBook } from "../hooks/useBooks";
+import { LazyBookDetailPage } from "../components/LazyPages";
 import { apiGet } from "../services/api";
 import type { BookPreview } from "../types";
 
@@ -22,8 +23,20 @@ const BookCard = memo(function BookCard({
 }) {
   // First 6 images are above the fold — load eagerly with high priority
   const isAboveFold = index < 6;
+
+  // Preload book page and book details on hover for instant navigation
+  const handleHover = () => {
+    (LazyBookDetailPage as unknown as { preload?: () => void }).preload?.();
+    preloadBook(book.id);
+  };
+
   return (
-    <div onClick={onClick} className="cursor-pointer group">
+    <div
+      onClick={onClick}
+      onMouseEnter={handleHover}
+      onFocus={handleHover}
+      className="cursor-pointer group"
+    >
       <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
         <OptimizedImage
           src={book.image}

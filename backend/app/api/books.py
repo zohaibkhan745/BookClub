@@ -235,9 +235,11 @@ async def search_books(
 
 
 @router.get("/books/{book_id}")
-async def get_book(book_id: str, db: Session = Depends(get_db)):
+def get_book(book_id: str, db: Session = Depends(get_db)):
     """
     GET /books/{id} - Fetch a single book by ID.
+    Uses sync def so FastAPI executes blocking database operations in worker threadpool.
+    Includes Cache-Control headers for instant client loading.
     """
     book = book_service.get_book_by_id(db, book_id)
     
@@ -247,10 +249,13 @@ async def get_book(book_id: str, db: Session = Depends(get_db)):
             detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found."}
         )
     
-    return {
-        "success": True,
-        "data": book_to_response(book, db)
-    }
+    return JSONResponse(
+        content={
+            "success": True,
+            "data": book_to_response(book, db)
+        },
+        headers={"Cache-Control": "public, max-age=30, stale-while-revalidate=60"}
+    )
 
 
 @router.post("/books", status_code=status.HTTP_201_CREATED)

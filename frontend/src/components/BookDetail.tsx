@@ -22,6 +22,7 @@ import {
   approveBorrowRequest,
   cancelBorrowRequest,
 } from "../services";
+import { OptimizedImage } from "./ui/OptimizedImage";
 import type { Book, ApiError, BorrowRecord } from "../types";
 
 interface BookDetailProps {
@@ -355,10 +356,13 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
           <div className="flex justify-center lg:justify-end">
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-amber-200 to-orange-200 dark:from-amber-900/50 dark:to-orange-900/50 rounded-2xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
-              <img
+              <OptimizedImage
                 src={book.image}
                 alt={book.title}
-                className="relative w-full max-w-md h-auto rounded-2xl shadow-2xl object-cover"
+                className="relative w-full max-w-md rounded-2xl shadow-2xl aspect-[2/3] object-cover"
+                placeholderColor="#e2e8f0"
+                lazy={false}
+                fetchPriority="high"
               />
               {/* Borrowed Badge */}
               {isBorrowed && (

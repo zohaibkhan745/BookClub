@@ -11,11 +11,17 @@ is_serverless = settings.env in ("production", "serverless")
 
 poolclass = NullPool if is_serverless else QueuePool
 
+# Disable GSSAPI encryption negotiation for PostgreSQL (avoids timeout against PgBouncer/Supabase)
+connect_args = {}
+if settings.database_url.startswith("postgres"):
+    connect_args["gssencmode"] = "disable"
+
 # Create SQLAlchemy engine with optimized connection pool settings
 engine_kwargs = {
     "pool_pre_ping": True,  # Verify connection before using
     "echo": False,  # Set to True for SQL query logging (debug only)
-    "poolclass": poolclass
+    "poolclass": poolclass,
+    "connect_args": connect_args,
 }
 
 if not is_serverless:

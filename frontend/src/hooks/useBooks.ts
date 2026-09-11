@@ -3,7 +3,7 @@
  * deduplication, and background revalidation.
  */
 import { useCallback } from 'react';
-import useSWR from 'swr';
+import useSWR, { preload } from 'swr';
 import useSWRImmutable from 'swr/immutable';
 import { apiGet } from '../services/api';
 import type { Book, BookPreview } from '../types';
@@ -110,6 +110,14 @@ export function useBook(bookId: string | number | undefined) {
     error: error?.message || null,
     refresh: () => mutate(),
   };
+}
+
+/**
+ * Preload book details on hover to make navigation feel instantaneous
+ */
+export function preloadBook(bookId: string | number | undefined) {
+  if (!bookId) return;
+  preload(`/books/${bookId}`, fetcher);
 }
 
 /**
