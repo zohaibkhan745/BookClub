@@ -16,11 +16,6 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { CreditBadge } from "./CreditBadge";
-import {
-  LazyLibraryPage,
-  LazySearchPage,
-  LazyCommunityPage,
-} from "./LazyPages";
 
 export const Navbar = memo(function Navbar() {
   const navigate = useNavigate();
@@ -43,8 +38,13 @@ export const Navbar = memo(function Navbar() {
       // Sign out from Supabase (clears session)
       await signOut();
 
-      // Clear all localStorage data
-      localStorage.clear();
+      // Clear auth tokens from localStorage without wiping user settings
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("sb-") || key.startsWith("supabase.") || key.startsWith("bookclub_"))) {
+          localStorage.removeItem(key);
+        }
+      }
 
       // Close menu and redirect to home
       setProfileMenuOpen(false);
@@ -98,15 +98,14 @@ export const Navbar = memo(function Navbar() {
   );
 
   // Preload route chunks on hover for instant navigation
-  const preloadMap: Record<string, { preload?: () => void }> = {
-    "/library": LazyLibraryPage as unknown as { preload: () => void },
-    "/search": LazySearchPage as unknown as { preload: () => void },
-    "/community": LazyCommunityPage as unknown as { preload: () => void },
-  };
-
   const handlePreload = useCallback((path: string) => {
-    const component = preloadMap[path];
-    if (component?.preload) component.preload();
+    if (path === "/library") {
+      import("../pages/LibraryPage");
+    } else if (path === "/search") {
+      import("../pages/SearchPage");
+    } else if (path === "/community") {
+      import("../pages/CommunityPage");
+    }
   }, []);
 
   return (

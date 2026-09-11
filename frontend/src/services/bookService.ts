@@ -798,38 +798,8 @@ export async function searchUsers(query: string): Promise<UserPreview[]> {
   }
 }
 
-/** POST /users/sync - Sync Supabase auth user to local users table */
-export async function syncUser(): Promise<User> {
-  try {
-    interface UserData {
-      id: string;
-      username: string;
-      full_name: string;
-      email: string;
-      created_at: string;
-      updated_at: string;
-    }
-    
-    interface SyncUserResponse {
-      success: boolean;
-      data: UserData;
-    }
-
-    const response = await apiPost<SyncUserResponse>('/users/sync', {});
-
-    return {
-      id: response.data.id,
-      username: response.data.username,
-      fullName: response.data.full_name,
-      email: response.data.email,
-      createdAt: response.data.created_at,
-      updatedAt: response.data.updated_at,
-    };
-  } catch (error) {
-    console.error('Sync user error:', error);
-    throw error;
-  }
-}
+// Re-export user sync functions from dedicated userSyncService to eliminate duplication
+export { syncUser, getUserStats } from './userSyncService';
 
 /** GET /users/me - Get current authenticated user */
 export async function getCurrentUser(): Promise<User> {
@@ -865,43 +835,6 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 
-/** GET /users/me/stats - Get current user's activity statistics including credits */
-export async function getUserStats(): Promise<UserStats> {
-  try {
-    interface StatsData {
-      books_listed: number;
-      books_sold: number;
-      books_borrowed: number;
-      credits?: {
-        total: number;
-        available: number;
-        frozen: number;
-      };
-      badge?: {
-        name: 'Novice' | 'Librarian' | 'Community Pillar';
-        color: 'gray' | 'blue' | 'gold';
-      };
-    }
-    
-    interface GetStatsResponse {
-      success: boolean;
-      data: StatsData;
-    }
-
-    const response = await apiGet<GetStatsResponse>('/users/me/stats');
-
-    return {
-      booksListed: response.data.books_listed,
-      booksSold: response.data.books_sold,
-      booksBorrowed: response.data.books_borrowed,
-      credits: response.data.credits,
-      badge: response.data.badge,
-    };
-  } catch (error) {
-    console.error('Get user stats error:', error);
-    throw error;
-  }
-}
 
 
 /** GET /users/leaderboard - Get top users by credits */
@@ -966,26 +899,9 @@ export async function updateUserProfile(fullName: string): Promise<User> {
 
 
 /** 
- * POST /books/:id/mark-borrowed - Mark a book as borrowed.
- * Only the book uploader can call this endpoint.
- * The borrower must be a registered user.
- * @deprecated Use ownerMarkBorrowed instead - this uses the old schema
+ * Mark a book as borrowed.
+ * @deprecated Use ownerMarkBorrowed instead.
  */
-export async function markBookAsBorrowed(bookId: number, borrowerFullName: string): Promise<Book> {
-  // Client-side validation
-  if (!borrowerFullName?.trim()) {
-    throw createApiError('VALIDATION_ERROR', 'Borrower name is required');
-  }
-
-  interface MarkBorrowedResponse {
-    success: boolean;
-    data: Book;
-  }
-
-  const response = await apiPost<MarkBorrowedResponse>(
-    `/books/${bookId}/mark-borrowed`,
-    { borrower_full_name: borrowerFullName.trim() }
-  );
-
-  return response.data;
+export async function markBookAsBorrowed(bookId: number | string, borrowerUsername: string): Promise<BorrowRecord> {
+  return ownerMarkBorrowed(String(bookId), borrowerUsername);
 }

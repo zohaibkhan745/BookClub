@@ -53,9 +53,22 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Borrow status state (fetched from API)
-  const [borrowStatus, setBorrowStatus] = useState<BorrowRecord | null>(null);
-  const [isBorrowStatusLoading, setIsBorrowStatusLoading] = useState(true);
+  // Borrow status state (initialized from book prop to avoid waterfall request)
+  const [borrowStatus, setBorrowStatus] = useState<BorrowRecord | null>(() => {
+    if (book.borrowStatus?.isBorrowed || book.isBorrowed) {
+      return {
+        id: "",
+        bookId: String(book.id),
+        borrowerId: book.borrowStatus?.borrowerId || book.borrowedByUserId || "",
+        borrowerFullName: book.borrowStatus?.borrowerName || book.borrowedByName || undefined,
+        borrowedAt: "",
+        dueAt: book.borrowStatus?.dueAt,
+        status: "borrowed",
+      };
+    }
+    return null;
+  });
+  const [isBorrowStatusLoading, setIsBorrowStatusLoading] = useState(false);
 
   // Borrow requests state (for owner)
   const [showRequestsModal, setShowRequestsModal] = useState(false);
@@ -98,8 +111,27 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
   // 3. Book IS currently borrowed
   const canReturnBook = isUploader && isBorrowed;
 
-  // Fetch borrow status on mount
+  // Sync borrow status when book prop changes without redundant network requests
   useEffect(() => {
+    if (book.borrowStatus !== undefined || book.isBorrowed !== undefined) {
+      if (book.borrowStatus?.isBorrowed || book.isBorrowed) {
+        setBorrowStatus({
+          id: "",
+          bookId: String(book.id),
+          borrowerId: book.borrowStatus?.borrowerId || book.borrowedByUserId || "",
+          borrowerFullName: book.borrowStatus?.borrowerName || book.borrowedByName || undefined,
+          borrowedAt: "",
+          dueAt: book.borrowStatus?.dueAt,
+          status: "borrowed",
+        });
+      } else {
+        setBorrowStatus(null);
+      }
+      setIsBorrowStatusLoading(false);
+      return;
+    }
+
+    // Fallback only if book prop lacked borrow status
     async function fetchBorrowStatus() {
       try {
         setIsBorrowStatusLoading(true);
@@ -107,7 +139,6 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
         setBorrowStatus(status);
       } catch (err) {
         console.error("Failed to fetch borrow status:", err);
-        // Default to not borrowed if we can't fetch status
         setBorrowStatus(null);
       } finally {
         setIsBorrowStatusLoading(false);
@@ -115,7 +146,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
     }
 
     fetchBorrowStatus();
-  }, [book.id]);
+  }, [book.id, book.borrowStatus, book.isBorrowed]);
 
   const handleBorrowClick = async () => {
     // Check if user is authenticated
