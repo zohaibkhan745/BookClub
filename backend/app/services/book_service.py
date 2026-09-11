@@ -11,6 +11,7 @@ import logging
 from app.models import Book, BorrowRecord
 from app.schemas import BookCreate, BookUpdate
 from app.cache import cache, invalidate_books_cache, invalidate_user_cache
+from app.utils.slug import generate_unique_slug
 
 logger = logging.getLogger(__name__)
 
@@ -55,22 +56,49 @@ def get_all_books(db: Session, limit: int = 50) -> List[Book]:
     return result
 
 
-def get_book_by_id(db: Session, book_id) -> Optional[Book]:
-    """Fetch a single book by ID with caching (accepts string or int)."""
-    try:
-        book_id_int = int(book_id)
-    except (ValueError, TypeError):
+def get_book_by_id_or_slug(db: Session, identifier) -> Optional[Book]:
+    """
+    Fetch a single book by slug OR integer ID with caching.
+    Supports both:
+    - /books/deep-work (clean slug)
+    - /books/32 (legacy ID)
+    """
+    if not identifier:
         return None
     
-    cache_key = f"books:id:{book_id_int}"
+    ident_str = str(identifier).strip()
+    cache_key = f"books:ident:{ident_str}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
+
+    result = None
+    # If purely numeric, try matching ID first
+    if ident_str.isdigit():
+        result = db.query(Book).filter(Book.id == int(ident_str)).first()
     
-    result = db.query(Book).filter(Book.id == book_id_int).first()
+    # Try matching slug
+    if not result:
+        result = db.query(Book).filter(Book.slug == ident_str).first()
+        
+    # If still not found and contains digits, attempt fallback ID parse
+    if not result and not ident_str.isdigit():
+        try:
+            result = db.query(Book).filter(Book.id == int(ident_str)).first()
+        except (ValueError, TypeError):
+            pass
+
     if result:
         cache.set(cache_key, result, ttl_seconds=CACHE_TTL_LONG)
+        if result.slug:
+            cache.set(f"books:ident:{result.slug}", result, ttl_seconds=CACHE_TTL_LONG)
+        cache.set(f"books:ident:{result.id}", result, ttl_seconds=CACHE_TTL_LONG)
     return result
+
+
+def get_book_by_id(db: Session, book_id) -> Optional[Book]:
+    """Fetch a single book by ID or slug (alias for get_book_by_id_or_slug)."""
+    return get_book_by_id_or_slug(db, book_id)
 
 
 def get_books_by_genre(db: Session, genre: str, limit: int = 50) -> List[Book]:
@@ -149,10 +177,12 @@ def create_book(
     Returns:
         Created Book instance
     """
+    slug = generate_unique_slug(db, book_data.title)
     db_book = Book(
         title=book_data.title,
         author=book_data.author,
         category=book_data.category,
+        slug=slug,
         listing_type=book_data.listing_type.value if book_data.listing_type else "lend",
         condition=book_data.condition.value if book_data.condition else "good",
         description=book_data.description,
@@ -209,6 +239,10 @@ def update_book(
             if hasattr(value, 'value'):
                 value = value.value
             setattr(book, field, value)
+    
+    # If title was updated, generate a new unique slug
+    if "title" in update_data and update_data["title"] != book.title:
+        book.slug = generate_unique_slug(db, update_data["title"], exclude_book_id=book.id)
     
     db.commit()
     db.refresh(book)

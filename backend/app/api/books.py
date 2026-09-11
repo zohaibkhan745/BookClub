@@ -57,6 +57,7 @@ def book_to_preview(book) -> dict:
     
     return {
         "id": str(book.id),
+        "slug": book.slug or str(book.id),
         "title": book.title,
         "author": book.author,
         "image": image_url,
@@ -83,6 +84,7 @@ def book_to_response(book, db: Session = None, borrow_status: dict = None) -> di
     
     return {
         "id": str(book.id),
+        "slug": book.slug or str(book.id),
         "title": book.title,
         "author": book.author,
         "genre": book.category,
@@ -234,19 +236,19 @@ async def search_books(
         )
 
 
-@router.get("/books/{book_id}")
-def get_book(book_id: str, db: Session = Depends(get_db)):
+@router.get("/books/{identifier}")
+def get_book(identifier: str, db: Session = Depends(get_db)):
     """
-    GET /books/{id} - Fetch a single book by ID.
+    GET /books/{identifier} - Fetch a single book by slug or ID.
     Uses sync def so FastAPI executes blocking database operations in worker threadpool.
     Includes Cache-Control headers for instant client loading.
     """
-    book = book_service.get_book_by_id(db, book_id)
+    book = book_service.get_book_by_id_or_slug(db, identifier)
     
     if not book:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "BOOK_NOT_FOUND", "message": f"Book with ID {book_id} not found."}
+            detail={"code": "BOOK_NOT_FOUND", "message": f"Book '{identifier}' not found."}
         )
     
     return JSONResponse(

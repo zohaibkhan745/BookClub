@@ -1,4 +1,5 @@
-import { useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { BookDetail } from "../components/BookDetail";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
@@ -10,7 +11,15 @@ import type { Book } from "../types";
 
 export function BookDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { book, isLoading, error, refresh } = useBook(id);
+
+  // If accessed via legacy numeric ID (e.g. /book/32), cleanly replace URL with title slug
+  useEffect(() => {
+    if (book?.slug && id && id !== book.slug) {
+      navigate(`/book/${book.slug}`, { replace: true });
+    }
+  }, [book?.slug, id, navigate]);
 
   if (isLoading) {
     return <LoadingSpinner message="Loading book details..." fullScreen />;

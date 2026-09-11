@@ -47,6 +47,7 @@ class Book(Base):
     title = Column(String(255), nullable=False, index=True)
     author = Column(String(255), nullable=False, index=True)
     category = Column(String(100), nullable=False, index=True)
+    slug = Column(String(255), unique=True, index=True, nullable=True)
     
     # Listing details
     listing_type = Column(String(20), nullable=False, default=ListingType.lend.value)

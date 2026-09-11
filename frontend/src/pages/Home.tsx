@@ -27,7 +27,7 @@ const BookCard = memo(function BookCard({
   // Preload book page and book details on hover for instant navigation
   const handleHover = () => {
     (LazyBookDetailPage as unknown as { preload?: () => void }).preload?.();
-    preloadBook(book.id);
+    preloadBook(book.slug || book.id);
   };
 
   return (

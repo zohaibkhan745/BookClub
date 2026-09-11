@@ -118,3 +118,49 @@ def test_delete_book_collateral_check(client, db_session, mock_user_auth):
     response = client.delete(f"/api/v1/books/{b1.id}")
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "COLLATERAL_BANKRUPTCY"
+
+
+def test_slug_generation_and_collision(client, db_session, mock_user_auth):
+    setup_book_data(db_session, mock_user_auth)
+    
+    # Create first book
+    payload1 = {
+        "title": "Clean Code",
+        "author": "Robert C. Martin",
+        "category": "Technology",
+        "listing_type": "lend",
+        "whatsapp_number": "+1234567890"
+    }
+    res1 = client.post("/api/v1/books", json=payload1)
+    assert res1.status_code == 201
+    slug1 = res1.json()["data"]["slug"]
+    assert slug1 == "clean-code"
+    
+    # Create second book with same title (collision test)
+    payload2 = {
+        "title": "Clean Code",
+        "author": "Robert C. Martin",
+        "category": "Technology",
+        "listing_type": "lend",
+        "whatsapp_number": "+1234567890"
+    }
+    res2 = client.post("/api/v1/books", json=payload2)
+    assert res2.status_code == 201
+    slug2 = res2.json()["data"]["slug"]
+    assert slug2 == "clean-code-2"
+    
+    # Lookup by slug
+    get_res1 = client.get(f"/api/v1/books/{slug1}")
+    assert get_res1.status_code == 200
+    assert get_res1.json()["data"]["slug"] == "clean-code"
+    
+    get_res2 = client.get(f"/api/v1/books/{slug2}")
+    assert get_res2.status_code == 200
+    assert get_res2.json()["data"]["slug"] == "clean-code-2"
+    
+    # Lookup by legacy integer ID
+    book2_id = res2.json()["data"]["id"]
+    get_res_id = client.get(f"/api/v1/books/{book2_id}")
+    assert get_res_id.status_code == 200
+    assert get_res_id.json()["data"]["slug"] == "clean-code-2"
+
