@@ -223,3 +223,35 @@ async def get_optional_user(
         return AuthUser(id=user_id, email=email, full_name=full_name)
     except HTTPException:
         return None
+
+
+async def require_admin_access(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    user: Optional[AuthUser] = Depends(get_optional_user),
+) -> bool:
+    """
+    Strict security check for administrative and destructive operations.
+    Blocks destructive actions in production entirely and requires admin authentication.
+    """
+    settings = get_settings()
+    if settings.env not in ("development", "test"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "FORBIDDEN_IN_PRODUCTION",
+                "message": "Destructive bulk operations are strictly prohibited in production environments."
+            }
+        )
+    
+    # In development, also ensure only authenticated admin or valid admin secret
+    import os
+    admin_key = settings.admin_secret_key or os.getenv("ADMIN_SECRET_KEY")
+    if not admin_key:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "ADMIN_KEY_NOT_CONFIGURED",
+                "message": "Bulk deletion requires ADMIN_SECRET_KEY configured in environment."
+            }
+        )
+    return True

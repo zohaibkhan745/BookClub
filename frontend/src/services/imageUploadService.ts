@@ -6,6 +6,7 @@
 
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../lib/supabase';
+import { apiPost, apiDelete } from './api';
 
 /** Allowed image MIME types for input */
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
@@ -177,6 +178,32 @@ function generateFilePath(userId: string, prefix: string = 'books'): string {
  * @param userId - The authenticated user's ID
  * @returns The public URLs of both the original and thumbnail images
  */
+interface PresignedData {
+  uploadUrl: string;
+  publicUrl: string;
+  key: string;
+}
+
+interface PresignedResponse {
+  success: boolean;
+  data: {
+    original: PresignedData;
+    thumbnail: PresignedData;
+  };
+}
+
+/**
+ * Uploads a compressed image and its thumbnail.
+ * 
+ * Flow:
+ * 1. Compresses original (1200px) and thumbnail (250px) client-side.
+ * 2. Attempts to upload directly to Cloudflare R2 via secure backend presigned URLs.
+ * 3. Gracefully falls back to Supabase Storage if R2 is not yet configured or fails.
+ * 
+ * @param file - The original image file (up to 20MB)
+ * @param userId - The authenticated user's ID
+ * @returns The public URLs of both the original and thumbnail images
+ */
 export async function uploadBookImage(
   file: File,
   userId: string
@@ -187,43 +214,80 @@ export async function uploadBookImage(
     compressThumbnail(file),
   ]);
 
-  // Generate unique file paths
+  // Try Cloudflare R2 first via Presigned URLs
+  try {
+    const presignedRes = await apiPost<PresignedResponse>('/storage/upload-url', {
+      contentType: 'image/webp',
+      fileName: file.name,
+    });
+
+    if (presignedRes?.success && presignedRes.data) {
+      const { original, thumbnail } = presignedRes.data;
+
+      // Upload both WebP blobs directly to Cloudflare R2 via PUT in parallel
+      const [origUpload, thumbUpload] = await Promise.all([
+        fetch(original.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/webp',
+          },
+          body: originalResult.blob,
+        }),
+        fetch(thumbnail.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/webp',
+          },
+          body: thumbnailBlob,
+        }),
+      ]);
+
+      if (!origUpload.ok) {
+        throw new Error(`R2 direct upload failed with status ${origUpload.status}`);
+      }
+
+      const thumbSuccess = thumbUpload.ok;
+
+      return {
+        url: original.publicUrl,
+        path: original.key,
+        thumbnailUrl: thumbSuccess ? thumbnail.publicUrl : undefined,
+        thumbnailPath: thumbSuccess ? thumbnail.key : undefined,
+      };
+    }
+  } catch (r2Error) {
+    console.warn('R2 upload failed or not configured yet; falling back to Supabase Storage:', r2Error);
+  }
+
+  // Fallback to Supabase Storage
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   const baseName = `${timestamp}-${random}`;
   const originalPath = `originals/${userId}/${baseName}.webp`;
   const thumbnailPath = `thumbnails/${userId}/${baseName}.webp`;
 
-  // Upload both images in parallel
   const [originalUpload, thumbnailUpload] = await Promise.all([
     supabase.storage
       .from(BUCKET_NAME)
       .upload(originalPath, originalResult.blob, {
         contentType: 'image/webp',
-        cacheControl: '31536000', // 1 year cache for originals
+        cacheControl: '31536000',
         upsert: false,
       }),
     supabase.storage
       .from(BUCKET_NAME)
       .upload(thumbnailPath, thumbnailBlob, {
         contentType: 'image/webp',
-        cacheControl: '31536000', // 1 year cache for thumbnails
+        cacheControl: '31536000',
         upsert: false,
       }),
   ]);
 
   if (originalUpload.error) {
-    console.error('Failed to upload original:', originalUpload.error);
+    console.error('Failed to upload original to Supabase:', originalUpload.error);
     throw new Error('Failed to upload image. Please try again.');
   }
 
-  if (thumbnailUpload.error) {
-    console.error('Failed to upload thumbnail:', thumbnailUpload.error);
-    // Don't fail the whole upload, just log the error
-    // Thumbnail can be regenerated later via migration script
-  }
-
-  // Get public URLs
   const { data: originalUrlData } = supabase.storage
     .from(BUCKET_NAME)
     .getPublicUrl(originalPath);
@@ -245,15 +309,21 @@ export async function uploadBookImage(
 }
 
 /**
- * Deletes an image from Supabase Storage.
+ * Deletes an image from Cloudflare R2 or Supabase Storage.
  */
 export async function deleteBookImage(filePath: string): Promise<void> {
-  const { error } = await supabase.storage
-    .from(BUCKET_NAME)
-    .remove([filePath]);
+  // Try R2 delete endpoint
+  try {
+    await apiDelete('/storage/file', { key: filePath });
+  } catch {
+    // Ignore R2 delete errors
+  }
 
-  if (error) {
-    console.error('Failed to delete image:', error);
+  // Also attempt Supabase removal in case it was stored there
+  try {
+    await supabase.storage.from(BUCKET_NAME).remove([filePath]);
+  } catch {
+    // Ignore Supabase errors
   }
 }
 

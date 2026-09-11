@@ -144,7 +144,7 @@ export async function apiPatch<T>(endpoint: string, data: unknown): Promise<T> {
 }
 
 /** Makes a DELETE request to the API */
-export async function apiDelete<T>(endpoint: string): Promise<T> {
+export async function apiDelete<T>(endpoint: string, data?: unknown): Promise<T> {
   const authHeaders = await getAuthHeaders();
   const response = await fetch(`${API_URL}${endpoint}`, {
     method: 'DELETE',
@@ -152,6 +152,7 @@ export async function apiDelete<T>(endpoint: string): Promise<T> {
       'Content-Type': 'application/json',
       ...authHeaders,
     },
+    body: data ? JSON.stringify(data) : undefined,
   });
   return handleResponse<T>(response);
 }
