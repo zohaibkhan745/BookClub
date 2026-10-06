@@ -3,7 +3,7 @@
  * deduplication, and background revalidation.
  */
 import { useCallback } from 'react';
-import useSWR, { preload } from 'swr';
+import useSWR, { preload, mutate as globalMutate } from 'swr';
 import useSWRImmutable from 'swr/immutable';
 import { apiGet } from '../services/api';
 import type { Book, BookPreview } from '../types';
@@ -94,22 +94,44 @@ export function useBookSections() {
 }
 
 /**
- * Fetch a single book by ID
- * Uses SWRImmutable for data that rarely changes (book details)
+ * Fetch a single book by ID or slug.
+ * Supports fallbackBook for instantaneous, zero-delay optimistic display.
+ * Uses SWRImmutable for data that rarely changes (book details).
  */
-export function useBook(bookId: string | number | undefined) {
+export function useBook(bookId: string | number | undefined, fallbackBook?: Book) {
   const { data, error, isLoading, mutate } = useSWRImmutable<BookDetailResponse>(
     bookId ? `/books/${bookId}` : null,
     fetcher,
-    swrConfig
+    {
+      ...swrConfig,
+      fallbackData: fallbackBook ? { success: true, data: fallbackBook } : undefined,
+    }
   );
 
+  const activeBook = data?.data ?? fallbackBook;
+
   return {
-    book: data?.data,
-    isLoading,
+    book: activeBook,
+    isLoading: isLoading && !fallbackBook,
+    isInitialPlaceholder: !data?.data && !!fallbackBook,
     error: error?.message || null,
     refresh: () => mutate(),
   };
+}
+
+/**
+ * Prime SWR cache for both slug and ID keys so numeric ID -> slug redirects
+ * or cross-component navigations resolve in 0ms with zero network requests.
+ */
+export function seedBookCache(book: Partial<Book> & { id: string | number; slug?: string }) {
+  if (!book) return;
+  const fullBook = book as Book;
+  if (book.id) {
+    globalMutate(`/books/${book.id}`, { success: true, data: fullBook }, false);
+  }
+  if (book.slug && String(book.slug) !== String(book.id)) {
+    globalMutate(`/books/${book.slug}`, { success: true, data: fullBook }, false);
+  }
 }
 
 /**
@@ -164,11 +186,12 @@ export function useGenreBooks(genre: string | undefined) {
 }
 
 /**
- * Fetch all books for the homepage grid with load-more support
+ * Fetch all books for the homepage grid with load-more support and optional status filter
  */
-export function useAllBooks(limit: number = 50) {
+export function useAllBooks(limit: number = 50, status: string = 'all') {
+  const statusParam = status && status !== 'all' ? `&status=${status}` : '';
   const { data, error, isLoading, mutate } = useSWR<AllBooksResponse>(
-    `/books/all?limit=${limit}`,
+    `/books/all?limit=${limit}${statusParam}`,
     fetcher,
     {
       ...swrConfig,

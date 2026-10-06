@@ -162,7 +162,7 @@ export async function compressThumbnail(file: File): Promise<Blob> {
  * Generates a unique file path for the image in Supabase Storage.
  * Format: books/{userId}/{timestamp}.webp
  */
-function generateFilePath(userId: string, prefix: string = 'books'): string {
+export function generateFilePath(userId: string, prefix: string = 'books'): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   return `${prefix}/${userId}/${timestamp}-${random}.webp`;

@@ -1,83 +1,23 @@
-import { memo, useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
+import { useCallback, useState } from "react";
+import { AppLayout } from "../components/AppLayout";
 import { CategorySection } from "../components/CategorySection";
-import { Footer } from "../components/Footer";
 import { ErrorState } from "../components/ui/ErrorState";
-import { MobileBottomNav } from "../components/MobileBottomNav";
-import { OptimizedImage } from "../components/ui/OptimizedImage";
+import { BookCard } from "../components/BookCard";
+import { Button } from "../components/ui/Button";
 import { useAllBooks, preloadBook } from "../hooks/useBooks";
 import { LazyBookDetailPage } from "../components/LazyPages";
 import { apiGet } from "../services/api";
 import type { BookPreview } from "../types";
 
-// Memoized book card component to prevent unnecessary re-renders
-const BookCard = memo(function BookCard({
-  book,
-  onClick,
-  index,
-}: {
-  book: BookPreview;
-  onClick: () => void;
-  index: number;
-}) {
-  // First 6 images are above the fold — load eagerly with high priority
-  const isAboveFold = index < 6;
-
-  // Preload book page and book details on hover for instant navigation
-  const handleHover = () => {
-    (LazyBookDetailPage as unknown as { preload?: () => void }).preload?.();
-    preloadBook(book.slug || book.id);
-  };
-
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={handleHover}
-      onFocus={handleHover}
-      className="cursor-pointer group"
-    >
-      <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
-        <OptimizedImage
-          src={book.image}
-          alt={book.title}
-          className="w-full aspect-[2/3]"
-          placeholderColor="#d1d5db"
-          lazy={!isAboveFold}
-          fetchPriority={isAboveFold ? "high" : undefined}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-          <h4 className="text-white font-semibold text-sm line-clamp-2">
-            {book.title}
-          </h4>
-          <p className="text-gray-300 text-xs line-clamp-1">{book.author}</p>
-        </div>
-      </div>
-      <div className="mt-2 px-1">
-        <h4 className="text-gray-800 dark:text-gray-200 font-medium text-sm line-clamp-1">
-          {book.title}
-        </h4>
-        <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1">
-          {book.author}
-        </p>
-      </div>
-    </div>
-  );
-});
-
 export function Home() {
   const { books, pagination, isLoading, error, refresh, appendBooks } =
     useAllBooks(50);
-  const navigate = useNavigate();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const handleBookClick = useCallback(
-    (slug: string) => {
-      navigate(`/book/${slug}`);
-    },
-    [navigate],
-  );
+  const handleBookHover = useCallback((book: BookPreview) => {
+    (LazyBookDetailPage as unknown as { preload?: () => void }).preload?.();
+    preloadBook(book.slug || book.id);
+  }, []);
 
   const handleLoadMore = useCallback(async () => {
     if (!pagination?.next_cursor || isLoadingMore) return;
@@ -103,32 +43,35 @@ export function Home() {
   }, [pagination, isLoadingMore, appendBooks]);
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      <Navbar />
+    <AppLayout>
+      {/* Visually hidden primary heading for semantic document hierarchy */}
+      <h1 className="sr-only">Book Club — Discover and Share Community Books</h1>
 
-      <div className="pt-20 px-4 md:px-12 pb-8 bg-[rgba(240,255,223,0)]">
+      {/* Category Navigation */}
+      <div className="pb-8">
         <CategorySection />
       </div>
 
-      <div className="px-4 md:px-12 pb-12 md:pb-12 pb-24">
+      {/* Main Books Grid Section */}
+      <div>
         {error ? (
           <ErrorState message={error} onRetry={refresh} showHomeLink={false} />
         ) : (
-          <div className="space-y-4">
-            <h3 className="text-black dark:text-white text-xl md:text-2xl font-semibold">
+          <div className="space-y-6">
+            <h2 className="text-gray-900 dark:text-white text-xl md:text-2xl font-bold tracking-tight">
               All Books
-            </h3>
+            </h2>
             {isLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse aspect-[2/3]"
+                    className="bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse aspect-[2/3]"
                   />
                 ))}
               </div>
             ) : books.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+              <p className="text-gray-500 dark:text-gray-400 text-center py-12">
                 No books available yet.
               </p>
             ) : (
@@ -139,19 +82,20 @@ export function Home() {
                       key={book.id}
                       book={book}
                       index={index}
-                      onClick={() => handleBookClick(book.slug || book.id)}
+                      onHover={() => handleBookHover(book)}
                     />
                   ))}
                 </div>
                 {pagination?.has_next && (
-                  <div className="flex justify-center mt-8">
-                    <button
+                  <div className="flex justify-center mt-10">
+                    <Button
+                      variant="primary"
+                      size="lg"
                       onClick={handleLoadMore}
-                      disabled={isLoadingMore}
-                      className="px-8 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors duration-200 shadow-md"
+                      isLoading={isLoadingMore}
                     >
-                      {isLoadingMore ? "Loading..." : "Load More Books"}
-                    </button>
+                      Load More Books
+                    </Button>
                   </div>
                 )}
               </>
@@ -159,9 +103,6 @@ export function Home() {
           </div>
         )}
       </div>
-
-      <Footer />
-      <MobileBottomNav />
-    </div>
+    </AppLayout>
   );
 }

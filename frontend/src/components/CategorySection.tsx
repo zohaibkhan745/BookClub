@@ -127,9 +127,9 @@ export const CategorySection = memo(function CategorySection() {
 
   return (
     <div className="space-y-4 py-8">
-      <h3 className="text-black dark:text-white text-xl md:text-2xl font-semibold">
+      <h2 className="text-gray-900 dark:text-white text-xl md:text-2xl font-bold tracking-tight">
         Browse by Category
-      </h3>
+      </h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
         {categories.map((category) => {
           const Icon = category.icon;
@@ -139,7 +139,7 @@ export const CategorySection = memo(function CategorySection() {
             <button
               key={category.id}
               onClick={() => handleCategoryClick(category.slug)}
-              className={`relative overflow-hidden rounded-2xl p-8 md:p-10 hover:scale-105 transition-transform duration-300 group shadow-xl ${
+              className={`relative overflow-hidden rounded-2xl p-4 sm:p-6 md:p-10 hover:scale-105 transition-transform duration-300 group shadow-xl ${
                 hasBackgroundImage ? "" : `bg-gradient-to-br ${category.color}`
               }`}
               style={

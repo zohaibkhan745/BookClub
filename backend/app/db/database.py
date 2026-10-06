@@ -3,11 +3,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import NullPool, QueuePool
 from app.config import get_settings
 
+import os
+
 settings = get_settings()
 
-# Determine if we should use NullPool for serverless environments
-# In serverless environments (like Vercel), maintaining connection pools can exhaust database connections.
-is_serverless = settings.env in ("production", "serverless")
+# Determine if we should use NullPool for serverless environments (e.g., Vercel Lambda).
+# On persistent web servers (Render, VPS, Docker, Dev), QueuePool must be used to maintain hot connections.
+is_serverless = os.getenv("VERCEL") == "1" or settings.env == "serverless"
 
 poolclass = NullPool if is_serverless else QueuePool
 
@@ -26,10 +28,10 @@ engine_kwargs = {
 
 if not is_serverless:
     engine_kwargs.update({
-        "pool_size": 10,  # Increased from 5 for better concurrency
-        "max_overflow": 20,  # Increased from 10 for burst capacity
+        "pool_size": 10,  # Connection pool size for reuse
+        "max_overflow": 20,  # Max overflow for burst capacity
         "pool_timeout": 30,  # Wait up to 30s for a connection
-        "pool_recycle": 1800,  # Recycle connections after 30 minutes
+        "pool_recycle": 300,  # Recycle connections every 5 minutes to prevent PgBouncer drops
     })
 
 engine = create_engine(

@@ -3,12 +3,9 @@ import type {
   BookPreview,
   BookUploadFormData,
   ApiError,
-  BorrowRequestData,
-  BorrowRequestResponse,
   BorrowRecord,
   User,
   UserPreview,
-  UserStats,
   JoinClubData,
   JoinClubResponse,
   LeaderboardEntry,
@@ -32,7 +29,7 @@ interface BookSectionsApiResponse {
 interface BookApiResponse {
   success: boolean;
   data: {
-    id: number;
+    id: string;
     title: string;
     author: string;
     genre: string;
@@ -51,7 +48,7 @@ interface BookApiResponse {
 interface CreateBookApiResponse {
   success: boolean;
   data: {
-    id: number;
+    id: string;
     title: string;
     author: string;
     genre: string;
@@ -77,13 +74,30 @@ function generateId(prefix: string): string {
 }
 
 /** Helper to map snake_case book preview to camelCase */
-function mapBookPreview(book: { id: number | string; title: string; author: string; image: string; is_available?: boolean }): BookPreview {
+function mapBookPreview(book: {
+  id: number | string;
+  slug?: string;
+  title: string;
+  author: string;
+  image: string;
+  is_available?: boolean;
+  is_borrowed?: boolean;
+  isAvailable?: boolean;
+  isBorrowed?: boolean;
+}): BookPreview {
+  const isAvailable =
+    book.isAvailable ??
+    (book.is_available !== false && !book.is_borrowed && !book.isBorrowed);
+  const isBorrowed =
+    book.isBorrowed ?? book.is_borrowed ?? (book.isAvailable !== undefined ? !book.isAvailable : false);
   return {
     id: String(book.id),
+    slug: book.slug,
     title: book.title,
     author: book.author,
     image: book.image,
-    isAvailable: book.is_available !== false, // Default to true if not specified
+    isAvailable,
+    isBorrowed,
   };
 }
 

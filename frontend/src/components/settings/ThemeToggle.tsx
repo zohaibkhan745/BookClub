@@ -1,46 +1,19 @@
 /**
  * ThemeToggle Component
- * Toggle between light and dark themes with localStorage persistence.
+ * Toggle between light and dark themes using ThemeContext as single source of truth.
  */
 
-import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
-
-type Theme = "light" | "dark";
+import { useTheme } from "../../context/ThemeContext";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    // Get initial theme from localStorage or system preference
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("theme") as Theme | null;
-      if (stored) return stored;
-      return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    }
-    return "light";
-  });
-
-  useEffect(() => {
-    // Apply theme to document
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    // Persist to localStorage
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <button
       onClick={toggleTheme}
-      className="relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+      type="button"
+      className="relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#1c1c1e]"
       style={{
         backgroundColor: theme === "dark" ? "#374151" : "#e5e7eb",
       }}

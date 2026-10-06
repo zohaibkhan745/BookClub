@@ -1,4 +1,4 @@
-import { Construction, Clock, Mail } from "lucide-react";
+import { Construction, Clock } from "lucide-react";
 
 export default function Maintenance() {
   return (

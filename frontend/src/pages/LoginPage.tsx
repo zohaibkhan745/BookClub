@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, BookOpen } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { Navbar } from "../components/Navbar";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { AppLayout } from "../components/AppLayout";
+import { Input } from "../components/ui/Input";
+import { Button } from "../components/ui/Button";
 
 // Google Icon Component
 function GoogleIcon({ className }: { className?: string }) {
@@ -97,10 +98,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      <Navbar />
-
-      <div className="pt-24 pb-24 md:pb-12 px-4 flex items-center justify-center min-h-[calc(100vh-80px)]">
+    <AppLayout showFooter={false} maxWidth="4xl">
+      <div className="flex items-center justify-center py-4">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
@@ -118,7 +117,7 @@ export function LoginPage() {
           </div>
 
           {/* Form Card */}
-          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-xl p-6 md:p-8">
+          <div className="bg-[#FAF7EE] dark:bg-[#2c2c2e] rounded-2xl shadow-xl border border-black/10 dark:border-gray-700 p-6 md:p-8">
             {/* Error Alert */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start space-x-3">
@@ -134,7 +133,7 @@ export function LoginPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading || isSubmitting || authLoading}
-              className="w-full py-3 px-4 flex items-center justify-center gap-3 bg-white dark:bg-[#1c1c1e] border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-[#2c2c2e] hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              className="w-full py-3 px-4 flex items-center justify-center gap-3 bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-gray-700 rounded-xl hover:bg-black/5 dark:hover:bg-[#2c2c2e] hover:border-black/20 dark:hover:border-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md cursor-pointer"
             >
               <GoogleIcon className="w-5 h-5" />
               <span className="font-semibold text-gray-700 dark:text-gray-200">
@@ -144,59 +143,42 @@ export function LoginPage() {
 
             {/* Divider */}
             <div className="my-6 flex items-center">
-              <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
-              <span className="px-4 text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex-1 border-t border-black/10 dark:border-gray-700" />
+              <span className="px-4 text-sm text-gray-600 dark:text-gray-400">
                 or sign in with email
               </span>
-              <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
+              <div className="flex-1 border-t border-black/10 dark:border-gray-700" />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email Field */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
+              <Input
+                id="email"
+                type="email"
+                label="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                leftIcon={<Mail className="w-5 h-5" />}
+                disabled={isSubmitting}
+                required
+              />
 
               {/* Password Field */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full pl-10 pr-12 py-3 rounded-xl bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition"
-                    disabled={isSubmitting}
-                  />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                label="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                leftIcon={<Lock className="w-5 h-5" />}
+                rightIcon={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -204,43 +186,43 @@ export function LoginPage() {
                       <Eye className="w-5 h-5" />
                     )}
                   </button>
-                </div>
-              </div>
+                }
+                disabled={isSubmitting}
+                required
+              />
 
               {/* Submit Button */}
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="lg"
+                isLoading={isSubmitting}
                 disabled={isSubmitting || authLoading}
-                className="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full shadow-lg hover:shadow-xl font-semibold"
               >
-                {isSubmitting ? "Signing in..." : "Sign In"}
-              </button>
+                Sign In
+              </Button>
             </form>
 
             {/* Divider */}
             <div className="my-6 flex items-center">
-              <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
-              <span className="px-4 text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex-1 border-t border-black/10 dark:border-gray-700" />
+              <span className="px-4 text-sm text-gray-600 dark:text-gray-400">
                 New to BookClub?
               </span>
-              <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
+              <div className="flex-1 border-t border-black/10 dark:border-gray-700" />
             </div>
 
             {/* Register Link */}
             <Link
               to="/register"
-              className="block w-full py-3 text-center font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition"
+              className="block w-full py-3 text-center font-semibold text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-900/20 border border-red-500/20 dark:border-red-800/30 rounded-xl hover:bg-red-500/15 dark:hover:bg-red-900/30 transition shadow-sm"
             >
               Create an Account
             </Link>
           </div>
         </div>
       </div>
-
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden">
-        <MobileBottomNav />
-      </div>
-    </div>
+    </AppLayout>
   );
 }

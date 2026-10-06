@@ -2,13 +2,13 @@
 Book service for business logic related to books.
 """
 from sqlalchemy.orm import Session, joinedload, load_only
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, and_, not_, exists
 from typing import Optional, List
 from datetime import datetime
 import uuid
 import logging
 
-from app.models import Book, BorrowRecord
+from app.models import Book, BorrowRecord, BorrowStatus
 from app.schemas import BookCreate, BookUpdate
 from app.cache import cache, invalidate_books_cache, invalidate_user_cache
 from app.utils.slug import generate_unique_slug
@@ -21,18 +21,44 @@ CACHE_TTL_MEDIUM = 120    # 2 minutes for section data
 CACHE_TTL_LONG = 300      # 5 minutes for individual book details
 
 # --- Added for compatibility with paginated endpoint ---
-def get_all_books_paginated(db: Session, cursor: int = 0, limit: int = 20) -> list[Book]:
+def get_all_books_paginated(
+    db: Session,
+    cursor: int = 0,
+    limit: int = 20,
+    status: str = "all"
+) -> list[Book]:
     """
-    Fetch all books (including borrowed) with cursor-based pagination.
+    Fetch books with cursor-based pagination and optional status filter.
     Args:
         cursor: ID to start after (0 for first page)
         limit: Number of books to fetch (fetches limit+1 to detect next page)
+        status: Filter by status ('all', 'available', 'borrowed')
     Returns:
         List of books. If len > limit, there are more pages.
     """
     query = db.query(Book)
     if cursor > 0:
         query = query.filter(Book.id < cursor)
+
+    # Subquery checking if a book is actively borrowed
+    active_borrow_exists = exists().where(
+        and_(
+            BorrowRecord.book_id == Book.id,
+            BorrowRecord.returned_at.is_(None),
+            BorrowRecord.status == BorrowStatus.borrowed.value,
+        )
+    )
+
+    if status == "available":
+        query = query.filter(
+            and_(
+                Book.is_available.is_(True),
+                not_(active_borrow_exists)
+            )
+        )
+    elif status == "borrowed":
+        query = query.filter(active_borrow_exists)
+
     result = query.order_by(desc(Book.id)).limit(limit + 1).all()
     return result
 

@@ -6,11 +6,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Settings } from "lucide-react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { AppLayout } from "../components/AppLayout";
 import { ProfileHeader, ProfileStats } from "../components/profile";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorState } from "../components/ui/ErrorState";
+import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 import { getUserStats } from "../services";
 import type { UserStats } from "../types";
@@ -35,8 +35,6 @@ export function ProfilePage() {
   }, [isAuthenticated, authLoading, navigate]);
 
   const loadStats = async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const data = await getUserStats();
       setStats(data);
@@ -50,14 +48,7 @@ export function ProfilePage() {
 
   // Show loading while auth is being determined
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e]">
-        <Navbar />
-        <div className="pt-24 pb-12 px-4 md:px-12 flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600" />
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading profile..." fullScreen />;
   }
 
   // Extract user info from Supabase user
@@ -67,53 +58,45 @@ export function ProfilePage() {
   const createdAt = user?.created_at || new Date().toISOString();
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      <Navbar />
-
-      <main className="pt-24 pb-24 md:pb-12 px-4 md:px-12">
-        <div className="max-w-3xl mx-auto space-y-8">
-          {/* Page Header */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Profile
-            </h1>
-            <button
-              onClick={() => navigate("/settings")}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2c2c2e] rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-[#3c3c3e] transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </button>
-          </div>
-
-          {error ? (
-            <ErrorState message={error} onRetry={loadStats} />
-          ) : (
-            <>
-              {/* User Header */}
-              <ProfileHeader
-                fullName={fullName}
-                email={email}
-                username={username}
-                createdAt={createdAt}
-              />
-
-              {/* Activity Stats */}
-              <ProfileStats
-                stats={
-                  stats || { booksListed: 0, booksSold: 0, booksBorrowed: 0 }
-                }
-                isLoading={isLoading}
-              />
-            </>
-          )}
+    <AppLayout maxWidth="4xl">
+      <div className="space-y-6">
+        {/* Header with Settings link */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            My Profile
+          </h1>
+          <Button
+            onClick={() => navigate("/settings")}
+            variant="secondary"
+            size="md"
+            icon={<Settings className="w-4 h-4" />}
+          >
+            Settings
+          </Button>
         </div>
-      </main>
 
-      <div className="hidden md:block">
-        <Footer />
+        {error ? (
+          <ErrorState message={error} onRetry={loadStats} />
+        ) : (
+          <>
+            {/* User Profile Header Card */}
+            <ProfileHeader
+              fullName={fullName}
+              username={username}
+              email={email}
+              createdAt={createdAt}
+            />
+
+            {/* Activity Stats */}
+            <ProfileStats
+              stats={
+                stats || { booksListed: 0, booksSold: 0, booksBorrowed: 0 }
+              }
+              isLoading={isLoading}
+            />
+          </>
+        )}
       </div>
-      <MobileBottomNav />
-    </div>
+    </AppLayout>
   );
 }

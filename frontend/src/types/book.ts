@@ -39,6 +39,7 @@ export interface BookPreview {
   author: string;
   image: string;
   isAvailable?: boolean;  // Whether book is available for borrowing
+  isBorrowed?: boolean;   // Whether book is currently borrowed
   pendingRequestCount?: number;  // Number of pending borrow requests (for owners)
 }
 
@@ -119,6 +120,7 @@ export interface User {
   fullName: string;
   email: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 /** User preview for search results */

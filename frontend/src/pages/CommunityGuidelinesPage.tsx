@@ -6,9 +6,8 @@ import {
   BookOpen,
   AlertTriangle,
 } from "lucide-react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { Link } from "react-router-dom";
+import { AppLayout } from "../components/AppLayout";
 
 const guidelines = [
   {
@@ -63,75 +62,65 @@ const guidelines = [
 
 export function CommunityGuidelinesPage() {
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      <Navbar />
-
-      <main className="pt-24 pb-24 md:pb-12 px-4 md:px-12">
-        <div className="max-w-3xl mx-auto">
-          {/* Hero Section */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl mb-6 shadow-lg">
-              <Shield className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Community Guidelines
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
-              A few simple principles to keep BookClub a welcoming place for
-              everyone.
-            </p>
+    <AppLayout maxWidth="4xl">
+      <div className="max-w-3xl mx-auto py-4">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-2xl mb-4 shadow-sm">
+            <Shield className="w-8 h-8" />
           </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            Community Guidelines
+          </h1>
+          <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            A few simple principles to keep BookClub a welcoming place for everyone.
+          </p>
+        </div>
 
-          {/* Guidelines */}
-          <div className="space-y-4">
-            {guidelines.map((guideline) => {
-              const Icon = guideline.icon;
-              return (
-                <div
-                  key={guideline.title}
-                  className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/50 dark:border-white/10"
-                >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`flex-shrink-0 flex items-center justify-center w-12 h-12 ${guideline.color} rounded-xl`}
-                    >
-                      <Icon className={`w-6 h-6 ${guideline.iconColor}`} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                        {guideline.title}
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {guideline.description}
-                      </p>
-                    </div>
+        {/* Guidelines List */}
+        <div className="space-y-4">
+          {guidelines.map((guideline) => {
+            const Icon = guideline.icon;
+            return (
+              <div
+                key={guideline.title}
+                className="bg-white/70 dark:bg-[#2c2c2e] rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm"
+              >
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`shrink-0 flex items-center justify-center w-12 h-12 ${guideline.color} rounded-xl`}
+                  >
+                    <Icon className={`w-6 h-6 ${guideline.iconColor}`} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      {guideline.title}
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                      {guideline.description}
+                    </p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Bottom Note */}
-          <div className="mt-12 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-white/5 dark:to-white/5 rounded-2xl p-8 border border-amber-200/50 dark:border-white/10 text-center">
-            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              These guidelines exist to protect our community and ensure
-              everyone has a positive experience. If you encounter behavior that
-              violates these principles, please reach out to us.
-            </p>
-            <a
-              href="/contact"
-              className="inline-block mt-4 text-red-600 dark:text-red-400 font-medium hover:underline"
-            >
-              Contact Us →
-            </a>
-          </div>
+              </div>
+            );
+          })}
         </div>
-      </main>
 
-      <div className="hidden md:block">
-        <Footer />
+        {/* Bottom Note */}
+        <div className="mt-10 bg-white/50 dark:bg-white/5 rounded-2xl p-6 md:p-8 border border-gray-200 dark:border-gray-700 text-center">
+          <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base">
+            These guidelines exist to protect our community and ensure everyone
+            has a positive experience. If you encounter behavior that violates
+            these principles, please reach out to us.
+          </p>
+          <Link
+            to="/contact"
+            className="inline-block mt-4 text-red-600 dark:text-red-400 font-semibold hover:underline text-sm md:text-base"
+          >
+            Contact Us →
+          </Link>
+        </div>
       </div>
-      <MobileBottomNav />
-    </div>
+    </AppLayout>
   );
 }

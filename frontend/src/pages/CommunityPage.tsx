@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Plus, Loader2, AlertCircle, Users } from "lucide-react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { MessageCircle, Plus, AlertCircle, Users } from "lucide-react";
+import { AppLayout } from "../components/AppLayout";
 import { UserAvatar } from "../components/UserAvatar";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Textarea } from "../components/ui/Textarea";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useAuth } from "../context/AuthContext";
 import {
   getForumThreads,
@@ -72,11 +74,8 @@ export function CommunityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      <Navbar />
-
-      <main className="pt-24 pb-24 md:pb-12 px-4 md:px-8 max-w-4xl mx-auto">
-        {/* Header */}
+    <AppLayout maxWidth="4xl">
+      {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
@@ -89,34 +88,28 @@ export function CommunityPage() {
           </div>
 
           {isAuthenticated && (
-            <button
+            <Button
               onClick={() => setShowNewThreadModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-xl transition-colors shadow-lg hover:shadow-xl"
+              variant="primary"
+              size="md"
+              icon={<Plus className="h-5 w-5" />}
             >
-              <Plus className="h-5 w-5" />
               <span className="hidden sm:inline">New Discussion</span>
-            </button>
+              <span className="sm:hidden">New</span>
+            </Button>
           )}
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-amber-500 mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
-              Loading discussions...
-            </p>
-          </div>
+          <LoadingSpinner message="Loading discussions..." />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
             <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
-            <button
-              onClick={fetchThreads}
-              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition"
-            >
+            <Button onClick={fetchThreads} variant="primary" size="md">
               Try Again
-            </button>
+            </Button>
           </div>
         ) : threads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -129,13 +122,14 @@ export function CommunityPage() {
               book, ask for recommendations, or discuss anything book-related.
             </p>
             {isAuthenticated && (
-              <button
+              <Button
                 onClick={() => setShowNewThreadModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl transition"
+                variant="primary"
+                size="lg"
+                icon={<Plus className="h-5 w-5" />}
               >
-                <Plus className="h-5 w-5" />
                 Start a Discussion
-              </button>
+              </Button>
             )}
           </div>
         ) : (
@@ -179,93 +173,78 @@ export function CommunityPage() {
             ))}
           </div>
         )}
-      </main>
-
       {/* New Thread Modal */}
       {showNewThreadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#2c2c2e] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 Start a New Discussion
               </h2>
 
               <form onSubmit={handleCreateThread} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="What would you like to discuss?"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
-                    maxLength={255}
-                    required
-                  />
-                </div>
+                <Input
+                  label="Title"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="What would you like to discuss?"
+                  maxLength={255}
+                  required
+                  disabled={isCreating}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                    Content
-                  </label>
-                  <textarea
-                    value={newContent}
-                    onChange={(e) => setNewContent(e.target.value)}
-                    placeholder="Share your thoughts, questions, or ideas..."
-                    rows={6}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition resize-none"
-                    required
-                  />
-                </div>
+                <Textarea
+                  label="Content"
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                  placeholder="Share your thoughts, questions, or ideas..."
+                  rows={6}
+                  required
+                  disabled={isCreating}
+                />
 
                 {createError && (
                   <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
-                    <AlertCircle className="h-4 w-4" />
-                    {createError}
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{createError}</span>
                   </div>
                 )}
 
                 <div className="flex gap-3 pt-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="md"
                     onClick={() => {
                       setShowNewThreadModal(false);
                       setNewTitle("");
                       setNewContent("");
                       setCreateError(null);
                     }}
-                    className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                    className="flex-1"
+                    disabled={isCreating}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
+                    size="md"
                     disabled={
                       isCreating || !newTitle.trim() || !newContent.trim()
                     }
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    isLoading={isCreating}
+                    className="flex-1"
                   >
-                    {isCreating ? (
-                      <>
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Discussion"
-                    )}
-                  </button>
+                    Create Discussion
+                  </Button>
                 </div>
               </form>
             </div>
           </div>
         </div>
       )}
-
-      <Footer />
-      <MobileBottomNav />
-    </div>
+    </AppLayout>
   );
 }
 

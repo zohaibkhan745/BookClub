@@ -1,6 +1,5 @@
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { Link } from "react-router-dom";
+import { AppLayout } from "../components/AppLayout";
 import {
   ScrollText,
   BookOpen,
@@ -12,11 +11,8 @@ import {
 
 export function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300">
-      <Navbar />
-
-      <main className="pt-24 pb-24 md:pb-12 px-4 md:px-12">
-        <div className="max-w-3xl mx-auto space-y-8">
+    <AppLayout maxWidth="4xl">
+      <div className="space-y-8 py-4">
           {/* Header */}
           <div className="text-center space-y-3">
             <ScrollText className="w-12 h-12 text-amber-600 dark:text-amber-400 mx-auto" />
@@ -164,12 +160,12 @@ export function TermsOfServicePage() {
                 </span>
                 <span>
                   Follow the full{" "}
-                  <a
-                    href="/community-guidelines"
+                  <Link
+                    to="/community-guidelines"
                     className="text-red-600 dark:text-red-400 hover:underline"
                   >
                     Community Guidelines
-                  </a>
+                  </Link>
                 </span>
               </li>
             </ul>
@@ -268,22 +264,16 @@ export function TermsOfServicePage() {
             <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
               If you have any questions about these Terms of Service, please
               visit our{" "}
-              <a
-                href="/contact"
+              <Link
+                to="/contact"
                 className="text-red-600 dark:text-red-400 hover:underline"
               >
                 Contact page
-              </a>
+              </Link>
               .
             </p>
           </div>
         </div>
-      </main>
-
-      <div className="hidden md:block">
-        <Footer />
-      </div>
-      <MobileBottomNav />
-    </div>
+    </AppLayout>
   );
 }

@@ -28,7 +28,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl safe-area-bottom border-t"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl safe-area-bottom border-t"
       style={{
         backgroundColor: isLight
           ? "rgba(246, 240, 215, 0.85)"
@@ -46,7 +46,7 @@ export function MobileBottomNav() {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center justify-center px-4 py-2 rounded-2xl transition-all duration-200 min-w-[70px]"
+              className="flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all duration-200 flex-1 max-w-[84px] cursor-pointer"
               style={{
                 backgroundColor: active
                   ? isLight
@@ -63,13 +63,13 @@ export function MobileBottomNav() {
               }}
             >
               <Icon
-                className="w-6 h-6 mb-1"
+                className="w-5 h-5 mb-0.5"
                 style={{
                   color: active ? (isLight ? "#ef4444" : "#64D2FF") : undefined,
                 }}
                 strokeWidth={active ? 2.5 : 2}
               />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-xs font-medium tracking-tight leading-tight">{item.label}</span>
             </button>
           );
         })}

@@ -18,6 +18,21 @@
       href="https://vsijaktyuirjyntnhqzv.supabase.co"
       crossorigin
     />
+
+    <!-- Theme initialization script to prevent flicker -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('bookclub-theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body>

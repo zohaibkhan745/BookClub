@@ -12,9 +12,7 @@ import {
   Award,
   BookMarked,
 } from "lucide-react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { AppLayout } from "../components/AppLayout";
 
 const steps = [
   {
@@ -98,11 +96,8 @@ export function HowItWorksPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] transition-colors duration-300 overflow-hidden">
-      <Navbar />
-
-      <main className="pt-24 pb-24 md:pb-12 px-4 md:px-12">
-        <div className="max-w-7xl mx-auto">
+    <AppLayout maxWidth="7xl">
+      <div className="py-4">
           {/* Hero Section */}
           <div className="text-center mb-20">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900/30 rounded-full mb-6">
@@ -382,12 +377,6 @@ export function HowItWorksPage() {
             </div>
           </div>
         </div>
-      </main>
-
-      <div className="hidden md:block">
-        <Footer />
-      </div>
-      <MobileBottomNav />
-    </div>
+      </AppLayout>
   );
 }

@@ -75,7 +75,7 @@ export function CreditBadge({ className = "" }: CreditBadgeProps) {
       <PopoverContent
         side="bottom"
         align="end"
-        className="w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-4 z-50"
+        className="w-64 bg-white dark:bg-[#2c2c2e] border border-gray-200 dark:border-gray-700 shadow-xl p-4 z-50"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
       >

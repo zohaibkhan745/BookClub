@@ -17,16 +17,20 @@ export function EmptyState({
   actionHref = "/",
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4">
-      <div className="text-amber-400 mb-4">
+    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+      <div className="text-amber-500 dark:text-amber-400 mb-4">
         {icon || <BookX className="w-16 h-16" />}
       </div>
-      <h3 className="text-xl font-semibold text-gray-800 mb-2">{title}</h3>
-      <p className="text-gray-600 text-center max-w-md mb-4">{message}</p>
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+        {title}
+      </h3>
+      <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 leading-relaxed">
+        {message}
+      </p>
       {actionLabel && (
         <Link
           to={actionHref}
-          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition"
+          className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition shadow-sm"
         >
           {actionLabel}
         </Link>

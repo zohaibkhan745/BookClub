@@ -10,9 +10,12 @@ import {
   Trash2,
   Users,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { Button } from "./ui/Button";
 import {
   returnBook,
   getBorrowStatus,
@@ -322,7 +325,7 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
 
       // Show success feedback briefly then redirect
       // Navigate to library page "My Uploads" tab after successful deletion
-      navigate("/library", {
+      navigate("/library?tab=uploaded", {
         replace: true,
         state: {
           message: `"${book.title}" has been deleted successfully`,
@@ -339,17 +342,29 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
     }
   };
 
+  const fromLocation = (location.state as { from?: string; tab?: string })?.from;
+  const fromTab = (location.state as { from?: string; tab?: string })?.tab;
+
+  const handleBack = () => {
+    if (fromLocation) {
+      navigate(fromLocation);
+    } else if (fromTab) {
+      navigate(`/library?tab=${fromTab}`);
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-24 md:pb-0 transition-colors duration-300">
-      <div className="px-4 md:px-12 max-w-7xl mx-auto">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mb-8 transition group"
-        >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span>Back</span>
-        </button>
+    <div className="w-full">
+      {/* Back Button */}
+      <button
+        onClick={handleBack}
+        className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mb-8 transition group cursor-pointer"
+      >
+        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+        <span>Back</span>
+      </button>
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
@@ -401,9 +416,13 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Genre
                 </p>
-                <p className="font-semibold text-black dark:text-white">
-                  {book.genre}
-                </p>
+                {book.genre ? (
+                  <p className="font-semibold text-black dark:text-white">
+                    {book.genre}
+                  </p>
+                ) : (
+                  <div className="h-6 w-28 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse" />
+                )}
               </div>
             </div>
 
@@ -412,9 +431,17 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
               <h3 className="font-semibold text-black dark:text-white text-lg">
                 About this book
               </h3>
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                {book.description}
-              </p>
+              {book.description ? (
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                  {book.description}
+                </p>
+              ) : (
+                <div className="space-y-2 animate-pulse pt-1">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/6" />
+                </div>
+              )}
 
               {/* Attribution Section */}
               <div className="mt-3 space-y-1">
@@ -450,56 +477,64 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
               {/* Main action button - changes based on borrow status and ownership */}
               {isBorrowStatusLoading ? (
                 // Loading state
-                <button
+                <Button
                   disabled
-                  className="w-full px-6 py-4 bg-gray-300 text-gray-500 font-semibold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 animate-pulse"
+                  size="lg"
+                  className="w-full bg-gray-300 dark:bg-gray-700 text-gray-500 font-semibold cursor-not-allowed animate-pulse"
                 >
                   Loading...
-                </button>
+                </Button>
               ) : isBorrowed ? (
                 // Book is already borrowed - show disabled button
-                <button
+                <Button
                   disabled
-                  className="w-full px-6 py-4 bg-gray-400 text-white font-semibold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
+                  size="lg"
+                  className="w-full bg-gray-400 dark:bg-gray-600 text-white font-semibold cursor-not-allowed"
                 >
-                  <UserCheck className="w-5 h-5" />
+                  <UserCheck className="w-5 h-5 mr-2" />
                   Borrowed
-                </button>
+                </Button>
               ) : isUploader ? (
                 // Owner sees "Mark as Borrowed" which opens requests modal
-                <button
+                <Button
+                  variant="secondary"
+                  size="lg"
                   onClick={handleViewRequests}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl hover:from-amber-600 hover:to-orange-600 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold shadow-lg hover:shadow-xl"
                 >
-                  <UserCheck className="w-5 h-5" />
+                  <UserCheck className="w-5 h-5 mr-2" />
                   Mark as Borrowed
-                </button>
+                </Button>
               ) : (
                 // Book is available - show borrow/buy button (sends request + opens WhatsApp)
-                <button
+                <Button
+                  variant="primary"
+                  size="lg"
                   onClick={handleBorrowClick}
                   disabled={isRequestingBorrow}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
+                  isLoading={isRequestingBorrow}
+                  loadingText="Sending Request..."
+                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg hover:shadow-xl"
                 >
-                  <MessageCircle className="w-5 h-5" />
-                  {isRequestingBorrow
-                    ? "Sending Request..."
-                    : book.listingType === "sell"
-                      ? "Buy"
-                      : "Borrow"}
-                </button>
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  {book.listingType === "sell" ? "Buy" : "Borrow"}
+                </Button>
               )}
 
               {/* "Return Book" button - ONLY visible to the book uploader when book IS borrowed */}
               {canReturnBook && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="lg"
                   onClick={handleReturnClick}
                   disabled={isSubmitting}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-indigo-600 transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
+                  isLoading={isSubmitting}
+                  loadingText="Returning..."
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold shadow-lg hover:shadow-xl"
                 >
-                  <RotateCcw className="w-5 h-5" />
+                  <RotateCcw className="w-5 h-5 mr-2" />
                   Mark as Returned
-                </button>
+                </Button>
               )}
             </div>
 
@@ -517,14 +552,18 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
             {/* SECURITY NOTE: This visibility check is for UX only. Backend enforces authorization. */}
             {isOwner && (
               <div className="pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
-                <button
+                <Button
+                  variant="outline"
+                  size="lg"
                   onClick={handleDeleteClick}
                   disabled={isDeleting}
-                  className="w-full px-6 py-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 font-semibold rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  isLoading={isDeleting}
+                  loadingText="Deleting..."
+                  className="w-full bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 font-semibold"
                 >
-                  <Trash2 className="w-5 h-5" />
-                  {isDeleting ? "Deleting..." : "Delete Book"}
-                </button>
+                  <Trash2 className="w-5 h-5 mr-2" />
+                  Delete Book
+                </Button>
               </div>
             )}
           </div>
@@ -537,23 +576,23 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
           borrowerName={borrowerName}
           dueAt={borrowStatus?.dueAt || book.borrowStatus?.dueAt}
         />
-      </div>
 
       {/* Borrow Requests Modal - For book owner to see and approve requesters */}
       {showRequestsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150">
             {/* Close Button */}
             <button
               onClick={() => setShowRequestsModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              aria-label="Close modal"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Modal Header */}
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1.5">
                 Mark as Borrowed
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
@@ -565,12 +604,12 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
             <div className="flex-1 overflow-y-auto">
               {isLoadingRequests ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                  <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
                 </div>
               ) : borrowRequests.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">
                     No pending requests yet
                   </p>
                   <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
@@ -586,16 +625,16 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-amber-600 dark:text-amber-400 font-semibold text-lg">
+                          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center shrink-0">
+                            <span className="text-amber-600 dark:text-amber-400 font-semibold text-base">
                               {request.borrowerFullName?.charAt(0) || "?"}
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 dark:text-white truncate">
+                            <p className="font-semibold text-gray-900 dark:text-white truncate text-sm">
                               {request.borrowerFullName || "Unknown User"}
                             </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
                               <Clock className="w-3 h-3" />
                               {new Date(
                                 request.borrowedAt,
@@ -603,25 +642,25 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                             </p>
                           </div>
                         </div>
-                        <div className="flex gap-2 flex-shrink-0">
+                        <div className="flex gap-2 shrink-0">
                           <button
                             onClick={() => handleDeclineRequest(request.id)}
                             disabled={
                               decliningRequestId === request.id ||
                               approvingRequestId === request.id
                             }
-                            className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+                            className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-xs cursor-pointer"
                           >
                             {decliningRequestId === request.id ? (
                               <>
-                                <span className="animate-spin text-sm">⏳</span>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 <span className="hidden sm:inline">
                                   Declining...
                                 </span>
                               </>
                             ) : (
                               <>
-                                <X className="w-4 h-4" />
+                                <X className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">
                                   Decline
                                 </span>
@@ -634,18 +673,18 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                               approvingRequestId === request.id ||
                               decliningRequestId === request.id
                             }
-                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+                            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-xs cursor-pointer shadow-sm"
                           >
                             {approvingRequestId === request.id ? (
                               <>
-                                <span className="animate-spin text-sm">⏳</span>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 <span className="hidden sm:inline">
                                   Approving...
                                 </span>
                               </>
                             ) : (
                               <>
-                                <CheckCircle className="w-4 h-4" />
+                                <CheckCircle className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">
                                   Approve
                                 </span>
@@ -661,10 +700,10 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
             </div>
 
             {/* Close button at bottom */}
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => setShowRequestsModal(false)}
-                className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
               >
                 Close
               </button>
@@ -674,164 +713,38 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
       )}
 
       {/* Return Confirmation Modal */}
-      {showReturnConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
-            {/* Close Button */}
-            <button
-              onClick={handleReturnCancel}
-              disabled={isSubmitting}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <RotateCcw className="w-8 h-8 text-green-500" />
-              </div>
-            </div>
-
-            {/* Modal Header */}
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">
-              Mark as Returned?
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-              This will mark{" "}
-              <span className="font-medium text-gray-900 dark:text-white">
-                "{book.title}"
-              </span>{" "}
-              as returned and make it available for borrowing again.
-            </p>
-
-            {/* Borrower Info */}
-            {borrowerName && (
-              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Returning from
-                  </p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {borrowerName}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                <p className="text-red-700 dark:text-red-400 text-sm">
-                  {error}
-                </p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleReturnCancel}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReturnConfirm}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="animate-spin">⏳</span>
-                    Returning...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="w-4 h-4" />
-                    Mark Returned
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={showReturnConfirm}
+        title="Mark as Returned?"
+        message={`This will mark "${book.title}" as returned and make it available for borrowing again.`}
+        confirmText="Mark Returned"
+        cancelText="Cancel"
+        loadingText="Returning..."
+        isLoading={isSubmitting}
+        variant="success"
+        icon={<RotateCcw className="w-6 h-6 text-green-600 dark:text-green-400" />}
+        onConfirm={handleReturnConfirm}
+        onCancel={handleReturnCancel}
+      />
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
-            {/* Close Button */}
-            <button
-              onClick={handleDeleteCancel}
-              disabled={isDeleting}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Warning Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <Trash2 className="w-8 h-8 text-red-500" />
-              </div>
-            </div>
-
-            {/* Modal Header */}
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">
-              Delete this book?
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-              This action cannot be undone. The book "{book.title}" will be
-              permanently removed from your library.
-            </p>
-
-            {/* Error Message */}
-            {deleteError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-red-700 dark:text-red-400 text-sm">
-                  {deleteError}
-                </p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleDeleteCancel}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isDeleting ? (
-                  <>
-                    <span className="animate-spin">⏳</span>
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete this book?"
+        message={
+          deleteError
+            ? deleteError
+            : `This action cannot be undone. The book "${book.title}" will be permanently removed from your library.`
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        loadingText="Deleting..."
+        isLoading={isDeleting}
+        variant="danger"
+        icon={<Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }

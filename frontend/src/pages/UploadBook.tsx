@@ -5,14 +5,13 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle,
-  Loader2,
-  Camera,
   ImagePlus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { MobileBottomNav } from "../components/MobileBottomNav";
+import { AppLayout } from "../components/AppLayout";
+import { Input } from "../components/ui/Input";
+import { Textarea } from "../components/ui/Textarea";
+import { Button } from "../components/ui/Button";
 import { createBook } from "../services";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -43,9 +42,8 @@ export function UploadBook() {
   const navigate = useNavigate();
   const { user, isAuthenticated, refreshCredits } = useAuth();
 
-  // Refs for file inputs
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
+  // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Image state - now stores file objects with preview URLs
   const [imageStates, setImageStates] = useState<ImageState[]>([]);
@@ -64,16 +62,6 @@ export function UploadBook() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-
-  /** Opens camera for photo capture */
-  const handleTakePhoto = () => {
-    cameraInputRef.current?.click();
-  };
-
-  /** Opens gallery for image selection */
-  const handleFromGallery = () => {
-    galleryInputRef.current?.click();
-  };
 
   /** Clears error for a specific field when user starts typing */
   const clearFieldError = (field: string) => {
@@ -107,9 +95,11 @@ export function UploadBook() {
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
     }
+    // Reset value so re-uploading the same file works if previously removed
+    e.target.value = "";
   };
 
   const handleFiles = async (files: FileList) => {
@@ -348,11 +338,8 @@ export function UploadBook() {
   };
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[#F6F0D7] dark:bg-[#1c1c1e] pt-24 pb-24 md:pb-0 transition-colors duration-300">
-        <div className="px-4 md:px-12 max-w-4xl mx-auto">
-          {/* Back Button */}
+    <AppLayout maxWidth="4xl">
+      {/* Back Button */}
           <button
             onClick={() => navigate(-1)}
             className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mb-6 transition group"
@@ -393,12 +380,17 @@ export function UploadBook() {
           <form onSubmit={handleSubmit} className="space-y-6 pb-8">
             {/* Book Images */}
             <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                Book Images{" "}
-                <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-black dark:text-white font-semibold">
+                  Book Images{" "}
+                  <span className="text-red-600 dark:text-red-400">*</span>
+                </label>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  {imageStates.length}/3 photos
+                </span>
+              </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Upload 1-3 images. Front cover required.
+                Upload 1 to 3 images. Front cover required.
               </p>
               {fieldErrors.images && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
@@ -407,204 +399,193 @@ export function UploadBook() {
                 </p>
               )}
 
-              {/* Image Previews */}
+              {/* Single unified hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                multiple
+                accept="image/*"
+                onChange={handleFileInput}
+                className="hidden"
+                disabled={isSubmitting}
+              />
+
+              {/* State 1: Zero images uploaded -> Clean, unified Hero Dropzone */}
+              {imageStates.length === 0 && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  className={`group relative flex flex-col items-center justify-center p-8 md:p-10 rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${
+                    dragActive
+                      ? "border-red-500 bg-red-500/10 dark:bg-red-900/20 scale-[0.99]"
+                      : "border-black/15 dark:border-white/15 bg-[#FAF7EE] dark:bg-[#2c2c2e] hover:border-red-500/70 dark:hover:border-red-400/70 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <div className="w-16 h-16 mb-4 rounded-2xl bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform duration-200 shadow-sm">
+                    <ImagePlus className="w-8 h-8" />
+                  </div>
+                  <p className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-1 text-center">
+                    Click to upload or drag & drop
+                  </p>
+                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 text-center max-w-sm">
+                    Take a photo or choose from your library. Front cover required.
+                  </p>
+                  <div className="mt-4 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full">
+                    <span>JPEG, PNG, WebP</span>
+                    <span>•</span>
+                    <span>Max 20MB</span>
+                  </div>
+                </div>
+              )}
+
+              {/* State 2: 1-3 images uploaded -> Grid of previews + Inline '+ Add photo' slot */}
               {imageStates.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
                   {imageStates.map((imageState, index) => (
-                    <div key={index} className="relative group">
+                    <div
+                      key={index}
+                      className="relative group rounded-xl overflow-hidden border border-black/10 dark:border-white/10 bg-[#FAF7EE] dark:bg-[#2c2c2e] shadow-sm"
+                    >
                       <img
                         src={imageState.previewUrl}
-                        alt={`Book ${index + 1}`}
-                        className="w-full h-40 object-cover rounded-lg border-2 border-amber-200 dark:border-amber-700"
+                        alt={`Book photo ${index + 1}`}
+                        className="w-full h-40 md:h-44 object-cover"
                       />
+
+                      {/* Processing / Loading overlay */}
+                      {imageState.isUploading && (
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center gap-2 text-white">
+                          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span className="text-[11px] font-medium">Processing...</span>
+                        </div>
+                      )}
+
+                      {/* Remove Button */}
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
                         disabled={isSubmitting}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
+                        aria-label={`Remove image ${index + 1}`}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-90 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 transition disabled:opacity-50 cursor-pointer shadow-md"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
+
+                      {/* Badges */}
                       {index === 0 && (
-                        <span className="absolute bottom-2 left-2 px-2 py-1 bg-blue-500 text-white text-xs rounded">
+                        <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-red-500/90 backdrop-blur-xs text-white text-[11px] font-medium rounded-md shadow-sm">
                           Front Cover
                         </span>
                       )}
                       {imageState.uploadedUrl && (
-                        <span className="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs rounded">
+                        <span className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-600/90 backdrop-blur-xs text-white text-[11px] font-medium rounded-md shadow-sm">
                           ✓ Uploaded
                         </span>
                       )}
                     </div>
                   ))}
-                </div>
-              )}
 
-              {/* Upload Area */}
-              {imageStates.length < 3 && (
-                <div className="space-y-3">
-                  {/* Hidden file inputs */}
-                  <input
-                    type="file"
-                    ref={cameraInputRef}
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFileInput}
-                    className="hidden"
-                  />
-                  <input
-                    type="file"
-                    ref={galleryInputRef}
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileInput}
-                    className="hidden"
-                  />
-
-                  {/* Camera and Gallery Buttons */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Take Photo Button */}
+                  {/* Add Photo Slot in the grid if fewer than 3 */}
+                  {imageStates.length < 3 && (
                     <button
                       type="button"
-                      onClick={handleTakePhoto}
-                      className="flex flex-col items-center justify-center px-4 py-6 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold cursor-pointer hover:from-red-600 hover:to-red-700 transition shadow-md hover:shadow-lg"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                      disabled={isSubmitting}
+                      className={`h-40 md:h-44 rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-200 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                        dragActive
+                          ? "border-red-500 bg-red-500/10 dark:bg-red-900/20 scale-[0.98]"
+                          : "border-black/15 dark:border-white/15 bg-[#FAF7EE] dark:bg-[#2c2c2e] hover:border-red-500/70 dark:hover:border-red-400/70 hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                      }`}
                     >
-                      <Camera className="w-8 h-8 mb-2" />
-                      <span>Take Photo</span>
+                      <div className="w-10 h-10 mb-2 rounded-xl bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center group-hover:scale-110 transition duration-200">
+                        <ImagePlus className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition">
+                        Add Photo
+                      </span>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        ({imageStates.length}/3)
+                      </span>
                     </button>
-
-                    {/* Choose from Gallery Button */}
-                    <button
-                      type="button"
-                      onClick={handleFromGallery}
-                      className="flex flex-col items-center justify-center px-4 py-6 rounded-xl bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold cursor-pointer hover:border-red-500 hover:bg-white dark:hover:bg-gray-800 transition shadow-md hover:shadow-lg"
-                    >
-                      <ImagePlus className="w-8 h-8 mb-2" />
-                      <span>From Gallery</span>
-                    </button>
-                  </div>
-
-                  {/* Drag and Drop Area */}
-                  <div
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                    className={`relative border-2 border-dashed rounded-xl p-6 text-center transition ${
-                      dragActive
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                        : "border-amber-300 dark:border-amber-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-                    }`}
-                  >
-                    <Upload className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Or drag and drop images here
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      {imageStates.length}/3 images uploaded
-                    </p>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Title */}
-            <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                Book Title{" "}
-                <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  handleTitleChange(e);
-                  clearFieldError("title");
-                }}
-                placeholder="Enter book title"
-                className={`w-full px-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
-                  fieldErrors.title
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-amber-300 dark:border-gray-600 focus:border-blue-500"
-                }`}
-              />
-              {fieldErrors.title ? (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {fieldErrors.title}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  {title.length}/100 characters
-                </p>
-              )}
-            </div>
+            <Input
+              label={
+                <>
+                  Book Title <span className="text-red-600 dark:text-red-400">*</span>
+                </>
+              }
+              type="text"
+              value={title}
+              onChange={(e) => {
+                handleTitleChange(e);
+                clearFieldError("title");
+              }}
+              placeholder="Enter book title"
+              error={fieldErrors.title}
+              helperText={!fieldErrors.title ? `${title.length}/100 characters` : undefined}
+            />
 
             {/* Author */}
-            <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                Author <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={author}
-                onChange={(e) => {
-                  setAuthor(e.target.value);
-                  clearFieldError("author");
-                }}
-                placeholder="Enter author name"
-                className={`w-full px-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
-                  fieldErrors.author
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-amber-300 dark:border-gray-600 focus:border-blue-500"
-                }`}
-              />
-              {fieldErrors.author && (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {fieldErrors.author}
-                </p>
-              )}
-            </div>
+            <Input
+              label={
+                <>
+                  Author <span className="text-red-600 dark:text-red-400">*</span>
+                </>
+              }
+              type="text"
+              value={author}
+              onChange={(e) => {
+                setAuthor(e.target.value);
+                clearFieldError("author");
+              }}
+              placeholder="Enter author name"
+              error={fieldErrors.author}
+            />
 
             {/* WhatsApp Number */}
-            <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                WhatsApp Number{" "}
-                <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-400 font-medium">
-                  +92
-                </span>
-                <input
-                  type="tel"
-                  value={whatsappNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, "");
-                    setWhatsappNumber(value);
-                    clearFieldError("whatsappNumber");
-                  }}
-                  placeholder="3001234567"
-                  className={`w-full pl-16 pr-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border focus:outline-none text-gray-800 dark:text-white placeholder:text-gray-400 ${
-                    fieldErrors.whatsappNumber
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-amber-300 dark:border-gray-600 focus:border-green-500"
-                  }`}
-                  maxLength={10}
-                />
-              </div>
-              {fieldErrors.whatsappNumber ? (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {fieldErrors.whatsappNumber}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Enter your 10-digit mobile number (without +92)
-                </p>
-              )}
-            </div>
+            <Input
+              label={
+                <>
+                  WhatsApp Number <span className="text-red-600 dark:text-red-400">*</span>
+                </>
+              }
+              type="tel"
+              value={whatsappNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                setWhatsappNumber(value);
+                clearFieldError("whatsappNumber");
+              }}
+              placeholder="3001234567"
+              leftIcon={<span className="text-gray-600 dark:text-gray-400 font-medium">+92</span>}
+              error={fieldErrors.whatsappNumber}
+              helperText={
+                !fieldErrors.whatsappNumber
+                  ? "Enter your 10-digit mobile number (without +92)"
+                  : undefined
+              }
+              maxLength={10}
+            />
 
             {/* Category */}
             <div className="space-y-3">
@@ -627,10 +608,10 @@ export function UploadBook() {
                       setCategory(cat);
                       clearFieldError("category");
                     }}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                    className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer ${
                       category === cat
-                        ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white"
-                        : "bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-amber-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-purple-500"
+                        ? "bg-red-500 text-white shadow-sm"
+                        : "bg-white dark:bg-[#2c2c2e] border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-red-400 dark:border-gray-600"
                     }`}
                   >
                     {cat}
@@ -640,60 +621,46 @@ export function UploadBook() {
             </div>
 
             {/* Description */}
-            <div className="space-y-3">
-              <label className="block text-black dark:text-white font-semibold">
-                Short Description{" "}
-                <span className="text-gray-500 dark:text-gray-400 text-sm font-normal">
-                  (Optional but recommended)
-                </span>
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => {
-                  if (e.target.value.length <= 300) {
-                    setDescription(e.target.value);
-                  }
-                }}
-                placeholder="Anything someone should know before requesting this book?"
-                rows={4}
-                className="w-full px-4 py-3 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-amber-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 text-gray-800 dark:text-white placeholder:text-gray-400 resize-none"
-              />
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                {description.length}/300 characters
-              </p>
-            </div>
+            <Textarea
+              label={
+                <>
+                  Short Description{" "}
+                  <span className="text-gray-500 dark:text-gray-400 text-sm font-normal">
+                    (Optional but recommended)
+                  </span>
+                </>
+              }
+              value={description}
+              onChange={(e) => {
+                if (e.target.value.length <= 300) {
+                  setDescription(e.target.value);
+                }
+              }}
+              placeholder="Anything someone should know before requesting this book?"
+              rows={4}
+              helperText={`${description.length}/300 characters`}
+            />
 
             {/* Submit Button */}
-            <div className="pt-4 pb-4 md:pb-0">
-              <button
+            <div className="pt-4">
+              <Button
                 type="submit"
+                variant="primary"
+                size="lg"
                 disabled={isSubmitting}
-                className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                isLoading={isSubmitting}
+                loadingText={
+                  isUploadingImages
+                    ? "Uploading images..."
+                    : "Creating book..."
+                }
+                className="w-full py-4 shadow-md hover:shadow-lg font-semibold"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    {isUploadingImages
-                      ? "Uploading images..."
-                      : "Creating book..."}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5" />
-                    Upload Book
-                  </>
-                )}
-              </button>
+                <Upload className="w-5 h-5 mr-2" />
+                Upload Book
+              </Button>
             </div>
           </form>
-        </div>
-      </div>
-      <div className="hidden md:block">
-        <Footer />
-      </div>
-      <div className="md:hidden">
-        <MobileBottomNav />
-      </div>
-    </>
+    </AppLayout>
   );
 }

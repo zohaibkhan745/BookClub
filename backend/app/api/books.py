@@ -11,6 +11,7 @@ from app.db.database import get_db
 from app.services import book_service, borrow_service, user_service
 from app.schemas import BookCreate, BookUpdate
 from app.auth import get_current_user, get_optional_user, AuthUser, require_admin_access
+from app.cache import cache
 
 router = APIRouter(prefix="/api/v1", tags=["books"])
 
@@ -45,7 +46,7 @@ async def delete_all_books(
         )
 
 
-def book_to_preview(book) -> dict:
+def book_to_preview(book, is_borrowed: bool = None) -> dict:
     """
     Convert Book model to preview format for listing pages.
     
@@ -55,13 +56,17 @@ def book_to_preview(book) -> dict:
     # Prefer thumbnail for listings, fallback to full image
     image_url = book.cover_image_thumb_url or book.cover_image or ""
     
-    return {
+    preview = {
         "id": str(book.id),
         "slug": book.slug or str(book.id),
         "title": book.title,
         "author": book.author,
         "image": image_url,
     }
+    if is_borrowed is not None:
+        preview["isBorrowed"] = is_borrowed
+        preview["isAvailable"] = not is_borrowed
+    return preview
 
 
 def book_to_response(book, db: Session = None, borrow_status: dict = None) -> dict:
@@ -132,13 +137,21 @@ async def get_books(db: Session = Depends(get_db)):
     """
     try:
         sections = book_service.get_books_by_section(db)
+        all_section_books = sections["trending"] + sections["newArrivals"] + sections["popular"]
+        all_ids = list({b.id for b in all_section_books})
+        borrow_statuses = borrow_service.get_borrow_statuses_batch(db, all_ids) if all_ids else {}
+
+        def to_preview_with_status(b):
+            is_borrowed = borrow_statuses.get(b.id, {}).get("is_borrowed", False)
+            return book_to_preview(b, is_borrowed=is_borrowed)
+
         return JSONResponse(
             content={
                 "success": True,
                 "data": {
-                    "trending": [book_to_preview(b) for b in sections["trending"]],
-                    "newArrivals": [book_to_preview(b) for b in sections["newArrivals"]],
-                    "popular": [book_to_preview(b) for b in sections["popular"]],
+                    "trending": [to_preview_with_status(b) for b in sections["trending"]],
+                    "newArrivals": [to_preview_with_status(b) for b in sections["newArrivals"]],
+                    "popular": [to_preview_with_status(b) for b in sections["popular"]],
                 }
             },
             headers={"Cache-Control": "public, max-age=30, stale-while-revalidate=60"}
@@ -154,37 +167,51 @@ async def get_books(db: Session = Depends(get_db)):
 async def get_all_books_endpoint(
     cursor: int = Query(default=0, ge=0, description="Cursor for pagination (book ID to start after)"),
     limit: int = Query(default=20, ge=1, le=50, description="Number of books to return (max 50)"),
+    book_status: str = Query(default="all", alias="status", pattern="^(all|available|borrowed)$", description="Filter by status (all, available, borrowed)"),
     db: Session = Depends(get_db)
 ):
     """
-    GET /books/all - Fetch all books with cursor-based pagination.
+    GET /books/all - Fetch all books with cursor-based pagination and optional status filter.
     
     Query Parameters:
     - cursor: ID of the last book from previous page (0 for first page)
     - limit: Number of books to return (1-50, default 20)
+    - status: Filter by status ('all', 'available', 'borrowed')
     
     Response includes next_cursor for fetching the next page.
     Cursor-based pagination provides consistent performance as catalog grows.
     """
     try:
-        books = book_service.get_all_books_paginated(db, cursor=cursor, limit=limit)
+        books = book_service.get_all_books_paginated(db, cursor=cursor, limit=limit, status=book_status)
         
         # Determine if there are more results
         has_next = len(books) > limit
         result_books = books[:limit] if has_next else books
         next_cursor = result_books[-1].id if has_next and result_books else None
         
+        # Batch fetch borrow statuses to avoid N+1 queries
+        book_ids = [b.id for b in result_books]
+        borrow_statuses = borrow_service.get_borrow_statuses_batch(db, book_ids) if book_ids else {}
+        
+        previews = [
+            book_to_preview(
+                b,
+                is_borrowed=borrow_statuses.get(b.id, {}).get("is_borrowed", False)
+            )
+            for b in result_books
+        ]
+        
         return JSONResponse(
             content={
                 "success": True,
-                "data": [book_to_preview(b) for b in result_books],
+                "data": previews,
                 "pagination": {
                     "next_cursor": next_cursor,
                     "has_next": has_next,
                     "limit": limit,
                 }
             },
-            headers={"Cache-Control": "public, max-age=30, stale-while-revalidate=60"}
+            headers={"Cache-Control": "public, max-age=15, stale-while-revalidate=30"}
         )
     except Exception as e:
         raise HTTPException(
@@ -225,10 +252,19 @@ async def search_books(
     """
     try:
         books = book_service.search_books(db, q, category)
+        book_ids = [b.id for b in books]
+        borrow_statuses = borrow_service.get_borrow_statuses_batch(db, book_ids) if book_ids else {}
+        previews = [
+            book_to_preview(
+                b,
+                is_borrowed=borrow_statuses.get(b.id, {}).get("is_borrowed", False)
+            )
+            for b in books
+        ]
         return JSONResponse(
             content={
                 "success": True,
-                "data": [book_to_preview(b) for b in books]
+                "data": previews
             },
             headers={"Cache-Control": "public, max-age=10, stale-while-revalidate=30"}
         )
@@ -244,9 +280,21 @@ def get_book(identifier: str, db: Session = Depends(get_db)):
     """
     GET /books/{identifier} - Fetch a single book by slug or ID.
     Uses sync def so FastAPI executes blocking database operations in worker threadpool.
-    Includes Cache-Control headers for instant client loading.
+    Includes Cache-Control headers and in-memory response cache for instant loading.
     """
-    book = book_service.get_book_by_id_or_slug(db, identifier)
+    ident_str = identifier.strip()
+    cache_key = f"books:detail_resp:{ident_str}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return JSONResponse(
+            content={
+                "success": True,
+                "data": cached_data
+            },
+            headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=120"}
+        )
+
+    book = book_service.get_book_by_id_or_slug(db, ident_str)
     
     if not book:
         raise HTTPException(
@@ -254,12 +302,19 @@ def get_book(identifier: str, db: Session = Depends(get_db)):
             detail={"code": "BOOK_NOT_FOUND", "message": f"Book '{identifier}' not found."}
         )
     
+    response_data = book_to_response(book, db)
+
+    # Cache full response under both ID and slug for instant lookup (<1ms)
+    cache.set(f"books:detail_resp:{book.id}", response_data, ttl_seconds=300)
+    if book.slug:
+        cache.set(f"books:detail_resp:{book.slug}", response_data, ttl_seconds=300)
+
     return JSONResponse(
         content={
             "success": True,
-            "data": book_to_response(book, db)
+            "data": response_data
         },
-        headers={"Cache-Control": "public, max-age=30, stale-while-revalidate=60"}
+        headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=120"}
     )
 
 

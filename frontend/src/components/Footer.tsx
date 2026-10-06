@@ -168,7 +168,7 @@ export function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div className="px-4 md:px-12 py-6 border-t border-amber-200/50 dark:border-white/10 bg-amber-100/30 dark:bg-black/20">
+      <div className="px-4 md:px-12 pt-6 pb-20 md:pb-6 border-t border-amber-200/50 dark:border-white/10 bg-amber-100/30 dark:bg-black/20 safe-area-bottom">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 text-sm text-gray-600 dark:text-gray-400">
           <p>
             © 2026 BookClub. All rights reserved. Built with passion for

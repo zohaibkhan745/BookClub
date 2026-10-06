@@ -30,11 +30,13 @@ CACHE_TTL_BORROW = 30  # 30 seconds
 
 
 def invalidate_borrow_cache(book_id):
-    """Invalidate borrow status and public journey cache for a book."""
+    """Invalidate borrow status, public journey, and book detail response cache for a book."""
     try:
         bid = int(book_id)
         cache.delete(f"borrow:status:{bid}")
         cache.delete(f"borrow:journey:{bid}")
+        cache.delete(f"books:detail_resp:{bid}")
+        cache.invalidate_pattern("books:detail_resp:")
     except Exception:
         pass
 
