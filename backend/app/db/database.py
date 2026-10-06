@@ -8,8 +8,13 @@ import os
 settings = get_settings()
 
 # Determine if we should use NullPool for serverless environments (e.g., Vercel Lambda).
-# On persistent web servers (Render, VPS, Docker, Dev), QueuePool must be used to maintain hot connections.
-is_serverless = os.getenv("VERCEL") == "1" or settings.env == "serverless"
+# In serverless environments, maintaining connection pools exhausts database connections and crashes invocations.
+is_serverless = (
+    settings.env in ("production", "serverless")
+    or os.getenv("VERCEL") == "1"
+    or bool(os.getenv("VERCEL_REGION"))
+    or bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+)
 
 poolclass = NullPool if is_serverless else QueuePool
 

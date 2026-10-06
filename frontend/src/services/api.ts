@@ -2,8 +2,24 @@
 // API Configuration
 // ============================================
 
+function getApiBaseUrl(): string {
+  // 1. Explicit environment variable
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // 2. Production web host detection fallback (prevents mixed-content or localhost calls in prod)
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.includes('vercel.app') || host.includes('book-club.social')) {
+      return 'https://book-club-backend.vercel.app';
+    }
+  }
+  // 3. Local development fallback
+  return 'http://127.0.0.1:8000';
+}
+
 /** Backend API base URL */
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+export const API_BASE_URL = getApiBaseUrl();
 
 /** API version prefix */
 export const API_PREFIX = '/api/v1';

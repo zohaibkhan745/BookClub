@@ -10,5 +10,8 @@ backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
 # Import and expose the FastAPI app
-# Vercel's Python runtime will handle ASGI automatically
+# Vercel's Python runtime handles both ASGI 'app' and 'handler'
 from app.main import app
+
+handler = app
+
