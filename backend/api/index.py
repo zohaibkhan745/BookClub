@@ -6,8 +6,9 @@ import sys
 from pathlib import Path
 
 # Add the backend directory to Python path
-backend_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_dir))
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 # Import and expose the FastAPI app directly for Vercel's ASGI runtime.
 # Do NOT define a 'handler' variable as Vercel would treat it as a legacy BaseHTTPRequestHandler.
