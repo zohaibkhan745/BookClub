@@ -20,7 +20,9 @@ poolclass = NullPool if is_serverless else QueuePool
 
 db_url = settings.database_url
 if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+    db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+elif db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 elif is_serverless and db_url.startswith("sqlite:///."):
     db_url = "sqlite:////tmp/test.db"
 
