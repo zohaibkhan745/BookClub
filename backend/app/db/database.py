@@ -18,9 +18,13 @@ is_serverless = (
 
 poolclass = NullPool if is_serverless else QueuePool
 
+db_url = settings.database_url
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 # Disable GSSAPI encryption negotiation for PostgreSQL (avoids timeout against PgBouncer/Supabase)
 connect_args = {}
-if settings.database_url.startswith("postgres"):
+if db_url.startswith("postgres"):
     connect_args["gssencmode"] = "disable"
 
 # Create SQLAlchemy engine with optimized connection pool settings
@@ -40,7 +44,7 @@ if not is_serverless:
     })
 
 engine = create_engine(
-    settings.database_url,
+    db_url,
     **engine_kwargs
 )
 

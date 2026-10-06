@@ -10,13 +10,14 @@ from app.cache import get_cache_stats, cache
 
 # Try to initialize database (may fail in serverless cold start)
 try:
-    from app.db.database import engine, Base
+    from app.db.database import engine, Base, is_serverless
     # Import all models to ensure they're registered with Base.metadata
     from app.models import User, Book, BorrowRecord, ForumThread, ForumReply, Subscriber
     
-    # Create database tables (for development - use Alembic migrations in production)
-    # Note: This won't modify existing tables, only create new ones
-    Base.metadata.create_all(bind=engine)
+    # Create database tables only for local development - production uses Alembic migrations
+    # Running DDL create_all on serverless cold starts causes timeouts and locks against Supabase
+    if not is_serverless and not os.getenv("VERCEL"):
+        Base.metadata.create_all(bind=engine)
     db_initialized = True
 except Exception as e:
     print(f"Warning: Database initialization failed: {e}")
@@ -31,7 +32,7 @@ from app.api import subscribers
 from app.api import storage
 
 
-# Background task for periodic cache cleanup
+# Background task for periodic cache cleanup (persistent servers only)
 async def cache_cleanup_task():
     """Periodically clean up expired cache entries to prevent memory bloat."""
     while True:
@@ -44,15 +45,16 @@ async def cache_cleanup_task():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown events."""
-    # Startup: Start background cache cleanup task
-    cleanup_task = asyncio.create_task(cache_cleanup_task())
+    cleanup_task = None
+    if not is_serverless and not os.getenv("VERCEL"):
+        cleanup_task = asyncio.create_task(cache_cleanup_task())
     yield
-    # Shutdown: Cancel cleanup task
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

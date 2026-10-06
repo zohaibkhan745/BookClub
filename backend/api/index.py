@@ -9,9 +9,23 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-# Import and expose the FastAPI app
-# Vercel's Python runtime handles both ASGI 'app' and 'handler'
-from app.main import app
+# Import and expose the FastAPI app directly for Vercel's ASGI runtime.
+# Do NOT define a 'handler' variable as Vercel would treat it as a legacy BaseHTTPRequestHandler.
+try:
+    from app.main import app
+except Exception as e:
+    import traceback
+    from fastapi import FastAPI
+    from fastapi.responses import PlainTextResponse
 
-handler = app
+    err_msg = traceback.format_exc()
+    app = FastAPI(title="Book Club API - Startup Failure")
+
+    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
+    async def error_fallback(full_path: str):
+        return PlainTextResponse(
+            f"Book Club API Initialization Error:\n\n{err_msg}",
+            status_code=500,
+            media_type="text/plain"
+        )
 
