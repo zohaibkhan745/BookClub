@@ -10,23 +10,7 @@ backend_dir = Path(__file__).resolve().parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-# Import and expose the FastAPI app directly for Vercel's ASGI runtime.
-# Do NOT define a 'handler' variable as Vercel would treat it as a legacy BaseHTTPRequestHandler.
-try:
-    from app.main import app
-except Exception as e:
-    import traceback
-    from fastapi import FastAPI
-    from fastapi.responses import PlainTextResponse
-
-    err_msg = traceback.format_exc()
-    app = FastAPI(title="Book Club API - Startup Failure")
-
-    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
-    async def error_fallback(full_path: str):
-        return PlainTextResponse(
-            f"Book Club API Initialization Error:\n\n{err_msg}",
-            status_code=500,
-            media_type="text/plain"
-        )
+# Import and expose the FastAPI app directly for Vercel's native ASGI support.
+# Vercel's AST parser looks for top-level 'app' (do NOT wrap in try/except or define 'handler').
+from app.main import app
 
