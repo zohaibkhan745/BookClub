@@ -68,17 +68,33 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
-@app.middleware("http")
-async def add_security_headers(request, call_next):
-    """Add defensive HTTP security headers to protect against common web attacks."""
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    return response
+class SecurityHeadersMiddleware:
+    """Add defensive HTTP security headers without BaseHTTPMiddleware task group bugs."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        async def send_with_security_headers(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.extend([
+                    (b"x-content-type-options", b"nosniff"),
+                    (b"x-frame-options", b"DENY"),
+                    (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+                    (b"x-xss-protection", b"1; mode=block"),
+                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+                ])
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS origins - includes localhost for dev and production domains
 cors_origins = [
