@@ -62,3 +62,11 @@ export type {
   ForumThread,
   ForumThreadDetail,
 } from './forumService';
+
+// Notification service exports
+export {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from './notificationService';
+

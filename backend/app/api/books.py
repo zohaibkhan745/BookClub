@@ -8,7 +8,7 @@ from sqlalchemy import text
 from datetime import datetime
 
 from app.db.database import get_db
-from app.services import book_service, borrow_service, user_service
+from app.services import book_service, borrow_service, user_service, notification_service
 from app.schemas import BookCreate, BookUpdate
 from app.auth import get_current_user, get_optional_user, AuthUser, require_admin_access
 from app.cache import cache
@@ -371,10 +371,24 @@ async def create_book(
         db.commit()
         db.refresh(db_user)
         
+        # Dispatch notification to notify users about the newly uploaded book
+        try:
+            actor_name = user.full_name or db_user.full_name or db_user.username or "A member"
+            notification_service.create_book_upload_notification(
+                db=db,
+                book=book,
+                actor_id=user.id,
+                actor_name=actor_name
+            )
+            db.commit()
+        except Exception as notif_err:
+            print(f"Warning: Failed to create upload notification: {notif_err}")
+
         return {
             "success": True,
             "data": book_to_response(book, db)
         }
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

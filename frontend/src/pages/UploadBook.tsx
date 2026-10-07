@@ -14,6 +14,8 @@ import { Textarea } from "../components/ui/Textarea";
 import { Button } from "../components/ui/Button";
 import { createBook } from "../services";
 import { useAuth } from "../context/AuthContext";
+import { invalidateNotifications } from "../hooks/useNotifications";
+
 import {
   uploadBookImage,
   deleteBookImage,
@@ -307,8 +309,11 @@ export function UploadBook() {
       setSubmitSuccess(true);
       // Refresh credits (user earned +1 for uploading)
       await refreshCredits();
+      // Invalidate notifications feed so new book upload is immediately visible
+      invalidateNotifications();
       // Clean up preview URLs
       imageStates.forEach((img) => revokeImagePreview(img.previewUrl));
+
       // Navigate to home after brief success message
       setTimeout(() => navigate("/"), 1500);
     } catch (err) {

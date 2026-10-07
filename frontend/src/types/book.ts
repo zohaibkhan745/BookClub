@@ -248,3 +248,48 @@ export interface JoinClubResponse {
   email: string;
   joinedAt: string;
 }
+
+// ============================================
+// Notification Types
+// ============================================
+
+export interface NotificationItem {
+  id: number;
+  userId?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  type: string;
+  title: string;
+  message: string;
+  bookId?: number | null;
+  bookSlug?: string | null;
+  bookCover?: string | null;
+  createdAt?: string;
+  isRead: boolean;
+}
+
+export interface NotificationListResponse {
+  success: boolean;
+  data: Array<{
+    id: number;
+    user_id?: string | null;
+    actor_id?: string | null;
+    actor_name?: string | null;
+    type: string;
+    title: string;
+    message: string;
+    book_id?: number | null;
+    book_slug?: string | null;
+    book_cover?: string | null;
+    created_at?: string;
+    is_read: boolean;
+  }>;
+  unread_count: number;
+}
+
+export interface MarkReadResponse {
+  success: boolean;
+  message: string;
+  unread_count: number;
+}
+

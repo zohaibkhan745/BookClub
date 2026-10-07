@@ -16,6 +16,8 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { CreditBadge } from "./CreditBadge";
+import { NotificationBell } from "./NotificationBell";
+
 
 interface ProfileDropdownProps {
   isMobile?: boolean;
@@ -280,6 +282,7 @@ export const Navbar = memo(function Navbar() {
         {/* Mobile Right Controls */}
         <div className="md:hidden flex items-center space-x-2">
           {isAuthenticated && <CreditBadge />}
+          <NotificationBell isMobile={true} />
 
           {!isAuthenticated && (
             <button
@@ -319,6 +322,8 @@ export const Navbar = memo(function Navbar() {
         <div className="hidden md:flex items-center space-x-3">
           {isAuthenticated && <CreditBadge />}
 
+          <NotificationBell isMobile={false} />
+
           <button
             onClick={() => navigate("/leaderboard")}
             className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition cursor-pointer"
@@ -327,6 +332,7 @@ export const Navbar = memo(function Navbar() {
           >
             <Trophy className="w-5 h-5 text-yellow-500" />
           </button>
+
 
           <button
             onClick={() => navigate("/upload")}

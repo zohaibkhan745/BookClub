@@ -31,6 +31,11 @@ from app.schemas.subscriber import (
     SubscribeRequest,
     SubscribeResponse,
 )
+from app.schemas.notification import (
+    NotificationResponse,
+    NotificationListResponse,
+    MarkReadResponse,
+)
 
 __all__ = [
     # User schemas
@@ -61,4 +66,9 @@ __all__ = [
     # Subscriber schemas
     "SubscribeRequest",
     "SubscribeResponse",
+    # Notification schemas
+    "NotificationResponse",
+    "NotificationListResponse",
+    "MarkReadResponse",
 ]
+

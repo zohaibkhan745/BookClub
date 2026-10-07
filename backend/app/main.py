@@ -12,7 +12,7 @@ from app.cache import get_cache_stats, cache
 try:
     from app.db.database import engine, Base, is_serverless
     # Import all models to ensure they're registered with Base.metadata
-    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply, Subscriber
+    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply, Subscriber, Notification, UserNotificationRead
     
     # Create database tables only for local development - production uses Alembic migrations
     # Running DDL create_all on serverless cold starts causes timeouts and locks against Supabase
@@ -30,6 +30,8 @@ from app.api import users
 from app.api import forum
 from app.api import subscribers
 from app.api import storage
+from app.api import notifications
+
 
 
 # Background task for periodic cache cleanup (persistent servers only)
@@ -164,3 +166,5 @@ app.include_router(users.router)
 app.include_router(forum.router)
 app.include_router(subscribers.router)
 app.include_router(storage.router)
+app.include_router(notifications.router)
+
