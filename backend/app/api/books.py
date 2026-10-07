@@ -55,7 +55,7 @@ def book_to_preview(book, is_borrowed: bool = None) -> dict:
     Convert Book model to preview format for listing pages.
     
     Uses thumbnail URL if available, falls back to full image.
-    This keeps listing pages fast by loading ~10-20KB thumbnails.
+    Includes genre and description for instant (0ms) book detail rendering.
     """
     # Prefer thumbnail for listings, fallback to full image
     image_url = book.cover_image_thumb_url or book.cover_image or ""
@@ -66,6 +66,12 @@ def book_to_preview(book, is_borrowed: bool = None) -> dict:
         "title": book.title,
         "author": book.author,
         "image": image_url,
+        "genre": book.category or "",
+        "description": book.description or "",
+        "listingType": book.listing_type or "lend",
+        "condition": book.condition or "good",
+        "price": book.price or "",
+        "year": book.created_at.strftime("%Y") if book.created_at else "",
     }
     if is_borrowed is not None:
         preview["isBorrowed"] = is_borrowed

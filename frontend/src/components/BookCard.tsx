@@ -50,6 +50,7 @@ export const BookCard = memo(function BookCard({
       onClick={onClick}
       onMouseEnter={handleInteraction}
       onFocus={handleInteraction}
+      onTouchStart={handleInteraction}
       className={`group block focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-xl transition-transform ${className}`}
       aria-label={`View details for ${book.title} by ${book.author}`}
     >

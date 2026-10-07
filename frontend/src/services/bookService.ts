@@ -80,10 +80,19 @@ function mapBookPreview(book: {
   title: string;
   author: string;
   image: string;
+  genre?: string;
+  category?: string;
+  description?: string;
+  listing_type?: string;
+  listingType?: string;
+  condition?: string;
+  price?: string;
+  year?: string;
   is_available?: boolean;
   is_borrowed?: boolean;
   isAvailable?: boolean;
   isBorrowed?: boolean;
+  pendingRequestCount?: number;
 }): BookPreview {
   const isAvailable =
     book.isAvailable ??
@@ -96,8 +105,15 @@ function mapBookPreview(book: {
     title: book.title,
     author: book.author,
     image: book.image,
+    genre: book.genre ?? book.category ?? "",
+    description: book.description ?? "",
+    listingType: (book.listingType || book.listing_type || "lend") as any,
+    condition: book.condition || "good",
+    price: book.price ?? "",
+    year: book.year ?? "",
     isAvailable,
     isBorrowed,
+    pendingRequestCount: book.pendingRequestCount,
   };
 }
 
@@ -246,22 +262,12 @@ export async function getUserLibrary(options?: { forceRefresh?: boolean }): Prom
   
   // Map uploaded books with pendingRequestCount
   const uploaded = (response.data?.uploaded || []).map((book) => ({
-    id: String(book.id),
-    title: book.title,
-    author: book.author,
-    image: book.image,
-    isAvailable: book.is_available ?? true,
+    ...mapBookPreview(book as any),
     pendingRequestCount: book.pendingRequestCount ?? 0,
   }));
   
   // Map borrowed books
-  const borrowed = (response.data?.borrowed || []).map((book) => ({
-    id: String(book.id),
-    title: book.title,
-    author: book.author,
-    image: book.image,
-    isAvailable: book.is_available ?? true,
-  }));
+  const borrowed = (response.data?.borrowed || []).map((book) => mapBookPreview(book as any));
   
   const result = { uploaded, borrowed };
   

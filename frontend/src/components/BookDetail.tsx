@@ -31,6 +31,7 @@ import type { Book, ApiError, BorrowRecord } from "../types";
 
 interface BookDetailProps {
   book: Book;
+  isInitialPlaceholder?: boolean;
   onBookUpdate?: (updatedBook: Book) => void;
 }
 
@@ -49,7 +50,7 @@ function openWhatsApp(phoneNumber: string, bookTitle: string) {
   window.open(whatsappUrl, "_blank");
 }
 
-export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
+export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }: BookDetailProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user, refreshCredits } = useAuth();
@@ -420,8 +421,10 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                   <p className="font-semibold text-black dark:text-white">
                     {book.genre}
                   </p>
-                ) : (
+                ) : isInitialPlaceholder ? (
                   <div className="h-6 w-28 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse" />
+                ) : (
+                  <p className="font-semibold text-black dark:text-white">General</p>
                 )}
               </div>
             </div>
@@ -435,12 +438,16 @@ export function BookDetail({ book, onBookUpdate }: BookDetailProps) {
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
                   {book.description}
                 </p>
-              ) : (
+              ) : isInitialPlaceholder ? (
                 <div className="space-y-2 animate-pulse pt-1">
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full" />
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6" />
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/6" />
                 </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400 italic text-sm">
+                  No description provided for this book.
+                </p>
               )}
 
               {/* Attribution Section */}

@@ -54,22 +54,22 @@ export function BookDetailPage() {
       image: preview.image,
       isAvailable: preview.isAvailable ?? true,
       isBorrowed: preview.isBorrowed ?? false,
-      genre: (preview as Partial<Book>).genre || "",
-      description: (preview as Partial<Book>).description || "",
-      year: (preview as Partial<Book>).year || "",
+      genre: preview.genre || (preview as Partial<Book>).genre || "",
+      description: preview.description || (preview as Partial<Book>).description || "",
+      year: preview.year || (preview as Partial<Book>).year || "",
       pages: (preview as Partial<Book>).pages || 0,
       language: (preview as Partial<Book>).language || "English",
       rating: (preview as Partial<Book>).rating || 5,
-      listingType: (preview as Partial<Book>).listingType || "lend",
-      condition: (preview as Partial<Book>).condition || "good",
-      price: (preview as Partial<Book>).price,
+      listingType: preview.listingType || (preview as Partial<Book>).listingType || "lend",
+      condition: preview.condition || (preview as Partial<Book>).condition || "good",
+      price: preview.price ?? (preview as Partial<Book>).price,
       whatsappNumber: (preview as Partial<Book>).whatsappNumber,
       readingJourney: (preview as Partial<Book>).readingJourney || [],
       borrowStatus: (preview as Partial<Book>).borrowStatus,
     };
   }, [preview, id]);
 
-  const { book, isLoading, error, refresh } = useBook(id, fallbackBook);
+  const { book, isLoading, isInitialPlaceholder, error, refresh } = useBook(id, fallbackBook);
 
   // If accessed via numeric ID (e.g. /book/32), cleanly replace URL with title slug
   // Primes SWR cache with seedBookCache before navigation so there is zero reload delay
@@ -122,7 +122,11 @@ export function BookDetailPage() {
 
   return (
     <AppLayout maxWidth="7xl">
-      <BookDetail book={book} onBookUpdate={handleBookUpdate} />
+      <BookDetail
+        book={book}
+        isInitialPlaceholder={isInitialPlaceholder}
+        onBookUpdate={handleBookUpdate}
+      />
     </AppLayout>
   );
 }

@@ -38,6 +38,12 @@ export interface BookPreview {
   title: string;
   author: string;
   image: string;
+  genre?: string;
+  description?: string;
+  listingType?: ListingType;
+  condition?: string;
+  price?: string;
+  year?: string;
   isAvailable?: boolean;  // Whether book is available for borrowing
   isBorrowed?: boolean;   // Whether book is currently borrowed
   pendingRequestCount?: number;  // Number of pending borrow requests (for owners)
