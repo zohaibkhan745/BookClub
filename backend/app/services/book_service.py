@@ -184,7 +184,8 @@ def create_book(
     db: Session,
     book_data: BookCreate,
     owner_id: str,
-    owner_full_name: str
+    owner_full_name: str,
+    commit: bool = True
 ) -> Book:
     """
     Create a new book listing.
@@ -194,6 +195,7 @@ def create_book(
         book_data: Book creation data
         owner_id: ID of the owner (from authenticated user)
         owner_full_name: Full name of the owner (from authenticated user)
+        commit: Whether to commit immediately (default True). Set False for atomic workflows.
     
     Security Note:
         owner_id and owner_full_name must be set by the API layer from
@@ -223,10 +225,14 @@ def create_book(
     )
     
     db.add(db_book)
-    db.commit()
-    db.refresh(db_book)
+    if commit:
+        db.commit()
+        db.refresh(db_book)
+    else:
+        db.flush()
     
     return db_book
+
 
 
 def update_book(

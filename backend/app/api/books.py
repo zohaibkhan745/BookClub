@@ -7,13 +7,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
 
+import logging
 from app.db.database import get_db
 from app.services import book_service, borrow_service, user_service, notification_service
 from app.schemas import BookCreate, BookUpdate
 from app.auth import get_current_user, get_optional_user, AuthUser, require_admin_access
 from app.cache import cache
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1", tags=["books"])
+
 
 
 @router.delete("/books/all")
@@ -358,31 +362,31 @@ async def create_book(
                 full_name=user.full_name or "Anonymous"
             )
         
-        # Create book with ownership from authenticated user
+        # 1. Create book with ownership (commit=False keeps transaction open)
         book = book_service.create_book(
             db,
             book_data,
             owner_id=user.id,
-            owner_full_name=user.full_name or "Anonymous"
+            owner_full_name=user.full_name or "Anonymous",
+            commit=False
         )
         
-        # Award credit for uploading a book
+        # 2. Award credit for uploading a book
         db_user.credits += 1
-        db.commit()
-        db.refresh(db_user)
         
-        # Dispatch notification to notify users about the newly uploaded book
-        try:
-            actor_name = user.full_name or db_user.full_name or db_user.username or "A member"
-            notification_service.create_book_upload_notification(
-                db=db,
-                book=book,
-                actor_id=user.id,
-                actor_name=actor_name
-            )
-            db.commit()
-        except Exception as notif_err:
-            print(f"Warning: Failed to create upload notification: {notif_err}")
+        # 3. Create broadcast notification
+        actor_name = user.full_name or db_user.full_name or db_user.username or "A member"
+        notification_service.create_book_upload_notification(
+            db=db,
+            book=book,
+            actor_id=user.id,
+            actor_name=actor_name
+        )
+
+        # 4. Atomically commit book + credits + notification + uploader read state
+        db.commit()
+        db.refresh(book)
+        db.refresh(db_user)
 
         return {
             "success": True,
@@ -390,10 +394,13 @@ async def create_book(
         }
 
     except Exception as e:
+        db.rollback()
+        logger.error("Failed to create book listing and notification: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": "SERVER_ERROR", "message": str(e)}
         )
+
 
 
 @router.put("/books/{book_id}")

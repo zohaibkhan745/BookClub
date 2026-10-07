@@ -39,10 +39,6 @@ class Notification(Base):
     # Relationships
     book = relationship("Book", foreign_keys=[book_id])
 
-    __table_args__ = (
-        Index("ix_notifications_created_at_desc", created_at.desc()),
-    )
-
     def __repr__(self):
         return f"<Notification(id={self.id}, type='{self.type}', title='{self.title}')>"
 
@@ -55,13 +51,14 @@ class UserNotificationRead(Base):
     __tablename__ = "user_notification_reads"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(36), nullable=False, index=True)
+    user_id = Column(String(36), nullable=False)
     notification_id = Column(Integer, ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False, index=True)
     read_at = Column(DateTime(timezone=True), server_default=func.now())
     
     __table_args__ = (
         UniqueConstraint("user_id", "notification_id", name="uq_user_notification_read"),
     )
+
 
     def __repr__(self):
         return f"<UserNotificationRead(user_id='{self.user_id}', notification_id={self.notification_id})>"

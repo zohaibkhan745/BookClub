@@ -7,6 +7,7 @@ from typing import Optional
 
 from app.db.database import get_db
 from app.auth.dependencies import get_current_user, get_optional_user, AuthUser
+from app.models.notification import Notification
 from app.services import notification_service
 from app.schemas.notification import NotificationListResponse, MarkReadResponse
 
@@ -26,7 +27,7 @@ def get_notifications(
     """
     Get notifications feed.
     - If authenticated, includes personal read status and unread count.
-    - If unauthenticated (guest), returns public notifications with is_read=False.
+    - If unauthenticated (guest), returns public notifications with is_read=False and unread_count=0.
     """
     user_id = user.id if user else None
     items, unread_count = notification_service.get_notifications_for_user(
@@ -51,7 +52,25 @@ def mark_notification_as_read(
     """
     Mark a specific notification as read.
     Requires authentication.
+    Returns 404 if notification does not exist.
+    Returns 403 if attempting to access another user's targeted notification.
     """
+    # 1. Verify notification existence
+    notification = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": "Notification not found"}
+        )
+
+    # 2. Check authorization: broadcast (user_id IS NULL) is accessible to all;
+    # targeted notifications are accessible only to the targeted user.
+    if notification.user_id is not None and notification.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "You do not have permission to access this notification"}
+        )
+
     unread_count = notification_service.mark_notification_as_read(
         db=db,
         user_id=user.id,
@@ -62,6 +81,7 @@ def mark_notification_as_read(
         "message": "Notification marked as read",
         "unread_count": unread_count
     }
+
 
 
 @router.post("/read-all", response_model=MarkReadResponse)

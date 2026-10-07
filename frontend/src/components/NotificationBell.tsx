@@ -9,27 +9,8 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuth } from '../context/AuthContext';
+import { formatRelativeTime } from '../services';
 import type { NotificationItem } from '../types';
-
-/** Helper to format relative time nicely */
-function formatTimeAgo(dateString?: string): string {
-  if (!dateString) return 'recently';
-  const now = new Date();
-  const date = new Date(dateString);
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return 'Just now';
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays === 1) return 'Yesterday';
-  if (diffInDays < 7) return `${diffInDays}d ago`;
-  const diffInWeeks = Math.floor(diffInDays / 7);
-  if (diffInWeeks < 4) return `${diffInWeeks}w ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 interface NotificationBellProps {
   isMobile?: boolean;
@@ -45,8 +26,9 @@ export const NotificationBell = memo(function NotificationBell({
 
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click or Escape key press
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -57,11 +39,20 @@ export const NotificationBell = memo(function NotificationBell({
       }
     };
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
@@ -89,17 +80,25 @@ export const NotificationBell = memo(function NotificationBell({
 
   return (
     <div className="relative" ref={containerRef}>
-      {/* Bell Button */}
+      {/* Bell Trigger Button */}
       <button
+        ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-controls="notifications-dropdown"
+        aria-label={
+          isAuthenticated && unreadCount > 0
+            ? `Notifications, ${unreadCount} unread`
+            : 'Notifications'
+        }
         className="relative p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
         title="Notifications"
-        aria-label="Notifications"
       >
         <Bell className="w-5 h-5 transition-transform hover:scale-105" />
 
-        {/* Unread badge count */}
-        {unreadCount > 0 && (
+        {/* Unread badge count - shown only for authenticated users */}
+        {isAuthenticated && unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-sm ring-2 ring-white dark:ring-[#1C1C1E] animate-in zoom-in-75 duration-200">
             {unreadCount > 9 ? '9+' : unreadCount}
             <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-30" />
@@ -110,6 +109,9 @@ export const NotificationBell = memo(function NotificationBell({
       {/* Dropdown Menu */}
       {isOpen && (
         <div
+          id="notifications-dropdown"
+          role="dialog"
+          aria-label="Notifications"
           className={`absolute ${
             isMobile ? 'right-[-40px]' : 'right-0'
           } mt-2 w-80 sm:w-96 max-w-[90vw] bg-[#FAF7EE] dark:bg-[#2c2c2e] rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md`}
@@ -120,7 +122,7 @@ export const NotificationBell = memo(function NotificationBell({
               <span className="font-semibold text-gray-900 dark:text-white text-base">
                 Notifications
               </span>
-              {unreadCount > 0 && (
+              {isAuthenticated && unreadCount > 0 && (
                 <span className="text-xs px-2 py-0.5 bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 font-medium rounded-full">
                   {unreadCount} new
                 </span>
@@ -129,6 +131,7 @@ export const NotificationBell = memo(function NotificationBell({
 
             {isAuthenticated && unreadCount > 0 && (
               <button
+                type="button"
                 onClick={handleMarkAll}
                 className="flex items-center space-x-1 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium transition cursor-pointer"
               >
@@ -166,10 +169,11 @@ export const NotificationBell = memo(function NotificationBell({
               </div>
             ) : (
               notifications.map((item) => (
-                <div
+                <button
+                  type="button"
                   key={item.id}
                   onClick={() => handleNotificationClick(item)}
-                  className={`px-4 py-3 flex items-start space-x-3 transition cursor-pointer group ${
+                  className={`w-full text-left px-4 py-3 flex items-start space-x-3 transition cursor-pointer group focus:outline-none focus-visible:bg-black/10 dark:focus-visible:bg-white/10 ${
                     !item.isRead
                       ? 'bg-red-500/[0.04] dark:bg-red-500/[0.08] hover:bg-red-500/[0.08] dark:hover:bg-red-500/[0.14]'
                       : 'hover:bg-black/5 dark:hover:bg-white/5'
@@ -184,7 +188,6 @@ export const NotificationBell = memo(function NotificationBell({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         loading="lazy"
                         onError={(e) => {
-                          // Fallback to book icon on image load error
                           (e.target as HTMLElement).style.display = 'none';
                         }}
                       />
@@ -201,7 +204,7 @@ export const NotificationBell = memo(function NotificationBell({
 
                     <div className="flex items-center space-x-2 mt-1">
                       <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                        {formatTimeAgo(item.createdAt)}
+                        {item.createdAt ? formatRelativeTime(item.createdAt) : 'recently'}
                       </span>
                       <span className="text-[10px] text-gray-400 dark:text-gray-600">•</span>
                       <span className="text-[11px] text-red-600 dark:text-red-400 font-medium group-hover:underline flex items-center gap-0.5">
@@ -217,7 +220,7 @@ export const NotificationBell = memo(function NotificationBell({
                       <span className="block w-2.5 h-2.5 rounded-full bg-red-500 shadow-xs ring-2 ring-white dark:ring-[#2c2c2e]" />
                     </div>
                   )}
-                </div>
+                </button>
               ))
             )}
           </div>
@@ -225,6 +228,7 @@ export const NotificationBell = memo(function NotificationBell({
           {/* Footer */}
           <div className="px-4 py-2.5 border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-center">
             <button
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 navigate('/library');

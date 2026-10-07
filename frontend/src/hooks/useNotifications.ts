@@ -26,10 +26,13 @@ export function useNotifications() {
     },
     {
       refreshInterval: 30000, // Poll every 30 seconds
+      refreshWhenHidden: false, // Stop polling when tab is not active to prevent ghost invocations
+      refreshWhenOffline: false,
       revalidateOnFocus: true, // Auto-check when returning to the tab
       revalidateOnReconnect: true,
       dedupingInterval: 5000,
     }
+
   );
 
   const prevUnreadRef = useRef<number | null>(null);

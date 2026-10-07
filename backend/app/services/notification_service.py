@@ -60,13 +60,12 @@ def get_notifications_for_user(
     limit = max(1, min(limit, 50))  # Clamp between 1 and 50
 
     if not user_id:
-        # Guest user - return broadcast notifications with is_read=False
+        # Guest user - return broadcast notifications with is_read=False and unread_count=0
         query = (
             db.query(Notification)
             .filter(Notification.user_id.is_(None))
             .order_by(desc(Notification.created_at))
         )
-        total_recent = query.count()
         notifications = query.limit(limit).all()
 
         results = []
@@ -85,7 +84,8 @@ def get_notifications_for_user(
                 "created_at": n.created_at,
                 "is_read": False,
             })
-        return results, min(total_recent, limit)
+        return results, 0
+
 
     # Authenticated user
     base_filter = or_(
