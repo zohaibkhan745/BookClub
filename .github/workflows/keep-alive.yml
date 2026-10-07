@@ -1,0 +1,24 @@
+name: Keep Backend Warm
+
+on:
+  schedule:
+    # Runs every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  ping:
+    name: Ping Health & Warm Database
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping Health Endpoint
+        run: |
+          echo "Pinging backend health..."
+          curl -f -s -S -m 20 https://book-club-backend.vercel.app/health
+
+      - name: Warm Database Connection
+        run: |
+          echo "Warming up database connection with lightweight query..."
+          curl -f -s -S -m 20 "https://book-club-backend.vercel.app/api/v1/books?limit=1"
