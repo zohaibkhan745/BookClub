@@ -388,6 +388,18 @@ async def create_book(
         db.refresh(book)
         db.refresh(db_user)
 
+        # 5. Broadcast Web Push notification to subscribed iOS & Android devices
+        try:
+            from app.services import push_service
+            push_service.broadcast_book_upload_push(
+                db=db,
+                book=book,
+                uploader_id=user.id,
+                uploader_name=actor_name
+            )
+        except Exception as push_err:
+            logger.warning("Failed to broadcast web push for book %s: %s", book.id, push_err)
+
         return {
             "success": True,
             "data": book_to_response(book, db)

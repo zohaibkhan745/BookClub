@@ -12,7 +12,7 @@ from app.cache import get_cache_stats, cache
 try:
     from app.db.database import engine, Base, is_serverless
     # Import all models to ensure they're registered with Base.metadata
-    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply, Subscriber, Notification, UserNotificationRead
+    from app.models import User, Book, BorrowRecord, ForumThread, ForumReply, Subscriber, Notification, UserNotificationRead, PushSubscription
     
     # Create database tables only for local development - production uses Alembic migrations
     # Running DDL create_all on serverless cold starts causes timeouts and locks against Supabase

@@ -33,3 +33,32 @@ class MarkReadResponse(BaseModel):
     success: bool = True
     message: str
     unread_count: int
+
+
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscribeRequest(BaseModel):
+    endpoint: str
+    keys: PushSubscriptionKeys
+    user_agent: Optional[str] = None
+
+
+class PushUnsubscribeRequest(BaseModel):
+    endpoint: str
+
+
+class VapidPublicKeyData(BaseModel):
+    public_key: str
+
+
+class VapidPublicKeyResponse(BaseModel):
+    success: bool = True
+    data: VapidPublicKeyData
+
+
+class PushStatusResponse(BaseModel):
+    success: bool = True
+    is_subscribed: bool

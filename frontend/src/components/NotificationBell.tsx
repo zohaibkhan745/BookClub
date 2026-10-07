@@ -6,8 +6,12 @@ import {
   CheckCheck,
   Sparkles,
   ExternalLink,
+  Smartphone,
+  BellRing,
+  Check,
 } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAuth } from '../context/AuthContext';
 import { formatRelativeTime } from '../services';
 import type { NotificationItem } from '../types';
@@ -23,6 +27,15 @@ export const NotificationBell = memo(function NotificationBell({
   const { isAuthenticated } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, isLoading } =
     useNotifications();
+  const {
+    isSupported: isPushSupported,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    isIOSBrowser,
+    subscribe: subscribePush,
+  } = usePushNotifications();
+  const [pushStatusMessage, setPushStatusMessage] = useState<string | null>(null);
+  const [isSubscribingPush, setIsSubscribingPush] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +88,20 @@ export const NotificationBell = memo(function NotificationBell({
     e.stopPropagation();
     if (isAuthenticated && unreadCount > 0) {
       await markAllAsRead();
+    }
+  };
+
+  const handleEnablePush = async () => {
+    setIsSubscribingPush(true);
+    setPushStatusMessage(null);
+    try {
+      await subscribePush();
+      setPushStatusMessage('Push notifications enabled for this device!');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to enable';
+      setPushStatusMessage(msg);
+    } finally {
+      setIsSubscribingPush(false);
     }
   };
 
@@ -140,6 +167,43 @@ export const NotificationBell = memo(function NotificationBell({
               </button>
             )}
           </div>
+
+          {/* Push Notification Opt-in / Status Banner */}
+          {!isPushLoading && (
+            <div className="px-3.5 py-2.5 bg-indigo-50/70 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900/40 text-xs flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Smartphone className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                <span className="text-gray-700 dark:text-gray-300 truncate">
+                  {isPushSubscribed
+                    ? 'Phone push alerts are active'
+                    : isIOSBrowser
+                    ? 'Add to Home Screen for iPhone push'
+                    : 'Get phone alerts when books are added'}
+                </span>
+              </div>
+              {!isPushSubscribed && !isIOSBrowser && (
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  disabled={isSubscribingPush}
+                  className="px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition flex-shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  {isSubscribingPush ? 'Enabling...' : 'Enable'}
+                </button>
+              )}
+              {isPushSubscribed && (
+                <span className="flex items-center gap-1 text-[11px] text-green-600 dark:text-green-400 font-medium">
+                  <Check className="w-3.5 h-3.5" />
+                  Active
+                </span>
+              )}
+            </div>
+          )}
+          {pushStatusMessage && (
+            <div className="px-3.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 text-[11px] text-amber-800 dark:text-amber-300 border-b border-amber-200/50 dark:border-amber-900/30">
+              {pushStatusMessage}
+            </div>
+          )}
 
           {/* Notifications Feed */}
           <div className="max-h-[380px] overflow-y-auto divide-y divide-black/5 dark:divide-white/5 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">

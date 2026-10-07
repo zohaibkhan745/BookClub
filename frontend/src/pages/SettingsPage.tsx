@@ -5,7 +5,19 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, LogOut, Trash2, Lock } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  LogOut,
+  Trash2,
+  Lock,
+  BellRing,
+  Smartphone,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+} from "lucide-react";
 import { AppLayout } from "../components/AppLayout";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -17,6 +29,7 @@ import {
   ThemeToggle,
 } from "../components/settings";
 import { useAuth } from "../context/AuthContext";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import { updateUserProfile } from "../services";
 
 export function SettingsPage() {
@@ -32,6 +45,67 @@ export function SettingsPage() {
   } | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  // Push notifications state
+  const {
+    isSupported: isPushSupported,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    isIOS,
+    isIOSBrowser,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+    sendTest: sendTestPush,
+  } = usePushNotifications();
+
+  const [pushActionLoading, setPushActionLoading] = useState(false);
+  const [testPushLoading, setTestPushLoading] = useState(false);
+  const [pushFeedback, setPushFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const handleTogglePush = async () => {
+    setPushActionLoading(true);
+    setPushFeedback(null);
+    try {
+      if (isPushSubscribed) {
+        await unsubscribePush();
+        setPushFeedback({ type: "success", text: "Push notifications disabled." });
+      } else {
+        await subscribePush();
+        setPushFeedback({
+          type: "success",
+          text: "Push notifications enabled! You will now receive alerts when books are uploaded.",
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update notification settings";
+      setPushFeedback({ type: "error", text: msg });
+    } finally {
+      setPushActionLoading(false);
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    setTestPushLoading(true);
+    setPushFeedback(null);
+    try {
+      const res = await sendTestPush();
+      setPushFeedback({
+        type: "success",
+        text:
+          res.sentCount > 0
+            ? "Test notification sent! Check your phone lock screen or notification banner."
+            : "No active device subscription found to send test alert.",
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to send test push";
+      setPushFeedback({ type: "error", text: msg });
+    } finally {
+      setTestPushLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -181,6 +255,103 @@ export function SettingsPage() {
               Coming Soon
             </button>
           </SettingsRow>
+        </SettingsSection>
+
+        {/* Notifications Section */}
+        <SettingsSection
+          title="Push Notifications"
+          description="Receive instant alerts on your iPhone (Home Screen) or Android device when new books are listed"
+        >
+          <SettingsRow
+            label="Book Upload Alerts"
+            description="Get notified immediately when community members add books to the library"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {isPushSubscribed ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Active on this device
+                  </span>
+                  <Button
+                    onClick={handleSendTestPush}
+                    isLoading={testPushLoading}
+                    variant="secondary"
+                    size="sm"
+                    icon={<Send className="w-3.5 h-3.5" />}
+                  >
+                    Send Test Alert
+                  </Button>
+                  <Button
+                    onClick={handleTogglePush}
+                    isLoading={pushActionLoading}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Disable
+                  </Button>
+                </>
+              ) : isIOSBrowser ? (
+                <div className="text-right">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    Home Screen required on iPhone
+                  </span>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleTogglePush}
+                  isLoading={pushActionLoading}
+                  variant="primary"
+                  size="md"
+                  icon={<BellRing className="w-4 h-4" />}
+                >
+                  Enable Push Notifications
+                </Button>
+              )}
+            </div>
+          </SettingsRow>
+
+          {/* iOS Safari Home Screen Helper */}
+          {isIOSBrowser && !isPushSubscribed && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-sm text-amber-900 dark:text-amber-100">
+                <Info className="w-4 h-4 flex-shrink-0" />
+                <span>How to enable notifications on iPhone:</span>
+              </div>
+              <p className="leading-relaxed">
+                Apple requires web apps to be added to your Home Screen to deliver native lock screen notifications (iOS 16.4+):
+              </p>
+              <ol className="list-decimal list-inside space-y-1 pl-1">
+                <li>Tap the <strong>Share</strong> button at the bottom of Safari (square with an up arrow).</li>
+                <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
+                <li>Tap <strong>"Add"</strong> in the top right.</li>
+                <li>Open the <strong>Book Club</strong> app from your Home Screen and return here to enable notifications.</li>
+              </ol>
+            </div>
+          )}
+
+          {/* Android Helper Note */}
+          {!isIOS && !isPushSubscribed && (
+            <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2.5">
+              <Smartphone className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+              <span>
+                On Android, you can also tap browser menu (⋮) &gt; <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong> for full-screen native experience.
+              </span>
+            </div>
+          )}
+
+          {pushFeedback && (
+            <div
+              className={`px-3 py-2 rounded-xl text-sm ${
+                pushFeedback.type === "success"
+                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                  : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+              }`}
+            >
+              {pushFeedback.text}
+            </div>
+          )}
         </SettingsSection>
 
         {/* Preferences Section */}

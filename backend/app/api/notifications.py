@@ -7,9 +7,17 @@ from typing import Optional
 
 from app.db.database import get_db
 from app.auth.dependencies import get_current_user, get_optional_user, AuthUser
+from app.config import get_settings
 from app.models.notification import Notification
-from app.services import notification_service
-from app.schemas.notification import NotificationListResponse, MarkReadResponse
+from app.services import notification_service, push_service
+from app.schemas.notification import (
+    NotificationListResponse,
+    MarkReadResponse,
+    PushSubscribeRequest,
+    PushUnsubscribeRequest,
+    VapidPublicKeyResponse,
+    PushStatusResponse,
+)
 
 router = APIRouter(
     prefix="/api/v1/notifications",
@@ -101,4 +109,98 @@ def mark_all_notifications_as_read(
         "success": True,
         "message": "All notifications marked as read",
         "unread_count": unread_count
+    }
+
+
+# ============================================================================
+# Web Push Endpoints (iOS Home Screen PWA & Android)
+# ============================================================================
+
+@router.get("/push/public-key", response_model=VapidPublicKeyResponse)
+def get_vapid_public_key():
+    """
+    Retrieve application server VAPID public key.
+    Required by client browser/service worker to subscribe to Web Push.
+    """
+    settings = get_settings()
+    return {
+        "success": True,
+        "data": {
+            "public_key": settings.vapid_public_key
+        }
+    }
+
+
+@router.post("/push/subscribe")
+def subscribe_to_push(
+    body: PushSubscribeRequest,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_optional_user)
+):
+    """
+    Register device push subscription endpoint and crypto keys.
+    Associates with user account if logged in.
+    """
+    user_id = user.id if user else None
+    push_service.save_subscription(
+        db=db,
+        endpoint=body.endpoint,
+        p256dh=body.keys.p256dh,
+        auth=body.keys.auth,
+        user_id=user_id,
+        user_agent=body.user_agent
+    )
+    return {
+        "success": True,
+        "message": "Push notifications enabled successfully"
+    }
+
+
+@router.post("/push/unsubscribe")
+def unsubscribe_from_push(
+    body: PushUnsubscribeRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Unregister device push subscription.
+    """
+    removed = push_service.remove_subscription(db=db, endpoint=body.endpoint)
+    return {
+        "success": True,
+        "message": "Push notifications disabled" if removed else "Subscription not found"
+    }
+
+
+@router.get("/push/status", response_model=PushStatusResponse)
+def get_push_status(
+    endpoint: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_optional_user)
+):
+    """
+    Check if current device or user is subscribed to push notifications.
+    """
+    user_id = user.id if user else None
+    is_sub = push_service.is_user_subscribed(db=db, user_id=user_id, endpoint=endpoint)
+    return {
+        "success": True,
+        "is_subscribed": is_sub
+    }
+
+
+@router.post("/push/test")
+def send_test_push_notification(
+    endpoint: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_optional_user)
+):
+    """
+    Send an immediate test push notification to verify iOS/Android lockscreen alerts.
+    """
+    user_id = user.id if user else None
+    sent_count = push_service.send_test_push(db=db, user_id=user_id, endpoint=endpoint)
+    return {
+        "success": True,
+        "sent_count": sent_count,
+        "message": f"Sent test push notification to {sent_count} device(s)." if sent_count > 0 else "No active device subscriptions found to test."
     }
