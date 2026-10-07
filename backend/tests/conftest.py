@@ -7,6 +7,8 @@ import os
 
 # Set testing environment variable
 os.environ["ENV"] = "testing"
+os.environ.setdefault("VAPID_PUBLIC_KEY", "test_vapid_public_key_mock_1234567890")
+os.environ.setdefault("VAPID_PRIVATE_KEY", "test_vapid_private_key_mock_1234567890")
 
 from app.main import app
 from app.db.database import Base, get_db

@@ -26,9 +26,9 @@ class Settings(BaseSettings):
     # Admin security key for sensitive/maintenance tasks
     admin_secret_key: str = ""
     
-    # Web Push (VAPID) settings for iOS and Android notifications
-    vapid_public_key: str = "BHJiRNf7Fl5mjqSiQrQjYoMT2Pwg_kwHeA_qCO2vn-93-FzYtQfA_sz3Cue1KCLApf8BXZ-E0cqwqYK6ci0MEc0"
-    vapid_private_key: str = "fK0MMC4pjzsvNwkG7L4x76kD4mflDoZPRSqAGhN9-Kw"
+    # Web Push (VAPID) settings for iOS and Android notifications (loaded from env)
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
     vapid_claims_sub: str = "mailto:admin@bookclub.giki.edu.pk"
     
     model_config = SettingsConfigDict(
