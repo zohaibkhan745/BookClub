@@ -6,13 +6,13 @@ Key Design:
 - BorrowRecord table tracks all borrows
 - A book is "borrowed" if returned_at IS NULL
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
 
 import logging
-from app.db.database import get_db
+from app.db.database import get_db, SessionLocal
 from app.services import book_service, borrow_service, user_service, notification_service, push_service
 from app.schemas import (
     BorrowBookRequest,
@@ -59,9 +59,46 @@ def borrow_record_to_response(record, include_book: bool = False) -> dict:
     return response
 
 
+def _send_borrow_request_push_bg(book_id: int, borrower_name: str, owner_id: str):
+    """Background task to dispatch web push without delaying client HTTP response."""
+    db_bg = SessionLocal()
+    try:
+        book = book_service.get_book_by_id(db_bg, book_id)
+        if book:
+            push_service.send_borrow_request_push(
+                db=db_bg,
+                book=book,
+                borrower_name=borrower_name,
+                owner_id=owner_id,
+            )
+    except Exception as push_err:
+        logger.error("Failed to dispatch web push borrow request in bg: %s", push_err)
+    finally:
+        db_bg.close()
+
+
+def _send_borrow_approved_push_bg(book_id: int, owner_name: str, borrower_id: str):
+    """Background task to dispatch web push without delaying client HTTP response."""
+    db_bg = SessionLocal()
+    try:
+        book = book_service.get_book_by_id(db_bg, book_id)
+        if book:
+            push_service.send_borrow_approved_push(
+                db=db_bg,
+                book=book,
+                owner_name=owner_name,
+                borrower_id=borrower_id,
+            )
+    except Exception as push_err:
+        logger.error("Failed to dispatch web push approval notification in bg: %s", push_err)
+    finally:
+        db_bg.close()
+
+
 @router.post("/request")
 async def request_to_borrow(
     request: BorrowBookRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user)
 ):
@@ -102,10 +139,10 @@ async def request_to_borrow(
         book = book_service.get_book_by_id(db, request.book_id)
         whatsapp_number = book.whatsapp_number if book else None
         
-        # Dispatch in-app notification & web push to the book owner
+        # Dispatch in-app notification immediately & offload web push to background
         if book and book.user_id:
+            borrower_name = user.full_name or (db_user.full_name if db_user else None) or "A member"
             try:
-                borrower_name = user.full_name or (db_user.full_name if db_user else None) or "A member"
                 notification_service.create_borrow_request_notification(
                     db=db,
                     book=book,
@@ -118,16 +155,12 @@ async def request_to_borrow(
                 logger.error("Failed to create in-app borrow request notification: %s", notif_err)
                 db.rollback()
 
-            try:
-                borrower_name = user.full_name or (db_user.full_name if db_user else None) or "A member"
-                push_service.send_borrow_request_push(
-                    db=db,
-                    book=book,
-                    borrower_name=borrower_name,
-                    owner_id=book.user_id,
-                )
-            except Exception as push_err:
-                logger.error("Failed to dispatch web push borrow request: %s", push_err)
+            background_tasks.add_task(
+                _send_borrow_request_push_bg,
+                book_id=book.id,
+                borrower_name=borrower_name,
+                owner_id=book.user_id,
+            )
 
         response_data = borrow_record_to_response(borrow_record)
         response_data["whatsappNumber"] = whatsapp_number
@@ -209,6 +242,7 @@ async def get_book_requests(
 @router.post("/approve/{request_id}")
 async def approve_request(
     request_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user)
 ):
@@ -225,11 +259,11 @@ async def approve_request(
             owner_id=user.id
         )
 
-        # Dispatch in-app notification & web push to the borrower
+        # Dispatch in-app notification immediately & web push in background
         book = book_service.get_book_by_id(db, borrow_record.book_id) if borrow_record else None
         if book and borrow_record and borrow_record.borrower_id:
+            owner_name = user.full_name or "The book owner"
             try:
-                owner_name = user.full_name or "The book owner"
                 notification_service.create_borrow_approved_notification(
                     db=db,
                     book=book,
@@ -242,16 +276,12 @@ async def approve_request(
                 logger.error("Failed to create in-app approval notification: %s", notif_err)
                 db.rollback()
 
-            try:
-                owner_name = user.full_name or "The book owner"
-                push_service.send_borrow_approved_push(
-                    db=db,
-                    book=book,
-                    owner_name=owner_name,
-                    borrower_id=borrow_record.borrower_id,
-                )
-            except Exception as push_err:
-                logger.error("Failed to dispatch web push approval notification: %s", push_err)
+            background_tasks.add_task(
+                _send_borrow_approved_push_bg,
+                book_id=book.id,
+                owner_name=owner_name,
+                borrower_id=borrow_record.borrower_id,
+            )
         
         return {
             "success": True,

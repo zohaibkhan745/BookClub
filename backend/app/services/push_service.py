@@ -105,7 +105,8 @@ def send_single_push(
             data=json.dumps(payload),
             vapid_private_key=vapid_private_key,
             vapid_claims=vapid_claims,
-            ttl=86400  # 24 hours time to live
+            ttl=86400,  # 24 hours time to live
+            timeout=5  # Fast 5-second network timeout to prevent request blocking
         )
         return True, False
     except pywebpush.WebPushException as e:

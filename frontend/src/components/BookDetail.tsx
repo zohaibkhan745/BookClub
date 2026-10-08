@@ -81,6 +81,7 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [borrowRequests, setBorrowRequests] = useState<BorrowRecord[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [approvingRequestId, setApprovingRequestId] = useState<string | null>(
     null,
   );
@@ -231,6 +232,7 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
   const handleViewRequests = async () => {
     setShowRequestsModal(true);
     setIsLoadingRequests(true);
+    setModalError(null);
     setError(null);
 
     try {
@@ -239,7 +241,9 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
     } catch (err) {
       console.error("Failed to fetch borrow requests:", err);
       const apiError = err as ApiError;
-      setError(apiError.message || "Failed to load borrow requests");
+      const message = apiError.message || "Failed to load borrow requests";
+      setModalError(message);
+      setError(message);
     } finally {
       setIsLoadingRequests(false);
     }
@@ -248,6 +252,7 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
   // Approve a borrow request
   const handleApproveRequest = async (requestId: string) => {
     setApprovingRequestId(requestId);
+    setModalError(null);
     setError(null);
 
     try {
@@ -258,6 +263,7 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
 
       // Close modal and update status
       setShowRequestsModal(false);
+      setModalError(null);
       setBorrowStatus(borrowRecord);
 
       // Notify parent of update
@@ -270,7 +276,9 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
       }
     } catch (err) {
       const apiError = err as ApiError;
-      setError(apiError.message || "Failed to approve request");
+      const message = apiError.message || "Failed to approve request";
+      setModalError(message);
+      setError(message);
     } finally {
       setApprovingRequestId(null);
     }
@@ -279,6 +287,7 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
   // Decline a borrow request
   const handleDeclineRequest = async (requestId: string) => {
     setDecliningRequestId(requestId);
+    setModalError(null);
     setError(null);
 
     try {
@@ -288,7 +297,9 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
       setBorrowRequests((prev) => prev.filter((r) => r.id !== requestId));
     } catch (err) {
       const apiError = err as ApiError;
-      setError(apiError.message || "Failed to decline request");
+      const message = apiError.message || "Failed to decline request";
+      setModalError(message);
+      setError(message);
     } finally {
       setDecliningRequestId(null);
     }
@@ -685,7 +696,7 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
             </button>
 
             {/* Modal Header */}
-            <div className="mb-6">
+            <div className="mb-4">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1.5">
                 Mark as Borrowed
               </h2>
@@ -693,6 +704,16 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
                 Approve a request to mark "{book.title}" as borrowed
               </p>
             </div>
+
+            {/* Modal Error Message */}
+            {modalError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-red-700 dark:text-red-400 text-xs font-medium">
+                  {modalError}
+                </p>
+              </div>
+            )}
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto">

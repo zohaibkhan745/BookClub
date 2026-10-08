@@ -84,3 +84,56 @@ def test_borrow_book_already_requested(client, db_session, mock_user_auth):
     
     assert response.status_code == 400
     assert "already have a pending" in response.json()["detail"]["message"].lower()
+
+
+def test_approve_borrow_request_success(client, db_session, mock_user_auth):
+    # Clear tables
+    db_session.query(Book).delete()
+    db_session.query(User).delete()
+    db_session.query(BorrowRecord).delete()
+    db_session.commit()
+
+    owner_id = mock_user_auth["id"]
+    borrower_id = "borrower_user_id"
+
+    owner = User(
+        id=owner_id,
+        username="owneruser",
+        email=mock_user_auth["email"],
+        full_name=mock_user_auth["full_name"],
+        credits=5
+    )
+    borrower = User(
+        id=borrower_id,
+        username="borroweruser",
+        email="borrower@example.com",
+        full_name="Borrower User",
+        credits=5
+    )
+    book = Book(
+        id=2,
+        title="Approve Test Book",
+        author="Author",
+        category="Fiction",
+        user_id=owner_id,
+        is_available=True
+    )
+    borrow_rec = BorrowRecord(
+        id="rec_approve_1",
+        book_id=2,
+        borrower_id=borrower_id,
+        status="requested"
+    )
+
+    db_session.add_all([owner, borrower, book, borrow_rec])
+    db_session.commit()
+
+    # Owner approves the request
+    response = client.post("/api/v1/borrow/approve/rec_approve_1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["status"] == "borrowed"
+
+    db_session.refresh(book)
+    assert book.is_available is False

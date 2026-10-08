@@ -435,7 +435,7 @@ def approve_borrow_request(
     # Get the borrow request and lock it for update
     borrow_record = db.query(BorrowRecord).filter(
         BorrowRecord.id == request_id
-    ).with_for_update().options(joinedload(BorrowRecord.book), joinedload(BorrowRecord.borrower)).first()
+    ).with_for_update().first()
     
     if not borrow_record:
         raise ValueError("Borrow request not found")
@@ -443,12 +443,12 @@ def approve_borrow_request(
     if borrow_record.status != BorrowStatus.requested.value:
         raise ValueError("This request is no longer pending")
     
-    # Verify owner authorization
-    book = borrow_record.book
+    # Verify owner authorization & lock book row
+    book = db.query(Book).filter(Book.id == borrow_record.book_id).with_for_update().first()
     if not book:
         raise ValueError("Book not found")
     
-    if book.user_id != owner_id:
+    if str(book.user_id).strip().lower() != str(owner_id).strip().lower():
         raise ValueError("Only the book owner can approve requests")
     
     # Update the approved request
@@ -499,7 +499,7 @@ def cancel_borrow_request(
     """
     borrow_record = db.query(BorrowRecord).filter(
         BorrowRecord.id == request_id
-    ).with_for_update().options(joinedload(BorrowRecord.book)).first()
+    ).with_for_update().first()
     
     if not borrow_record:
         raise ValueError("Borrow request not found")
@@ -508,8 +508,8 @@ def cancel_borrow_request(
         raise ValueError("Only pending requests can be cancelled")
     
     # Check authorization - either requester or book owner
-    is_requester = borrow_record.borrower_id == user_id
-    is_owner = borrow_record.book and borrow_record.book.user_id == user_id
+    is_requester = str(borrow_record.borrower_id).strip().lower() == str(user_id).strip().lower()
+    is_owner = bool(borrow_record.book and str(borrow_record.book.user_id).strip().lower() == str(user_id).strip().lower())
     
     if not is_requester and not is_owner:
         raise ValueError("Not authorized to cancel this request")
@@ -518,6 +518,8 @@ def cancel_borrow_request(
     
     db.commit()
     db.refresh(borrow_record)
+    if borrow_record.book_id:
+        invalidate_borrow_cache(borrow_record.book_id)
     
     return borrow_record
 
