@@ -251,3 +251,111 @@ def send_test_push(
             db.rollback()
 
     return success_count
+
+
+def send_targeted_push(
+    db: Session,
+    target_user_id: str,
+    title: str,
+    body: str,
+    url: str,
+    book: Optional[Book] = None,
+    tag: Optional[str] = None
+) -> int:
+    """
+    Send push notification to all devices registered to a specific user.
+    """
+    if not target_user_id:
+        return 0
+
+    settings = get_settings()
+    if not settings.vapid_private_key:
+        logger.warning("VAPID_PRIVATE_KEY not configured; skipping targeted push dispatch.")
+        return 0
+
+    subscriptions = db.query(PushSubscription).filter(
+        PushSubscription.user_id == target_user_id
+    ).all()
+
+    if not subscriptions:
+        return 0
+
+    payload = {
+        "title": title,
+        "body": body,
+        "icon": "/icon-192.png",
+        "badge": "/icon-192.png",
+        "image": (book.cover_image_thumb_url or book.cover_image) if book else None,
+        "tag": tag or f"notif-{target_user_id}",
+        "url": url,
+        "book_id": book.id if book else None,
+        "book_slug": book.slug if book else None,
+    }
+
+    vapid_claims = {"sub": settings.vapid_claims_sub}
+    success_count = 0
+    expired_ids = []
+
+    for sub in subscriptions:
+        success, is_expired = send_single_push(
+            sub=sub,
+            payload=payload,
+            vapid_private_key=settings.vapid_private_key,
+            vapid_claims=vapid_claims
+        )
+        if success:
+            success_count += 1
+        elif is_expired:
+            expired_ids.append(sub.id)
+
+    if expired_ids:
+        try:
+            db.query(PushSubscription).filter(PushSubscription.id.in_(expired_ids)).delete(synchronize_session=False)
+            db.commit()
+        except Exception as e:
+            logger.warning("Failed to clean up expired push subscriptions: %s", e)
+            db.rollback()
+
+    return success_count
+
+
+def send_borrow_request_push(
+    db: Session,
+    book: Book,
+    borrower_name: str,
+    owner_id: str
+) -> int:
+    """
+    Send push notification to the book owner when someone requests their book.
+    """
+    display_name = borrower_name or "A member"
+    return send_targeted_push(
+        db=db,
+        target_user_id=owner_id,
+        title="New Borrow Request",
+        body=f"{display_name} requested to borrow '{book.title}'.",
+        url=f"/book/{book.slug or book.id}",
+        book=book,
+        tag=f"borrow-request-{book.id}"
+    )
+
+
+def send_borrow_approved_push(
+    db: Session,
+    book: Book,
+    owner_name: str,
+    borrower_id: str
+) -> int:
+    """
+    Send push notification to the borrower when their borrow request is approved.
+    """
+    display_name = owner_name or "The owner"
+    return send_targeted_push(
+        db=db,
+        target_user_id=borrower_id,
+        title="Borrow Request Approved",
+        body=f"{display_name} approved your request to borrow '{book.title}'!",
+        url=f"/book/{book.slug or book.id}",
+        book=book,
+        tag=f"borrow-approved-{book.id}"
+    )

@@ -99,12 +99,14 @@ export function useBookSections() {
  * Uses SWRImmutable for data that rarely changes (book details).
  */
 export function useBook(bookId: string | number | undefined, fallbackBook?: Book) {
-  const { data, error, isLoading, mutate } = useSWRImmutable<BookDetailResponse>(
+  const { data, error, isLoading, mutate } = useSWR<BookDetailResponse>(
     bookId ? `/books/${bookId}` : null,
     fetcher,
     {
       ...swrConfig,
       fallbackData: fallbackBook ? { success: true, data: fallbackBook } : undefined,
+      revalidateOnMount: true,
+      revalidateIfStale: true,
     }
   );
 

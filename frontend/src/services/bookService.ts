@@ -88,6 +88,13 @@ function mapBookPreview(book: {
   condition?: string;
   price?: string;
   year?: string;
+  ownerId?: string;
+  owner_id?: string;
+  uploadedByUserId?: string;
+  uploaded_by_user_id?: string;
+  listedBy?: string;
+  listed_by?: string;
+  user_id?: string;
   is_available?: boolean;
   is_borrowed?: boolean;
   isAvailable?: boolean;
@@ -99,6 +106,7 @@ function mapBookPreview(book: {
     (book.is_available !== false && !book.is_borrowed && !book.isBorrowed);
   const isBorrowed =
     book.isBorrowed ?? book.is_borrowed ?? (book.isAvailable !== undefined ? !book.isAvailable : false);
+  const ownerId = book.ownerId || book.owner_id || book.uploadedByUserId || book.uploaded_by_user_id || book.user_id;
   return {
     id: String(book.id),
     slug: book.slug,
@@ -111,6 +119,9 @@ function mapBookPreview(book: {
     condition: book.condition || "good",
     price: book.price ?? "",
     year: book.year ?? "",
+    ownerId: ownerId ? String(ownerId) : undefined,
+    uploadedByUserId: ownerId ? String(ownerId) : undefined,
+    listedBy: book.listedBy || book.listed_by,
     isAvailable,
     isBorrowed,
     pendingRequestCount: book.pendingRequestCount,

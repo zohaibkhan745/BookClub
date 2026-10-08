@@ -47,6 +47,60 @@ def create_book_upload_notification(
     return notification
 
 
+def create_borrow_request_notification(
+    db: Session,
+    book: Book,
+    borrower_id: str,
+    borrower_name: str,
+    owner_id: str
+) -> Notification:
+    """
+    Create a targeted notification for the book owner when someone requests to borrow their book.
+    """
+    display_name = borrower_name or "A member"
+    notification = Notification(
+        user_id=owner_id,  # Targeted to the book owner
+        actor_id=borrower_id,
+        actor_name=display_name,
+        type="BORROW_REQUEST",
+        title="New Borrow Request",
+        message=f"{display_name} requested to borrow '{book.title}'.",
+        book_id=book.id,
+        book_slug=book.slug,
+        book_cover=book.cover_image_thumb_url or book.cover_image,
+    )
+    db.add(notification)
+    db.flush()
+    return notification
+
+
+def create_borrow_approved_notification(
+    db: Session,
+    book: Book,
+    borrower_id: str,
+    owner_id: str,
+    owner_name: str
+) -> Notification:
+    """
+    Create a targeted notification for the borrower when their borrow request is approved.
+    """
+    display_name = owner_name or "The owner"
+    notification = Notification(
+        user_id=borrower_id,  # Targeted to the borrower
+        actor_id=owner_id,
+        actor_name=display_name,
+        type="BORROW_APPROVED",
+        title="Borrow Request Approved",
+        message=f"{display_name} approved your request to borrow '{book.title}'!",
+        book_id=book.id,
+        book_slug=book.slug,
+        book_cover=book.cover_image_thumb_url or book.cover_image,
+    )
+    db.add(notification)
+    db.flush()
+    return notification
+
+
 def get_notifications_for_user(
     db: Session,
     user_id: Optional[str] = None,

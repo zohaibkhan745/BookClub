@@ -44,6 +44,9 @@ export interface BookPreview {
   condition?: string;
   price?: string;
   year?: string;
+  ownerId?: string;
+  uploadedByUserId?: string;
+  listedBy?: string;
   isAvailable?: boolean;  // Whether book is available for borrowing
   isBorrowed?: boolean;   // Whether book is currently borrowed
   pendingRequestCount?: number;  // Number of pending borrow requests (for owners)

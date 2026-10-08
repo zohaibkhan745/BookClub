@@ -64,6 +64,10 @@ export function BookDetailPage() {
       condition: preview.condition || (preview as Partial<Book>).condition || "good",
       price: preview.price ?? (preview as Partial<Book>).price,
       whatsappNumber: (preview as Partial<Book>).whatsappNumber,
+      ownerId: preview.ownerId || (preview as Partial<Book>).ownerId,
+      uploadedByUserId: preview.uploadedByUserId || preview.ownerId || (preview as Partial<Book>).uploadedByUserId,
+      listedBy: preview.listedBy || (preview as Partial<Book>).listedBy,
+      pendingRequestCount: preview.pendingRequestCount,
       readingJourney: (preview as Partial<Book>).readingJourney || [],
       borrowStatus: (preview as Partial<Book>).borrowStatus,
     };

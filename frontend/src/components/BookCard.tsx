@@ -31,7 +31,7 @@ export const BookCard = memo(function BookCard({
   const isBorrowed =
     showBorrowedBadge && (book.isBorrowed === true || book.isAvailable === false);
   const hasPendingRequests =
-    showPendingBadge &&
+    (showPendingBadge || (book.pendingRequestCount !== undefined && book.pendingRequestCount > 0)) &&
     book.pendingRequestCount !== undefined &&
     book.pendingRequestCount > 0;
 

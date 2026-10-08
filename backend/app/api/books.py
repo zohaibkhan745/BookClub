@@ -72,6 +72,9 @@ def book_to_preview(book, is_borrowed: bool = None) -> dict:
         "condition": book.condition or "good",
         "price": book.price or "",
         "year": book.created_at.strftime("%Y") if book.created_at else "",
+        "ownerId": book.owner_id,
+        "uploadedByUserId": book.owner_id,
+        "listedBy": book.owner_full_name,
     }
     if is_borrowed is not None:
         preview["isBorrowed"] = is_borrowed

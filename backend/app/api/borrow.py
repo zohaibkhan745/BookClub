@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
 
+import logging
 from app.db.database import get_db
-from app.services import book_service, borrow_service, user_service
+from app.services import book_service, borrow_service, user_service, notification_service, push_service
 from app.schemas import (
     BorrowBookRequest,
     OwnerBorrowRequest,
@@ -20,6 +21,8 @@ from app.schemas import (
     BorrowRecordResponse,
 )
 from app.auth import get_current_user, AuthUser
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/borrow", tags=["borrow"])
 
@@ -99,6 +102,33 @@ async def request_to_borrow(
         book = book_service.get_book_by_id(db, request.book_id)
         whatsapp_number = book.whatsapp_number if book else None
         
+        # Dispatch in-app notification & web push to the book owner
+        if book and book.user_id:
+            try:
+                borrower_name = user.full_name or (db_user.full_name if db_user else None) or "A member"
+                notification_service.create_borrow_request_notification(
+                    db=db,
+                    book=book,
+                    borrower_id=user.id,
+                    borrower_name=borrower_name,
+                    owner_id=book.user_id,
+                )
+                db.commit()
+            except Exception as notif_err:
+                logger.error("Failed to create in-app borrow request notification: %s", notif_err)
+                db.rollback()
+
+            try:
+                borrower_name = user.full_name or (db_user.full_name if db_user else None) or "A member"
+                push_service.send_borrow_request_push(
+                    db=db,
+                    book=book,
+                    borrower_name=borrower_name,
+                    owner_id=book.user_id,
+                )
+            except Exception as push_err:
+                logger.error("Failed to dispatch web push borrow request: %s", push_err)
+
         response_data = borrow_record_to_response(borrow_record)
         response_data["whatsappNumber"] = whatsapp_number
         
@@ -194,6 +224,34 @@ async def approve_request(
             request_id=request_id,
             owner_id=user.id
         )
+
+        # Dispatch in-app notification & web push to the borrower
+        book = book_service.get_book_by_id(db, borrow_record.book_id) if borrow_record else None
+        if book and borrow_record and borrow_record.borrower_id:
+            try:
+                owner_name = user.full_name or "The book owner"
+                notification_service.create_borrow_approved_notification(
+                    db=db,
+                    book=book,
+                    borrower_id=borrow_record.borrower_id,
+                    owner_id=user.id,
+                    owner_name=owner_name,
+                )
+                db.commit()
+            except Exception as notif_err:
+                logger.error("Failed to create in-app approval notification: %s", notif_err)
+                db.rollback()
+
+            try:
+                owner_name = user.full_name or "The book owner"
+                push_service.send_borrow_approved_push(
+                    db=db,
+                    book=book,
+                    owner_name=owner_name,
+                    borrower_id=borrow_record.borrower_id,
+                )
+            except Exception as push_err:
+                logger.error("Failed to dispatch web push approval notification: %s", push_err)
         
         return {
             "success": True,

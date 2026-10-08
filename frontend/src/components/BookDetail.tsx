@@ -24,6 +24,7 @@ import {
   getBookBorrowRequests,
   approveBorrowRequest,
   cancelBorrowRequest,
+  markBookAsBorrowed,
 } from "../services";
 import { OptimizedImage } from "./ui/OptimizedImage";
 import { BookJourneyTimeline } from "./BookJourneyTimeline";
@@ -98,13 +99,36 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Manual mark as borrowed state
+  const [manualBorrowerUsername, setManualBorrowerUsername] = useState("");
+  const [isManualSubmitting, setIsManualSubmitting] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+
   // Determine if the current user is the uploader of this book
   // This check is used for conditional UI rendering only - backend enforces authorization
-  const isUploader = isAuthenticated && user?.id === book.uploadedByUserId;
+  const currentUserId = user?.id ? String(user.id).trim().toLowerCase() : "";
+  const bookOwnerId = (book.uploadedByUserId || book.ownerId)
+    ? String(book.uploadedByUserId || book.ownerId).trim().toLowerCase()
+    : "";
+  const isUploader = Boolean(
+    isAuthenticated &&
+    currentUserId &&
+    bookOwnerId &&
+    currentUserId === bookOwnerId
+  );
 
   // Alias for clarity: the owner can delete their own book
   // IMPORTANT: This is for UI visibility only - backend enforces the actual authorization
   const isOwner = isUploader;
+
+  // Prefetch pending requests for owner so badge and count are immediate
+  useEffect(() => {
+    if (isUploader && book.id) {
+      getBookBorrowRequests(String(book.id))
+        .then((reqs) => setBorrowRequests(reqs))
+        .catch((err) => console.error("Failed to load borrow requests:", err));
+    }
+  }, [isUploader, book.id]);
 
   // Derive borrow state from borrowStatus
   const isBorrowed =
@@ -158,6 +182,12 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
     // Check if user is authenticated
     if (!isAuthenticated) {
       navigate("/login", { state: { from: location.pathname } });
+      return;
+    }
+
+    // Safety guard: if owner clicks borrow, switch to viewing/approving requests
+    if (isUploader || (currentUserId && bookOwnerId && currentUserId === bookOwnerId)) {
+      handleViewRequests();
       return;
     }
 
@@ -261,6 +291,32 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
       setError(apiError.message || "Failed to decline request");
     } finally {
       setDecliningRequestId(null);
+    }
+  };
+
+  // Manual mark as borrowed directly by username
+  const handleManualMarkBorrowed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualBorrowerUsername.trim()) return;
+    setIsManualSubmitting(true);
+    setManualError(null);
+    try {
+      const record = await markBookAsBorrowed(book.id, manualBorrowerUsername.trim());
+      setShowRequestsModal(false);
+      setBorrowStatus(record);
+      setManualBorrowerUsername("");
+      if (onBookUpdate) {
+        onBookUpdate({
+          ...book,
+          isBorrowed: true,
+          borrowedByName: record.borrowerFullName || manualBorrowerUsername.trim(),
+        });
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      setManualError(apiError.message || "Failed to mark book as borrowed");
+    } finally {
+      setIsManualSubmitting(false);
     }
   };
 
@@ -479,6 +535,32 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
               </div>
             )}
 
+            {/* Owner Pending Requests Banner */}
+            {isUploader && !isBorrowed && borrowRequests.length > 0 && (
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700/60 rounded-xl flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                      {borrowRequests.length} Pending Borrow {borrowRequests.length === 1 ? "Request" : "Requests"}
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 truncate">
+                      Click Mark as Borrowed to review and approve
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleViewRequests}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition shrink-0 cursor-pointer shadow-xs"
+                >
+                  Review
+                </button>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               {/* Main action button - changes based on borrow status and ownership */}
@@ -507,10 +589,15 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
                   variant="secondary"
                   size="lg"
                   onClick={handleViewRequests}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold shadow-lg hover:shadow-xl"
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                 >
-                  <UserCheck className="w-5 h-5 mr-2" />
-                  Mark as Borrowed
+                  <UserCheck className="w-5 h-5" />
+                  <span>Mark as Borrowed</span>
+                  {borrowRequests.length > 0 && (
+                    <span className="ml-1.5 px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full shadow-xs animate-pulse">
+                      {borrowRequests.length} {borrowRequests.length === 1 ? "Request" : "Requests"}
+                    </span>
+                  )}
                 </Button>
               ) : (
                 // Book is available - show borrow/buy button (sends request + opens WhatsApp)
@@ -706,11 +793,39 @@ export function BookDetail({ book, isInitialPlaceholder = false, onBookUpdate }:
               )}
             </div>
 
+            {/* Direct manual borrow section */}
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <form onSubmit={handleManualMarkBorrowed} className="space-y-2">
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Lent to someone directly?
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualBorrowerUsername}
+                    onChange={(e) => setManualBorrowerUsername(e.target.value)}
+                    placeholder="Enter borrower username"
+                    className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1c1c1e] text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isManualSubmitting || !manualBorrowerUsername.trim()}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {isManualSubmitting ? "Marking..." : "Mark Borrowed"}
+                  </button>
+                </div>
+                {manualError && (
+                  <p className="text-xs text-red-500 mt-1">{manualError}</p>
+                )}
+              </form>
+            </div>
+
             {/* Close button at bottom */}
-            <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => setShowRequestsModal(false)}
-                className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer text-sm"
               >
                 Close
               </button>
